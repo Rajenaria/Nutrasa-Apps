@@ -2,7 +2,7 @@
 
 **Versi:** v1.5 (draft developer review)  
 **Platform:** React Native + Expo + Expo Router + TypeScript  
-**Lokasi repository:** `docs/01-design/navigation-spec.md`  
+**Lokasi repository:** [docs/01-design/navigation-spec.md](navigation-spec.md)\
 **Status:** DRAFT — keputusan yang belum disetujui ditandai `[PROPOSED]`; belum instruksi untuk langsung membangun semua screen.
 
 ## 1. Tujuan dan batasan
@@ -318,15 +318,15 @@ Jangan menaruh token login, data tubuh, nutrisi pribadi, atau nilai target lengk
 
 | Dokumen | Hubungan utama |
 |---|---|
-| `onboarding-spec.md` | urutan pertanyaan, eligibility, onboarding completion |
-| `auth-spec.md` | providers, session, unverified permissions, reset links |
-| `nutrition-engine-spec.md` | target READY/NEEDS_REVIEW/UNSUPPORTED, target version |
-| `food-database-spec.md` | public/private food IDs, source status, portion system |
-| `food-logging-spec.md` | food selection context, save/copy/edit/delete |
-| `dashboard-spec.md` | date selection, diary context, daily summary |
-| `progress-spec.md` | period filters, weight tracking, completeness |
-| `profile-spec.md` | editable body and goals, deletion, privacy |
-| `offline-sync-spec.md` | local pending and conflict presentation |
+| [onboarding-spec.md](onboarding-spec.md) | urutan pertanyaan, eligibility, onboarding completion |
+| [auth-spec.md](../03-features/auth-spec.md) | providers, session, unverified permissions, reset links |
+| [nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md) | target READY/NEEDS_REVIEW/UNSUPPORTED, target version |
+| [food-database-spec.md](../02-architecture/food-database-spec.md) | public/private food IDs, source status, portion system |
+| [food-logging-spec.md](../03-features/food-logging-spec.md) | food selection context, save/copy/edit/delete |
+| [dashboard-spec.md](../03-features/dashboard-spec.md) | date selection, diary context, daily summary |
+| [progress-spec.md](../03-features/progress-spec.md) | period filters, weight tracking, completeness |
+| [profile-spec.md](../03-features/profile-spec.md) | editable body and goals, deletion, privacy |
+| [offline-sync-spec.md](../02-architecture/offline-sync-spec.md) | local pending and conflict presentation |
 
 ## 11. Test matrix (navigation acceptance tests)
 

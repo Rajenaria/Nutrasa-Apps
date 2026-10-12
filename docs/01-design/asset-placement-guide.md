@@ -1,13 +1,13 @@
 # NUTRASA — Asset Placement Guide
 
-This ZIP contains a **proposed file arrangement**, not an Expo application. Extract into the project root `nutrasa/`, merging only the included `assets/` and `docs/` folders. Preserve existing `README.md`, `AGENTS.md` and app configuration.
+This ZIP contains a **proposed file arrangement**, not an Expo application. Extract into the project root `nutrasa/`, merging only the included `assets/` and `docs/` folders. Preserve existing [README.md](../../README.md), [AGENTS.md](../../AGENTS.md) and app configuration.
 
 ## Canonical assets
 - `assets/branding/logo/`: the **eight supplied final logo variants** (4 PNG + 4 SVG). Use the Forest/Dark version on cream/light backgrounds and the Cream/Light version on dark forest backgrounds **after visual contrast review**. Do not confuse the descriptive file suffix with its background purpose; preview before applying.
 - `assets/branding/mascot/bowi/mvp-states/`: **nine** core pose PNGs (default, loading, processing, success, error, empty, not-found, no-internet, syncing).
 - `assets/branding/mascot/bowi/extended-states/`: **eleven** optional pose PNGs; use only when the associated UX actually exists.
 - `docs/01-design/references/`: exploratory UI screenshots and moodboards, **not runtime assets**.
-- `docs/01-design/visual-reference-guidelines.md`: original guidelines supplied in the ZIP; these should govern interpretation of reference material.
+- [docs/01-design/visual-reference-guidelines.md](visual-reference-guidelines.md): original guidelines supplied in the ZIP; these should govern interpretation of reference material.
 
 ## Typography / icons (proposals; approval required)
 - Primary text font: **Plus Jakarta Sans** (Google Fonts; package `@expo-google-fonts/plus-jakarta-sans`) for friendly, modern Indonesian UI. Alternative: Nunito Sans. Check rendering, coverage and license before final adoption.
@@ -37,7 +37,7 @@ Do not use `#FF8D25` for small body text on cream without checking contrast. Def
 3. Mascot PNG files are fairly large (~1 MB each). Before production create optimized derivatives **without overwriting masters**, and test transparency and rendering.
 4. `assets/fonts/` can be created after picking font and reviewing its license; **do not include font binaries until adopted**.
 5. Expo `icon` / `adaptiveIcon` / splash assets need platform-specific dimensions and transparency/background review; do not point to an arbitrary logo PNG without preparing these deliverables.
-6. Document all component mapping and palette decisions in `docs/01-design/design-system.md` once approved.
+6. Document all component mapping and palette decisions in [docs/01-design/design-system.md](design-system.md) once approved.
 
 ## Agent rule
 Official logo and Bowi pose files are canonical. Screenshots are directional references: improve layout, accessibility, card hierarchy, tab navigation, font size and spacing freely, but do not redraw logo or mascot or change agreed product behavior.

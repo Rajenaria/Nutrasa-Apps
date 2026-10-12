@@ -2,12 +2,12 @@
 
 **Version:** 1.0 — Architecture review draft  
 **Date:** 2026-10-13  
-**Repository path:** `docs/02-architecture/api-contract.md`  
+**Repository path:** [docs/02-architecture/api-contract.md](api-contract.md)\
 **Status:** CONTRACT DESIGN ONLY — do not implement endpoints, migrations, generated clients, or production medical recommendations until review gates are resolved.
 
 ## 0. Decisions and source of truth
 
-**Approved stack:** React Native + Expo + TypeScript (mobile), Expo Router, Firebase Authentication (already has a project), local Node.js/Fastify backend, local PostgreSQL source of truth, Expo SQLite device cache/outbox. Development aims for Rp0 service cost. The mobile app never connects to PostgreSQL directly. This document supplements `database-schema.md`, `offline-sync-spec.md`, `food-database-spec.md`, `food-logging-spec.md`, `onboarding-spec.md`, `auth-spec.md`, `profile-spec.md`, `progress-spec.md`, `dashboard-spec.md` and the nutrition-engine specification. If a field name differs, use the canonical nutrient names from `database-schema.md`; file a documentation correction, not a silent conversion.
+**Approved stack:** React Native + Expo + TypeScript (mobile), Expo Router, Firebase Authentication (already has a project), local Node.js/Fastify backend, local PostgreSQL source of truth, Expo SQLite device cache/outbox. Development aims for Rp0 service cost. The mobile app never connects to PostgreSQL directly. This document supplements [database-schema.md](database-schema.md), [offline-sync-spec.md](offline-sync-spec.md), [food-database-spec.md](food-database-spec.md), [food-logging-spec.md](../03-features/food-logging-spec.md), [onboarding-spec.md](../01-design/onboarding-spec.md), [auth-spec.md](../03-features/auth-spec.md), [profile-spec.md](../03-features/profile-spec.md), [progress-spec.md](../03-features/progress-spec.md), [dashboard-spec.md](../03-features/dashboard-spec.md) and the nutrition-engine specification. If a field name differs, use the canonical nutrient names from [database-schema.md](database-schema.md); file a documentation correction, not a silent conversion.
 
 **Approved business requirements:** Auth before onboarding; unverified email may complete local onboarding with restricted server operations (precise gates pending); unsupported profile goes to log-only, not fabricated calorie targets; automatic calorie presets by eligible profile (clinical parameters pending); manual goal adjustments validated; automatically reconsider targets after weight updates without silently overwriting manual goals; 100 initially curated foods, growing to 500; private custom foods, recipes, favorite foods, saved meals/copy meal, recent foods; partial nutrients allowed with explicit coverage; offline-tolerant journal and sync; historical food and target versions retained.
 
@@ -170,6 +170,8 @@ On the server, validate the published food revision and resolve nutrients atomic
 ## 4. Endpoint inventory (proposed)
 
 All routes below are relative to `/api/v1` and require verified Firebase Auth except health checks and explicitly permitted discovery endpoints. P0 indicates essential initial MVP; P1 is later MVP slice or can be deferred until the related feature is developed. Exact paths may change at signoff, but **semantic responsibilities must not**.
+
+**Recipe/favorite priority is OPEN (O-18):** the P1 labels retained on those draft endpoints describe the source proposal, not an owner-approved release decision. The review scope proposed P0 and the older roadmap post-MVP; do not resolve that discrepancy by implementing either schedule. API availability is not implied by this inventory.
 
 | Group | Method + endpoint | Priority | Purpose |
 |---|---|---|---|
@@ -423,7 +425,7 @@ Automated checks when implementation begins: OpenAPI schema validation, DTO cont
 
 - [ ] Architecture decisions match approved stack; no Supabase/Firebase Firestore dependency accidentally introduced.
 - [ ] All endpoints have defined owner authorization and verification capabilities.
-- [ ] Nutrient fields exactly match `database-schema.md` and `null` semantics.
+- [ ] Nutrient fields exactly match [database-schema.md](database-schema.md) and `null` semantics.
 - [ ] Time/date, portion, source revisions, manual/automatic goals and historical snapshots are consistent.
 - [ ] Offline mutation IDs, revisions, retries, tombstones and cursor expiration are specified and tested.
 - [ ] Contract examples never bypass server validation, clinical rules or source licensing.

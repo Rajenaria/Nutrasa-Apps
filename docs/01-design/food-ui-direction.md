@@ -2,13 +2,13 @@
 
 **Version:** 1.0 — planning draft  
 **Status:** FOR OWNER REVIEW; not approved as final UI  
-**Destination:** `docs/01-design/food-ui-direction.md`  
+**Destination:** [docs/01-design/food-ui-direction.md](food-ui-direction.md)\
 **Platform:** React Native + Expo / Expo Router / TypeScript  
 **Prepared:** 13 October 2026
 
 ## 0. Context and decision hierarchy
 
-This document translates the approved *provisional* Home visual style to the Food tab and food-logging screens. It does not change the functional decisions in `docs/03-features/food-logging-spec.md`, nutrient integrity rules in `docs/02-architecture/food-database-spec.md`, or route rules in `docs/01-design/navigation-spec.md`.
+This document translates the approved *provisional* Home visual style to the Food tab and food-logging screens. It does not change the functional decisions in [docs/03-features/food-logging-spec.md](../03-features/food-logging-spec.md), nutrient integrity rules in [docs/02-architecture/food-database-spec.md](../02-architecture/food-database-spec.md), or route rules in [docs/01-design/navigation-spec.md](navigation-spec.md).
 
 **Confirmed visual baseline from owner:** Home design is approved **temporarily and revisable**. Forest green + cream, lots of breathing room, soft rounded cards, and minimalist rings. For macro progress, show `Protein`, `Karbo`, `Lemak` labels, percentages inside rings, and logged/target grams below; **no macro icons**. Do not mistake this provisional approval for a locked final design system.
 
@@ -40,7 +40,7 @@ This document translates the approved *provisional* Home visual style to the Foo
 | Copy meal sheet | Source and target dates/meals, preview items | Explicit confirmation and reversible result | Confirmed feature, UI candidate |
 | Daily diary | Inspect/edit/delete selected day items | Return to same selected date | Confirmed feature, UI candidate |
 
-**Routing constraint:** Expo Router path and modal boundaries are implementation choices. Draft route intent must align with `navigation-spec.md`; don't invent file paths prematurely.
+**Routing constraint:** Expo Router path and modal boundaries are implementation choices. Draft route intent must align with [navigation-spec.md](navigation-spec.md); don't invent file paths prematurely.
 
 ## 3. Proposed Food landing layout
 
@@ -128,7 +128,7 @@ This document translates the approved *provisional* Home visual style to the Foo
 | CTA | Forest green, descriptive label, visible disabled/loading states | AI/camera icon for manual logging |
 | Snackbar | `Tersimpan di perangkat` / `Tersinkron` as appropriate | Calling pending offline logs `Synced` |
 
-Use `Plus Jakarta Sans` and `lucide-react-native` through centralized wrappers **as candidates** from `design-system.md`; final library and token selection requires review before installation. Use semantic colors and focus/contrast/accessibility tests, not arbitrary hex values in individual screens.
+Use `Plus Jakarta Sans` and `lucide-react-native` through centralized wrappers **as candidates** from [design-system.md](design-system.md); final library and token selection requires review before installation. Use semantic colors and focus/contrast/accessibility tests, not arbitrary hex values in individual screens.
 
 ## 7. App states & copy rules
 

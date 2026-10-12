@@ -18,7 +18,7 @@ Jika ditemukan perbedaan atau konflik, gunakan prioritas berikut:
 
 1. **Keputusan produk dan spesifikasi fitur NUTRASA yang sudah disetujui** (fungsi, alur, keamanan, aksesibilitas, dan validasi).
 2. **Aset identitas resmi terbaru di folder `logo/` dan `mascot/`** (bentuk/logo/maskot, proporsi, dan varian yang sudah dinyatakan final).
-3. **Design system final yang nantinya disetujui** di `docs/01-design/design-system.md`.
+3. **Design system final yang nantinya disetujui** di [docs/01-design/design-system.md](design-system.md).
 4. **Arahan visual lintas referensi** dalam paket ini (suasana, ilustrasi, bahasa bentuk, dan karakter umum).
 5. **Contoh layout/screen individual** (inspirasi, bukan blueprint wajib).
 
@@ -59,7 +59,7 @@ Jika design system belum final, **jangan menganggap pilihan warna atau font dala
 3. **Deteksi perbedaan/konflik** antar-referensi: logo lama vs final, maskot lama vs final, font atau palet yang berbeda.
 4. **Susun proposal design system**: token warna (dengan nilai HEX usulan), typography, spacing, radius, elevation, ikon, dan komponen penting; jelaskan alasan dan periksa aksesibilitas.
 5. **Ajukan keputusan yang berdampak besar** untuk review, khususnya palet final, font final, style ikon, dan bentuk navigasi. Jangan menganggap usulan otomatis disetujui.
-6. Setelah disetujui, dokumentasikan keputusan pada `docs/01-design/design-system.md` dan buat rencana pemetaan aset untuk implementasi Expo.
+6. Setelah disetujui, dokumentasikan keputusan pada [docs/01-design/design-system.md](design-system.md) dan buat rencana pemetaan aset untuk implementasi Expo.
 7. Baru buat wireframe/high-fidelity UI berdasarkan spesifikasi fungsional dan design system yang disetujui.
 
 ## 7. Larangan dan batasan
@@ -78,7 +78,7 @@ Hasil tahap analisis aset sebaiknya berupa:
 
 - `asset-inventory.md` — daftar aset, format, kegunaan, dan catatan varian final.
 - `visual-direction.md` — ringkasan nuansa visual dan pola referensi; apa yang dipertahankan vs diperbaiki.
-- **Draft** `design-system.md` — palet usulan, tipografi, ikon, spacing, radius, serta komponen dan state.
+- **Draft** [design-system.md](design-system.md) — palet usulan, tipografi, ikon, spacing, radius, serta komponen dan state.
 - `open-design-decisions.md` — keputusan terbuka dan hal yang memerlukan persetujuan.
 
 File tambahan tersebut **opsional**, dan hanya dibuat jika diminta pada task terkait. Untuk tugas awal, cukup analisis dan laporkan temuan tanpa membuat kode UI.

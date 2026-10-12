@@ -16,7 +16,7 @@ Priority when references conflict:
 1. Product safety, user privacy, validated nutrition/business rules, accessibility requirements.
 2. Official final logo and Bowi artwork in `assets/branding/`.
 3. Explicit owner-approved choices in this document.
-4. `docs/01-design/design-system.md` and the feature/navigation specs, except where amended here.
+4. [docs/01-design/design-system.md](design-system.md) and the feature/navigation specs, except where amended here.
 5. Approved mockups as **visual guidance**, not literal layouts.
 6. Experimental screenshots, older assets and draft references.
 
@@ -106,7 +106,7 @@ All variants must be tested for WCAG-relevant contrast and visible disabled/erro
 
 Search prominent at top, category tiles compact, recent foods and common foods discoverable. Food detail shows item, clear per-serving basis and units, quantity and nutrient totals. Add flow selects meal/date, updates diary locally, then syncs. Layout is approved conceptually, not in exact screenshot ordering.
 
-**Product must still support:** custom food, favorites, recipes, recent foods, copy meal, edit/delete, offline queue and partial data, as specified in `food-logging-spec.md` and `food-database-spec.md`. The visual image does not authorize unlicensed photos, nutritional values or additional scan features.
+**Product must still support:** custom food, favorites, recipes, recent foods, copy meal, edit/delete, offline queue and partial data, as specified in [food-logging-spec.md](../03-features/food-logging-spec.md) and [food-database-spec.md](../02-architecture/food-database-spec.md). The visual image does not authorize unlicensed photos, nutritional values or additional scan features.
 
 ### 5.3 Progress
 
@@ -122,7 +122,7 @@ Small profile card/avatar; optional single Bowi motivational accent; brief targe
 
 ### 5.5 Welcome / Authentication
 
-Welcome should feel inviting, with official Bowi artwork and one primary CTA. Login/register forms are compact, accessible, and include email/password plus provider options according to `auth-spec.md` and platform support. Recovery/verification are separate functional states; concise copy but keep necessary error, consent and security explanations. **Authentication takes place before personal profile onboarding.**
+Welcome should feel inviting, with official Bowi artwork and one primary CTA. Login/register forms are compact, accessible, and include email/password plus provider options according to [auth-spec.md](../03-features/auth-spec.md) and platform support. Recovery/verification are separate functional states; concise copy but keep necessary error, consent and security explanations. **Authentication takes place before personal profile onboarding.**
 
 The previously generated storyboard accidentally placed a goal-selection screen among marketing/auth screens. Treat that as visual inspiration only: **personal goal selection belongs after successful auth**. Use actual supported provider setup and never simulate successful sign-in.
 
@@ -138,7 +138,7 @@ The previously generated storyboard accidentally placed a goal-selection screen 
 
 Provisional visual structure: **Home / Makanan / Progress / Profil / AI**. Use a compact rounded navigation treatment and a clearly indicated active tab. A floating plus affordance may be considered where it performs a real **manual Add Food** action. **Do not make the prominent plus button synonymous with a currently unavailable AI feature.** If AI tab is displayed before launch, it must be an honest, non-deceptive placeholder, with behavior approved separately. Don't infer that AI premium or camera scanning works from artwork.
 
-Account/route gating follows `navigation-spec.md` and `auth-spec.md`; buttons and tabs must have functional destinations, accessible labels and appropriate back behavior. Consider keyboard, safe areas and bottom gesture inset.
+Account/route gating follows [navigation-spec.md](navigation-spec.md) and [auth-spec.md](../03-features/auth-spec.md); buttons and tabs must have functional destinations, accessible labels and appropriate back behavior. Consider keyboard, safe areas and bottom gesture inset.
 
 ## 7. Global visual and data states
 
@@ -185,20 +185,20 @@ Every screen specification should include at least relevant variants:
 - [ ] Functional state display matches data semantics for empty, partial, offline and unsupported profiles.
 - [ ] No mockup values, fake clinical targets, or unimplemented AI/camera features appear as live capabilities.
 - [ ] Layout uses approved pattern; differences are documented with rationale rather than arbitrarily copying older designs.
-- [ ] Visual changes do not rewrite `business-rules.md`, `nutrition-engine-spec.md`, or feature specs without explicit approval.
+- [ ] Visual changes do not rewrite [business-rules.md](../00-overview/business-rules.md), [nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md), or feature specs without explicit approval.
 - [ ] Screenshot review and user approval are requested before marking final UI implementation complete.
 
 ## 10. Related documentation and next steps
 
 Existing documents to **retain**, not overwrite:
 
-- `docs/01-design/design-system.md` — design tokens, typography/icon proposals.
-- `docs/01-design/home-ui-direction.md` and `home-visual-approval-note.md` — Home specification.
-- `docs/01-design/food-ui-direction.md` — food screens.
-- `docs/01-design/navigation-spec.md` — screen inventory and routing.
-- `docs/01-design/onboarding-spec.md` — onboarding flow/state.
-- `docs/03-features/dashboard-spec.md`, `food-logging-spec.md`, `progress-spec.md`, `profile-spec.md`, `auth-spec.md` — behaviors.
-- `docs/02-architecture/nutrition-engine-spec.md`, `food-database-spec.md`, `offline-sync-spec.md` — supporting data rules.
+- [docs/01-design/design-system.md](design-system.md) — design tokens, typography/icon proposals.
+- [docs/01-design/home-ui-direction.md](home-ui-direction.md) — Home specification; the approved Home amendments are recorded in sections 5.1 and 8 of this summary (no separate Home approval-note file is present).
+- [docs/01-design/food-ui-direction.md](food-ui-direction.md) — food screens.
+- [docs/01-design/navigation-spec.md](navigation-spec.md) — screen inventory and routing.
+- [docs/01-design/onboarding-spec.md](onboarding-spec.md) — onboarding flow/state.
+- [docs/03-features/dashboard-spec.md](../03-features/dashboard-spec.md), [food-logging-spec.md](../03-features/food-logging-spec.md), [progress-spec.md](../03-features/progress-spec.md), [profile-spec.md](../03-features/profile-spec.md), [auth-spec.md](../03-features/auth-spec.md) — behaviors.
+- [docs/02-architecture/nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md), [food-database-spec.md](../02-architecture/food-database-spec.md), [offline-sync-spec.md](../02-architecture/offline-sync-spec.md) — supporting data rules.
 
 **Recommended next:** review this register and assets in the repository; make an explicit decision about the fifth AI tab / primary Add Food action; produce small-screen and normal-screen wireframes with empty/filled/offline cases, then build a reusable theme/component foundation in Expo. Document missing/blocked architecture, privacy and medical decisions separately; do not treat visual approval as permission to ship unreviewed clinical functionality.
 

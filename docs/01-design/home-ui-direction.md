@@ -2,20 +2,22 @@
 
 **Version:** 1.0 (design proposal, owner review pending)  
 **Platform:** React Native + Expo, portrait mobile  
-**Destination:** `docs/01-design/home-ui-direction.md`  
+**Destination:** [docs/01-design/home-ui-direction.md](home-ui-direction.md)\
 **Status:** DESIGN DRAFT — not a coded screen, not clinical validation
+
+**Latest approved visual amendments:** [ui-approval-summary.md](ui-approval-summary.md) governs the compact Home layout: three separate macro circles, no food pictogram icons, center percentages when a valid target/data state permits them, and consumed/target quantity below. Progress has a different pattern of three concentric semicircular arcs. Preserve log-only/partial/unknown semantics; no percentage should be fabricated.
 
 ## 0. Purpose and source-of-truth hierarchy
 
 This document translates NUTRASA's Home functionality into visual layout guidance. It is **not** a replacement for business logic.
 
 Read together with:
-- `docs/01-design/design-system.md` — theme, typography, icon, ring tokens.
-- `docs/01-design/navigation-spec.md` — routing and tabs.
-- `docs/03-features/dashboard-spec.md` — data semantics and dashboard states.
-- `docs/03-features/food-logging-spec.md` — adding/editing meals.
-- `docs/02-architecture/nutrition-engine-spec.md` — target logic (candidate, not clinically approved).
-- `docs/02-architecture/offline-sync-spec.md` — persistence and sync states.
+- [docs/01-design/design-system.md](design-system.md) — theme, typography, icon, ring tokens.
+- [docs/01-design/navigation-spec.md](navigation-spec.md) — routing and tabs.
+- [docs/03-features/dashboard-spec.md](../03-features/dashboard-spec.md) — data semantics and dashboard states.
+- [docs/03-features/food-logging-spec.md](../03-features/food-logging-spec.md) — adding/editing meals.
+- [docs/02-architecture/nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md) — target logic (candidate, not clinically approved).
+- [docs/02-architecture/offline-sync-spec.md](../02-architecture/offline-sync-spec.md) — persistence and sync states.
 
 **Visual reference priority:** the user-provided image featuring a large calorie-progress ring and three small macro rings. The image is a **composition reference only**: do not copy the original app's logo, copy, interface assets, or exact pixel layout. Final NUTRASA logo and Bowi mascot files in `assets/branding/` have branding precedence. Other screenshot references are inspirational rather than authoritative.
 
@@ -92,7 +94,7 @@ Prefer responsive constraints rather than fixed screenshot pixel positioning. Re
 
 ## 5. Visual tokens and component variants
 
-Reference `design-system.md` rather than hard-coding colors in screens:
+Reference [design-system.md](design-system.md) rather than hard-coding colors in screens:
 
 - App background: `color.background` (warm cream `#FFF9EF`, candidate).
 - Card surfaces: `color.surface` (white) and `color.surfaceSubtle` (`#FFF8EC`).

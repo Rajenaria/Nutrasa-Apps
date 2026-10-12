@@ -2,7 +2,7 @@
 
 **Versi:** Draft v0.4  
 **Tanggal:** 13 Oktober 2026  
-**Lokasi proyek yang disarankan:** `docs/00-overview/business-rules.md`  
+**Lokasi proyek yang disarankan:** [docs/00-overview/business-rules.md](business-rules.md)\
 **Status:** Untuk diskusi dan review. **Bukan spesifikasi klinis tervalidasi atau izin implementasi rekomendasi nutrisi produksi.**
 
 ## 0. Legenda status
@@ -40,10 +40,10 @@
 | BR-008 | Karbohidrat dari sisa energi | Disepakati (metode) | Tidak boleh negatif; cek constraint |
 | BR-009 | Berat badan baru memicu hitung ulang otomatis | Disepakati | Gunakan berat terbaru yang sah, simpan versi; validasi sebelum aktivasi |
 | BR-010 | Target manual dengan validasi | Disepakati | Batas aman dan kebijakan override perlu review |
-| BR-011 | Goal history bersifat versioned | Usulan teknis | Riwayat target tidak ditimpa; tentukan effective date |
+| BR-011 | Perubahan target menjaga histori | Disepakati sebagai invariant oleh owner | Detail versioning dan effective date masih memerlukan keputusan teknis/produk |
 | BR-012 | Nutrisi yang tidak diketahui = null, bukan 0 | Disepakati | Ketidaklengkapan harus dibawa sampai total harian |
 | BR-013 | Makanan parsial tetap dapat dicatat | Disepakati | UI memberi partial-data marker |
-| BR-014 | Log menyimpan nutrition snapshot | Usulan teknis | Histori stabil walau katalog/resep berubah |
+| BR-014 | Log menyimpan nutrition snapshot | Disepakati sebagai invariant oleh owner | Histori stabil walau katalog/resep berubah; detail implementasi masih draft |
 | BR-015 | Offline write + idempotent sync | Disepakati (perilaku), desain teknis usulan | Isolasi per akun dan pemulihan konflik |
 | BR-016 | Hari tanpa log != 0 konsumsi | Usulan teknis | Bedakan belum dicatat, sebagian, hari selesai |
 | BR-017 | Semua rekomendasi menyimpan calculation_version dan source version | Usulan teknis | Auditability dan reproducibility |
@@ -52,7 +52,7 @@
 
 ### 3.1 Input minimal
 - `age_years`, `height_cm`, `weight_kg`, parameter fisiologis yang sesuai dengan metode RMR, `activity_level`, `primary_goal`.
-- Opsional: `target_weight_kg`, deskripsi latihan, body type visual. **Body type tidak memengaruhi perhitungan.**
+- `target_weight_kg` wajib untuk cutting/bulking sesuai keputusan onboarding; tidak wajib untuk maintenance/general tracking. Deskripsi latihan dan body type visual opsional. **Body type tidak memengaruhi perhitungan.**
 - Data kelayakan: hasil penyaringan kondisi yang tidak didukung; hindari mengumpulkan informasi sensitif yang tidak diperlukan.
 
 ### 3.2 Formula kandidat

@@ -2,7 +2,7 @@
 
 **Version:** 1.0 (product decisions consolidated; gated technical/clinical/legal dependencies)  
 **Date:** 2026-10-13  
-**Path:** `docs/01-design/onboarding-spec.md`  
+**Path:** [docs/01-design/onboarding-spec.md](onboarding-spec.md)\
 **Platform:** React Native + Expo + Expo Router  
 **Status:** FINAL FOR PRODUCT FLOW / NOT CLEARED FOR PRODUCTION (see gates)
 
@@ -16,8 +16,8 @@
 - **LEGAL REVIEW:** Indonesia privacy and store compliance legal review needed.
 - **TECH REVIEW:** dependent on actual auth/backend/Expo SDK selection or security testing.
 - **BLOCKED:** do not ship/infer defaults until prerequisite is satisfied.
-- If `nutrition-engine-spec.md` has different numerical candidates, treat them as **unapproved**, not as an overriding rule. Nutrition engine owns formulas; this document owns onboarding orchestration.
-- `business-rules.md` is the source for global food and nutrition principles. Document conflicts should be logged; no silent assumption by Codex.
+- If [nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md) has different numerical candidates, treat them as **unapproved**, not as an overriding rule. Nutrition engine owns formulas; this document owns onboarding orchestration.
+- [business-rules.md](../00-overview/business-rules.md) is the source for global food and nutrition principles. Document conflicts should be logged; no silent assumption by Codex.
 
 ## 1. Product decisions (approved)
 
@@ -236,11 +236,11 @@ Visual guidance: progress bar measured by applicable steps, avoid flickering ste
 
 | Dependency | Owner/spec | Onboarding integration | Gate |
 |---|---|---|---|
-| Authentication & account linking | `auth-spec.md` (to create) | Identity, verification, provider errors, session restoration | TECH |
-| Nutrition Engine | `docs/02-architecture/nutrition-engine-spec.md` | Eligibility, inputs, states, targets | CLINICAL |
-| Product rules | `docs/00-overview/business-rules.md` | Goals, unsupported populations, target history | PRODUCT |
-| Database | `database-schema.md` (to create) | Profile, versioned targets, consent record, completion IDs | TECH/LEGAL |
-| API contract | `api-contract.md` (to create) | Idempotent complete/status/retry, server validation | TECH |
+| Authentication & account linking | [auth-spec.md](../03-features/auth-spec.md) (draft available) | Identity, verification, provider errors, session restoration | TECH |
+| Nutrition Engine | [docs/02-architecture/nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md) | Eligibility, inputs, states, targets | CLINICAL |
+| Product rules | [docs/00-overview/business-rules.md](../00-overview/business-rules.md) | Goals, unsupported populations, target history | PRODUCT |
+| Database | [database-schema.md](../02-architecture/database-schema.md) (draft available) | Profile, versioned targets, consent record, completion IDs | TECH/LEGAL |
+| API contract | [api-contract.md](../02-architecture/api-contract.md) (draft available) | Idempotent complete/status/retry, server validation | TECH |
 | Privacy notice & ToS | `privacy-policy` / legal deliverables | Registration notice and additional body-data notice | LEGAL |
 | Expo Router | Expo SDK-specific navigation conventions | Route groups and protected layouts | TECH |
 | Secure local persistence | Security architecture | Account-scoped draft, cleanup, logout | TECH |
@@ -318,7 +318,7 @@ Visual guidance: progress bar measured by applicable steps, avoid flickering ste
 - Expo provider auth: https://docs.expo.dev/guides/authentication/ — OAuth/OpenID considerations.
 - Indonesia UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi — verify operative obligations and implementing regulations with counsel.
 - Apple Sign in guidelines: https://developer.apple.com/sign-in-with-apple/usage-guidelines-for-websites-and-other-platforms/ — platform-specific developer requirements.
-- NUTRASA `nutrition-engine-spec.md` v0.5 and `business-rules.md` v0.4 — **internal drafts, not independent clinical validation**.
+- NUTRASA [nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md) v0.5 and [business-rules.md](../00-overview/business-rules.md) v0.4 — **internal drafts, not independent clinical validation**.
 
 ---
 

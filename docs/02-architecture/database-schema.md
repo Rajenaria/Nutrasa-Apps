@@ -2,11 +2,11 @@
 
 **Version:** 1.0 — Draft for architecture approval  
 **Date:** 2026-10-13  
-**Target path:** `docs/02-architecture/database-schema.md`  
+**Target path:** [docs/02-architecture/database-schema.md](database-schema.md)\
 **Status:** DATABASE DESIGN ONLY. No migrations, SQL DDL, seed data, or implementation authorized.  
 **Architecture decision (approved):** React Native / Expo + TypeScript; Firebase Authentication; local Fastify / Node.js API; local PostgreSQL; Expo SQLite for offline-tolerant mobile operation. Target service cost Rp0 during local development. Deployment/hosting later.
 
-> Read together with: `food-database-spec.md`, `food-logging-spec.md`, `offline-sync-spec.md`, `NUTRASA_NUTRITION_ENGINE_SPEC_v0.5.md`, `onboarding-spec.md`, `dashboard-spec.md`, `progress-spec.md`, `profile-spec.md`, `auth-spec.md`, `system-architecture.md`, and `zero-cost-architecture.md`. Product and clinical policies that remain open are **not** silently approved by this database proposal.
+> Read together with: [food-database-spec.md](food-database-spec.md), [food-logging-spec.md](../03-features/food-logging-spec.md), [offline-sync-spec.md](offline-sync-spec.md), [NUTRASA_NUTRITION_ENGINE_SPEC_v0.5.md](nutrition-engine-spec.md), [onboarding-spec.md](../01-design/onboarding-spec.md), [dashboard-spec.md](../03-features/dashboard-spec.md), [progress-spec.md](../03-features/progress-spec.md), [profile-spec.md](../03-features/profile-spec.md), [auth-spec.md](../03-features/auth-spec.md), [system-architecture.md](system-architecture.md), and [zero-cost-architecture.md](zero-cost-architecture.md). Product and clinical policies that remain open are **not** silently approved by this database proposal.
 
 ## 1. Guiding principles
 
@@ -53,7 +53,7 @@
 
 ## 4. Canonical nutrient contract (11 agreed metrics)
 
-Canonical key names align with `food-database-spec.md`. **Earlier pseudotypes in `food-logging-spec.md` use conflicting names** (`fat_total_g`, `sugar_total_g`, `fat_saturated_g`, `fat_trans_g`); update that pseudotype and the later API contract to these exact canonical keys.
+Canonical key names align with [food-database-spec.md](food-database-spec.md), the corrected [food-logging-spec.md](../03-features/food-logging-spec.md) pseudotype, [nutrition-engine-spec.md](nutrition-engine-spec.md), and [api-contract.md](api-contract.md). The documentation merge reconciled aliases only; calculation semantics and technical contract sign-off are unchanged.
 
 | nutrient_code | Label | Unit | Core required for curated public publishing |
 |---|---|---|---|
@@ -107,6 +107,8 @@ erDiagram
 Diagram emphasizes conceptual relationships, not all FK columns or ownership scopes. Offline recipe references and private food composition need additional constraints described below.
 
 ## 6. Server table catalog — P0 MVP core
+
+**Release priority caveat:** recipe/favorite entities below remain design drafts; their inclusion here does not establish P0. Their release timing is OPEN under O-18 in the decision register. Preserve modeling details for review without starting migrations.
 
 **Notation:** `PK` primary key; `FK` foreign key; `UQ` unique; `NN` not null; `?` nullable; `v` server revision; indexes are proposals to validate against queries. Fields marked `PROPOSED` are technical designs, not newly approved product behaviors.
 
@@ -439,8 +441,8 @@ For 100–500 curated foods, normalized PostgreSQL with sensible indexes is suff
 - [ ] Clinical, legal, licensing and security review items remain visibly open.
 - [ ] **API contract reviewed and signed off before implementing schema migrations or backend endpoints.**
 
-## 16. Next document: `api-contract.md`
+## 16. Next document: [api-contract.md](api-contract.md)
 
-Produce `docs/02-architecture/api-contract.md` **next**, not migrations. Specify versioned REST endpoints for: `GET /me`, onboarding submission, account/profile/weight/goal management, catalog browse/search/details, private foods/recipes, food log operations, favorite/saved meals, daily dashboard and progress reads, sync push/pull, and account deletion; plus Firebase token verification, scope-based authorization, request/response field contracts, canonical nutrient object, pagination, error codes, idempotency, `base_revision`, and timestamp/date semantics.
+Review the existing draft [docs/02-architecture/api-contract.md](api-contract.md) **next**, not migrations. Check parity for: `GET /me`, onboarding submission, account/profile/weight/goal management, catalog browse/search/details, private foods/recipes, food log operations, favorite/saved meals, daily dashboard and progress reads, sync push/pull, and account deletion; plus Firebase token verification, scope-based authorization, request/response field contracts, canonical nutrient object, pagination, error codes, idempotency, `base_revision`, and timestamp/date semantics. Recipe/favorite release timing remains OPEN under O-18.
 
 **Before coding:** reconcile D-01 through D-18 by owner decisions/review, align conflicting historical nutrient pseudotype names, then lock migration strategy. This document is an implementation-ready **design draft**, not authorization to write production code or claim clinical/legal validation.

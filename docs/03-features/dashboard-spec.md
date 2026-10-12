@@ -2,7 +2,7 @@
 
 **Version:** 1.0 planning draft  
 **Date:** 13 October 2026  
-**Repository path:** `docs/03-features/dashboard-spec.md`  
+**Repository path:** [docs/03-features/dashboard-spec.md](dashboard-spec.md)\
 **Status:** Implementation-ready UX/data contract where marked **AGREED**; unresolved details marked **PROPOSED / REVIEW REQUIRED**. Not clinical approval.
 
 > **Purpose:** Specify the Nutrition Tracker home screen from the user's point of view and as a testable contract for React Native + Expo. Home is a read model of food logs, goal versions and the selected diary date, **not** an independent calculator or authoritative data store.
@@ -10,11 +10,11 @@
 ## 0. Relationship to existing documents
 
 Read together with:
-- `docs/00-overview/business-rules.md` (draft; decision status applies)
-- `docs/02-architecture/nutrition-engine-spec.md` (calculation candidates, safety guards)
-- `docs/01-design/onboarding-spec.md` (authentication, completed onboarding, log-only)
-- `docs/02-architecture/food-database-spec.md` (catalog, nutrient provenance and missing values)
-- `docs/03-features/food-logging-spec.md` (meal/date IDs, snapshot, partial totals and offline)
+- [docs/00-overview/business-rules.md](../00-overview/business-rules.md) (draft; decision status applies)
+- [docs/02-architecture/nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md) (calculation candidates, safety guards)
+- [docs/01-design/onboarding-spec.md](../01-design/onboarding-spec.md) (authentication, completed onboarding, log-only)
+- [docs/02-architecture/food-database-spec.md](../02-architecture/food-database-spec.md) (catalog, nutrient provenance and missing values)
+- [docs/03-features/food-logging-spec.md](food-logging-spec.md) (meal/date IDs, snapshot, partial totals and offline)
 
 **Precedence if documents conflict:** explicit owner decisions recorded in a decision log > approved current feature contract > older drafts. Log any conflict; do not silently choose or have Codex invent a policy.
 

@@ -2,7 +2,7 @@
 
 **Version:** 1.1 (planning draft)  
 **Date:** 13 October 2026  
-**Repository path:** `docs/03-features/progress-spec.md`  
+**Repository path:** [docs/03-features/progress-spec.md](progress-spec.md)\
 **Status:** Product decisions marked **AGREED**; implementation defaults **PROPOSED**; clinical and data-governance rules **REVIEW REQUIRED**. Not approved for production without gates below.
 
 > **Purpose:** Define what Progress measures, how it derives reliable trends from food logs, body-weight records, and goal history, and what the user sees when information is missing, partial, offline or revised. Progress is a *read model*, not an alternative Nutrition Engine.
@@ -10,14 +10,16 @@
 ## 0. Dependencies and decision authority
 
 Read alongside:
-- `docs/00-overview/business-rules.md`
-- `docs/02-architecture/nutrition-engine-spec.md`
-- `docs/02-architecture/food-database-spec.md`
-- `docs/03-features/food-logging-spec.md`
-- `docs/03-features/dashboard-spec.md`
-- `docs/01-design/onboarding-spec.md`
+- [docs/00-overview/business-rules.md](../00-overview/business-rules.md)
+- [docs/02-architecture/nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md)
+- [docs/02-architecture/food-database-spec.md](../02-architecture/food-database-spec.md)
+- [docs/03-features/food-logging-spec.md](food-logging-spec.md)
+- [docs/03-features/dashboard-spec.md](dashboard-spec.md)
+- [docs/01-design/onboarding-spec.md](../01-design/onboarding-spec.md)
 
-When a conflict exists, explicit owner-approved decisions and documented newer contracts take priority. Record discrepancies in `decision-log.md`; do not silently invent behavior.
+When a conflict exists, explicit owner-approved decisions and documented newer contracts take priority. Record discrepancies in [decision-register.md](../04-development/decision-register.md); do not silently invent behavior.
+
+**Approved visual baseline:** use three concentric semicircular macro arcs in Progress, distinct from Home's three separate circular macro rings. See [ui-approval-summary.md](../01-design/ui-approval-summary.md); this is provisional visual approval, not an implemented chart.
 
 ### AGREED product boundaries
 
@@ -178,7 +180,7 @@ WeightEntry {
 - Progress reads a *single coherent local view* of entries, dates, goal versions and sync states; do not mix cached goal data with newer unsynced food logs without a visible status.
 - Display pending/failed sync banner only when relevant, without hiding local progress.
 - Weight writes and food-log edits are saved locally first; use operation IDs / revisions for idempotent server upserts.
-- Online reconciliation merges server-authoritative changes with local pending operations; conflict resolution must be specified in `offline-sync-spec.md`.
+- Online reconciliation merges server-authoritative changes with local pending operations; conflict resolution must be specified in [offline-sync-spec.md](../02-architecture/offline-sync-spec.md).
 - Distinguish `SYNCED`, `PARTIALLY_SYNCED`, `LOCAL_ONLY`, `SYNC_FAILED`, `CONFLICT` at feature summary level if needed.
 - Cache must be partitioned by authenticated user; logout/account switch must not expose previous user's data.
 - No sensitive analytics payloads in error telemetry by default; metrics should be privacy-minimized.

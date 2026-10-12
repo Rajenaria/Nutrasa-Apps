@@ -2,10 +2,12 @@
 
 **Version:** 0.8 (developer-ready design draft)  
 **Date:** 13 October 2026  
-**Target repository path:** `docs/02-architecture/food-database-spec.md`  
+**Target repository path:** [docs/02-architecture/food-database-spec.md](food-database-spec.md)\
 **Status:** PRODUCT AGREEMENTS + IMPLEMENTATION PROPOSALS; NOT APPROVED FOR DATA IMPORT OR PRODUCTION
 
 > **Purpose:** Define an Indonesian-first nutrition food catalog from 100 quality-controlled food entries, scalable to 500 and beyond; make food search, portions, food logs, recipes, offline caching, and progress calculations reliable. This is a product/data specification, not a populated database. No nutrition values are invented.
+
+**Selected stack:** Firebase Auth, local Fastify, local PostgreSQL, Expo SQLite; see [architecture-decisions.md](architecture-decisions.md). Recipe/favorite release timing remains OPEN under O-18; their modeled behavior is not P0 approval.
 
 ## 0. Decision register: agreed vs proposed
 
@@ -32,7 +34,7 @@
 ### External review required
 - **LEGAL/LICENSING:** redistribution, derived records, retention and use of TKPI, Panganku, third-party API data and food images; attribution requirements.
 - **NUTRITION/QUALITY:** nutrient definition compatibility, recipe/yield/retention calculations, release thresholds, portion measurements and outlier thresholds.
-- **TECHNICAL/SECURITY:** backend choice, local database encryption/storage policy, authorization, account isolation, conflict handling, sync protocol.
+- **TECHNICAL/SECURITY:** Fastify implementation details, local database encryption/storage policy, authorization, account isolation, conflict handling, sync protocol. Backend stack selection is already recorded in ADR-001.
 
 ## 1. Goals, exclusions, measurable success
 
@@ -327,4 +329,4 @@ Use regional breadth and actual search demand to refine quotas. The list should 
 6. FatSecret Platform, *Terms of Use*: https://platform.fatsecret.com/terms
 7. FatSecret Platform, *REST/API guides*: https://platform.fatsecret.com/docs/guides
 
-**Change control:** This specification should not be labeled production-approved until the open decision register is closed and required legal, nutrition and technical reviews have documented outcomes. Version any changed formulas, source mapping and serving rules; synchronize `business-rules.md`, `nutrition-engine-spec.md`, `onboarding-spec.md` and feature specs as applicable.
+**Change control:** This specification should not be labeled production-approved until the open decision register is closed and required legal, nutrition and technical reviews have documented outcomes. Version any changed formulas, source mapping and serving rules; synchronize [business-rules.md](../00-overview/business-rules.md), [nutrition-engine-spec.md](nutrition-engine-spec.md), [onboarding-spec.md](../01-design/onboarding-spec.md) and feature specs as applicable.

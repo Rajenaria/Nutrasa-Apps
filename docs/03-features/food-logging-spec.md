@@ -1,10 +1,12 @@
 # NUTRASA — Food Logging Feature Specification
 
 **Version:** 0.9 | **Date:** 13 October 2026  
-**Repository path:** `docs/03-features/food-logging-spec.md`  
+**Repository path:** [docs/03-features/food-logging-spec.md](food-logging-spec.md)\
 **Status:** Developer planning draft — agreed functional scope, proposed detailed behaviors. NOT production approval.
 
 > **Scope:** the user-facing workflow from discovering Indonesian food to adding, editing, deleting, copying, favoriting and tracking foods/recipes across selected dates, including offline-tolerant operation. This is a functional contract, not an instruction to start coding or an approved clinical nutrition model.
+
+**Release scope clarification:** recipe and favorite behavior is retained for review, but their release priority is OPEN under O-18 in [decision-register.md](../04-development/decision-register.md). Inclusion below does not approve P0 or confirm these features are implemented.
 
 ## 0. Source of truth & decision status
 
@@ -228,8 +230,8 @@ For a nutrient `n` with a known base quantity:
 ```ts
 // Pseudotypes: finalize with schema and API design after product approval.
 type NutrientKey =
-  | 'energy_kcal' | 'protein_g' | 'carbohydrate_g' | 'fat_total_g'
-  | 'fiber_g' | 'sugar_total_g' | 'fat_saturated_g' | 'fat_trans_g'
+  | 'energy_kcal' | 'protein_g' | 'carbohydrate_g' | 'fat_g'
+  | 'fiber_g' | 'total_sugar_g' | 'saturated_fat_g' | 'trans_fat_g'
   | 'cholesterol_mg' | 'sodium_mg' | 'potassium_mg';
 
 type NutrientVector = Record<NutrientKey, number | null>;
@@ -346,11 +348,11 @@ type FoodLogItem = {
 
 ## 19. Dependencies and consistency check
 
-- `docs/02-architecture/food-database-spec.md`: nutrient keys, provenance, servings, food revisions and catalog rights. If mismatched, update both docs together through decision log.
-- `docs/02-architecture/nutrition-engine-spec.md`: targets and log-only. Logging totals must not recalculate nutritional targets independently.
-- `docs/01-design/onboarding-spec.md`: authentication, supported profile status and goals.
-- Future `docs/03-features/dashboard-spec.md`: diary display, partial coverage, selected date and calorie/macro progress.
-- Future `docs/02-architecture/offline-sync-spec.md`: authoritative conflict/idempotency/security design.
-- Future `docs/02-architecture/database-schema.md` and `api-contract.md`: persistence and transport contracts.
+- [docs/02-architecture/food-database-spec.md](../02-architecture/food-database-spec.md): nutrient keys, provenance, servings, food revisions and catalog rights. If mismatched, update both docs together through decision log.
+- [docs/02-architecture/nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md): targets and log-only. Logging totals must not recalculate nutritional targets independently.
+- [docs/01-design/onboarding-spec.md](../01-design/onboarding-spec.md): authentication, supported profile status and goals.
+- Future [docs/03-features/dashboard-spec.md](dashboard-spec.md): diary display, partial coverage, selected date and calorie/macro progress.
+- Future [docs/02-architecture/offline-sync-spec.md](../02-architecture/offline-sync-spec.md): authoritative conflict/idempotency/security design.
+- Future [docs/02-architecture/database-schema.md](../02-architecture/database-schema.md) and [api-contract.md](../02-architecture/api-contract.md): persistence and transport contracts.
 
 **Change control:** Product decisions belong in the decision log. Do not let generated code or visual mockups override explicit business rules.

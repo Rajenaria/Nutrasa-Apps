@@ -2,9 +2,9 @@
 
 **Versi:** Draft v1.3  
 **Status:** Planning / developer handoff; belum disetujui untuk produksi  
-**Lokasi:** `docs/03-features/auth-spec.md`  
+**Lokasi:** [docs/03-features/auth-spec.md](auth-spec.md)\
 **Platform:** React Native + Expo + TypeScript + Expo Router  
-**Dependency:** `onboarding-spec.md`, `profile-spec.md`, `offline-sync-spec.md` (akan dibuat), kebijakan privasi, pemilihan backend/auth provider.
+**Dependency:** [onboarding-spec.md](../01-design/onboarding-spec.md), [profile-spec.md](profile-spec.md), [offline-sync-spec.md](../02-architecture/offline-sync-spec.md) (akan dibuat), kebijakan privasi, pemilihan backend/auth provider.
 
 ## 1. Tujuan
 
@@ -29,9 +29,9 @@ Menyediakan identitas akun dan akses aman untuk data personal NUTRASA (profil tu
 
 Tidak mengembangkan sistem password atau OAuth dari nol, tidak menjadikan username credential, tidak menyediakan login tamu anonim kecuali diputuskan kemudian, tidak mencakup 2FA khusus aplikasi, passkeys, login nomor telepon, social login tambahan, atau akun keluarga. Premium/AI tidak dibahas di spesifikasi ini.
 
-## 4. Pilihan backend/auth provider — BELUM FINAL
+## 4. Provider terpilih dan detail integrasi yang belum final
 
-**Rekomendasi arsitektur:** Pilih satu managed identity provider dengan dukungan email/password, Google, dan Apple; validasi kemampuan sesi mobile, account linking, reset password, verifikasi email, delete account, SDK Expo, fitur pengelolaan pengguna, dan biaya. Kandidat dapat dievaluasi nanti, tetapi **jangan memasang SDK atau mengunci vendor** sebelum keputusan `tech-stack.md` dan `system-architecture.md`.
+**Stack terpilih:** Firebase Authentication sebagai identity provider; Fastify lokal memverifikasi token dan mengelola API aplikasi, PostgreSQL lokal menyimpan data domain, dan Expo SQLite mendukung cache/outbox. Lihat [architecture-decisions.md](../02-architecture/architecture-decisions.md). Pilihan SDK Firebase JS/native, integrasi email/Google/Apple, sesi mobile, linking, reset, verification, deletion, platform/build dan biaya layanan sesuai batas plan masih memerlukan review. Pemilihan vendor tidak berarti SDK sudah dipasang atau alur login sudah berjalan.
 
 Backend menyimpan data pengguna dengan `user_id` internal stabil; simpan mapping `provider + provider_subject_id` bila perlu. Jangan jadikan alamat email sebagai primary key karena dapat berubah atau disembunyikan (Apple relay).
 
@@ -57,7 +57,7 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 
 ### 5.3 Onboarding state
 
-`NOT_STARTED`, `IN_PROGRESS`, `CALCULATING`, `NEEDS_REVIEW`, `LOG_ONLY`, `COMPLETED` — mengikuti `onboarding-spec.md`.
+`NOT_STARTED`, `IN_PROGRESS`, `CALCULATING`, `NEEDS_REVIEW`, `LOG_ONLY`, `COMPLETED` — mengikuti [onboarding-spec.md](../01-design/onboarding-spec.md).
 
 ### 5.4 Akun operasional
 
@@ -284,7 +284,7 @@ Folder contoh, **jangan membuat semuanya kosong** saat implementasi. Route group
 
 | ID | Pertanyaan | Rekomendasi awal | Perlu review |
 |---|---|---|---|
-| ADR-A01 | Provider auth utama | Satu managed provider | Technical + cost |
+| ADR-A01 | Provider auth utama | Firebase Authentication dipilih — ADR-001 | Pilihan provider selesai; detail SDK/platform dan cost limits masih perlu review |
 | ADR-A02 | Email belum verified: fitur mana dibatasi | Batasi operasi berisiko, bukan seluruh onboarding | Product + security |
 | ADR-A03 | Berapa lama sesi bertahan | Mengikuti kebijakan provider dan threat model | Security |
 | ADR-A04 | Apakah account linking tersedia MVP | Bisa tunda UI, siapkan model | Product + security |
@@ -314,4 +314,4 @@ Folder contoh, **jangan membuat semuanya kosong** saat implementasi. Route group
 - OWASP Authentication Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
 - OWASP Session Management Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
 
-**Status akhir:** Spesifikasi produk dan teknis awal cukup untuk evaluasi arsitektur, **belum untuk implementasi auth produksi** sampai provider, pembatasan email, dan review keamanan/legal disetujui.
+**Status akhir:** Firebase Authentication sudah dipilih, tetapi **belum ada implementasi auth produksi**. Detail integrasi provider/SDK, pembatasan email, serta review keamanan/legal masih terbuka.

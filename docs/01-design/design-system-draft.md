@@ -1,6 +1,6 @@
 # NUTRASA — Design System Draft (Proposal, not approved)
 
-See `ASSET_PLACEMENT_GUIDE.md` for source palette, fonts and icon choices.
+See [asset-placement-guide.md](asset-placement-guide.md) for source palette, fonts and icon choices.
 
 ## Visual intent
 Warm cream surfaces, forest green identity, leaf-green positive accents, orange used sparingly; rounded UI with readable hierarchy. Bowi is the canonical mascot.

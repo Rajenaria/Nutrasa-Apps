@@ -2,7 +2,7 @@
 
 **Version:** 1.0 — proposed visual baseline (review required)  
 **Project:** React Native + Expo + Expo Router / TypeScript  
-**Repository destination:** `docs/01-design/design-system.md`  
+**Repository destination:** [docs/01-design/design-system.md](design-system.md)\
 **Source of truth:** official logo and Bowi assets inside `assets/branding/`; exploratory references inside `docs/01-design/references/`  
 **Status:** Ready for UI wireframe/prototype, **not yet approved for production implementation**.
 
@@ -199,7 +199,7 @@ Five tabs planned: `Home`, `Makanan`, `Progress`, `Profil`, `AI`. Candidate: rou
 - **Do not** treat the prominent center `+` of the reference as a sixth tab. It is a contextual action if used.
 - If `AI` is not implemented, decide between a disabled `Segera Hadir` route or hiding it in MVP — **decision still open**.
 - Food-logging entry points remain available from Home meal rows and Foods tab.
-- Navbar behavior across keyboard, modal, and nested stacks must be documented in `navigation-spec.md` / wireframes.
+- Navbar behavior across keyboard, modal, and nested stacks must be documented in [navigation-spec.md](navigation-spec.md) / wireframes.
 
 ## 9. Logo and mascot usage
 
@@ -295,6 +295,6 @@ Implementation principles:
 
 ## 14. Next work item
 
-Create `docs/01-design/home-ui-direction.md` plus low-fidelity wireframe(s) for Home using the user's circular-ring screenshot as **top-priority compositional reference**. Then review color pairs and navigation on mobile screen widths before finalizing the high-fidelity component variants.
+Create [docs/01-design/home-ui-direction.md](home-ui-direction.md) plus low-fidelity wireframe(s) for Home using the user's circular-ring screenshot as **top-priority compositional reference**. Then review color pairs and navigation on mobile screen widths before finalizing the high-fidelity component variants.
 
 **Do not instruct Codex to generate every screen yet.** This v1.0 document specifies proposed visual rules, not sign-off on all UI details or the medical/nutrition rules.
