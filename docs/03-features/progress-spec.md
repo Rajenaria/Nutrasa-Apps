@@ -2,7 +2,7 @@
 
 **Version:** 1.1 (planning draft)  
 **Date:** 13 October 2026  
-**Repository path:** `docs/03-features/progress-spec.md`  
+**Repository path:** [docs/03-features/progress-spec.md](progress-spec.md)\
 **Status:** Product decisions marked **AGREED**; implementation defaults **PROPOSED**; clinical and data-governance rules **REVIEW REQUIRED**. Not approved for production without gates below.
 
 > **Purpose:** Define what Progress measures, how it derives reliable trends from food logs, body-weight records, and goal history, and what the user sees when information is missing, partial, offline or revised. Progress is a *read model*, not an alternative Nutrition Engine.
@@ -10,21 +10,23 @@
 ## 0. Dependencies and decision authority
 
 Read alongside:
-- `docs/00-overview/business-rules.md`
-- `docs/02-architecture/nutrition-engine-spec.md`
-- `docs/02-architecture/food-database-spec.md`
-- `docs/03-features/food-logging-spec.md`
-- `docs/03-features/dashboard-spec.md`
-- `docs/01-design/onboarding-spec.md`
+- [docs/00-overview/business-rules.md](../00-overview/business-rules.md)
+- [docs/02-architecture/nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md)
+- [docs/02-architecture/food-database-spec.md](../02-architecture/food-database-spec.md)
+- [docs/03-features/food-logging-spec.md](food-logging-spec.md)
+- [docs/03-features/dashboard-spec.md](dashboard-spec.md)
+- [docs/01-design/onboarding-spec.md](../01-design/onboarding-spec.md)
 
-When a conflict exists, explicit owner-approved decisions and documented newer contracts take priority. Record discrepancies in `decision-log.md`; do not silently invent behavior.
+When a conflict exists, explicit owner-approved decisions and documented newer contracts take priority. Record discrepancies in [decision-register.md](../04-development/decision-register.md); do not silently invent behavior.
+
+**Approved visual baseline:** use three concentric semicircular macro arcs in Progress, distinct from Home's three separate circular macro rings. See [ui-approval-summary.md](../01-design/ui-approval-summary.md); this is provisional visual approval, not an implemented chart.
 
 ### AGREED product boundaries
 
 1. Progress MVP includes **calorie intake, protein/carbs/fat, weight trend, and logging consistency**.
 2. Users can inspect daily, weekly and monthly periods, including past dates.
 3. Nutrition values come from *saved food-log nutrient snapshots* and selected portion amounts; unknown nutrients remain unknown, never zero by assumption.
-4. Log-only users can see intake and weight trends without automated nutrient targets.
+4. MVP serves supported adults 18+ with automatic targets only; no active LOG_ONLY/manual mode. Missing historical or pending targets never become numeric zeros.
 5. Weight changes trigger automated reevaluation of goals **when eligible and when review/safety checks pass**; goal history remains versioned.
 6. Offline-tolerant operation: local writes appear immediately and sync later; sync failures must not be disguised.
 7. Other trackers (sleep, water, activity), AI recommendations, premium analytics, progress photos, and circumference tracking are **out of MVP** unless later approved.
@@ -45,7 +47,7 @@ When a conflict exists, explicit owner-approved decisions and documented newer c
 | PR-02 | I want to compare logged macros with goals. | Relevant goal version and context are visible. |
 | PR-03 | I want to record my weight and see its trend. | Date-stamped records can be added/edited/deleted. |
 | PR-04 | I want to see logging consistency. | Counting rules and coverage are transparent. |
-| PR-05 | I am log-only. | Intake and weight are displayed without made-up targets. |
+| PR-05 | Historical target is missing or pending | Intake data stays distinguishable from unavailable target; no fabricated percentage |
 | PR-06 | I record while offline. | My latest local entries display with sync indicators. |
 | PR-07 | I corrected an old log. | Historical aggregate is recalculated from updated snapshots. |
 | PR-08 | I changed weight or targets. | Historical goals remain attributable to their effective periods. |
@@ -59,7 +61,7 @@ When a conflict exists, explicit owner-approved decisions and documented newer c
 3. Tabs or in-page sections:
    - **Nutrisi**: energy intake + protein/carbs/fat, total/average with coverage indicators.
    - **Berat badan**: weight graph, list of weigh-ins, add/edit/delete.
-   - **Konsistensi**: diary days with data, explicit complete days if feature approved, empty days.
+   - **Konsistensi**: Hari Aktif (>=1 nondeleted log), optional Selesai Mencatat, and no-data days as separate measures.
 4. Optional drill-down from a chart point to the diary on that date.
 5. Navigation bottom tabs remain part of app shell; do not build duplicate navigation.
 
@@ -84,10 +86,10 @@ When a conflict exists, explicit owner-approved decisions and documented newer c
 
 ### 2.4 Consistency section
 
-- Distinguish `NO_LOG`, `HAS_LOGS`, and `USER_MARKED_COMPLETE` (if completion feature approved).
+- Distinguish NO_LOG, HAS_LOGS, and optional USER_MARKED_COMPLETE (Selesai Mencatat); completion is separate from nutrient completeness.
 - A day with `NO_LOG` means **no data**, never `0 kcal consumed`.
 - Logging frequency = number of distinct diary dates with >=1 non-deleted food log / eligible dates in selected range (if denominator policy approved).
-- Diary completion rate, if supported, is distinct from food log frequency; zero complete days should not be interpreted as unhealthy behavior.
+- Optional diary completion rate is distinct from Hari Aktif/log frequency and nutrient coverage; no inference of unhealthy behavior from missing completion.
 - Avoid punitive streak design, score-shaming, or guilt-inducing notification language.
 - Show brief explanation for all percentages.
 
@@ -118,7 +120,7 @@ status =
   COMPLETE_KNOWN  if missingCount == 0
 ```
 
-`UNKNOWN` may display as "Tidak tersedia", **not** 0. `PARTIAL` may show `≥ knownSum` *only if* the nutrient values are nonnegative and semantic lower-bound usage is approved; safer default: `X g tercatat (parsial)` with tooltip explaining omitted items. `COMPLETE_KNOWN` means complete relative to **logged items**, not proof that the person's daily diet was completely reported.
+UNKNOWN displays —, not zero. PARTIAL nonnegative totals display >= knownSum with Data parsial. COMPLETE_KNOWN is relative to logged items, not proof the entire diet/day was recorded; Selesai Mencatat does not change nutrient coverage.
 
 ### 4.2 Range summaries
 
@@ -132,10 +134,10 @@ status =
 
 ### 4.3 Historical goals
 
-- Each activated goal has `goalVersionId`, `effectiveFromDiaryDate` and (when superseded) an effective end boundary; exact same-day updates require deterministic tie-break/version semantics.
+- Activated automatic goal versions retain effective UTC intervals; compare each diary date using the version effective at local day end per database-schema/Decision 03 final. Boundary fixtures and timezone tests remain OPEN.
 - Comparison of each diary day uses goal version effective **for that date**. Historical snapshots do not recalculate from current weight.
-- If no goal for a date (log-only/needs-review), do not show percent toward goal or remaining.
-- If a manual override exists, show its source `manual` and validation state; do not mislabel it as an automatic recommendation.
+- Missing historical or pending/review targets have no percent-to-goal or remaining value; not a LOG_ONLY mode.
+- MVP uses AUTO targets only; manual override is post-MVP and must not be shown as an active option.
 - Do not average goals with distinct sources without showing that targets changed during period.
 
 ## 5. Weight-event domain contract (conceptual, not SQL)
@@ -152,25 +154,25 @@ WeightEntry {
   createdAt: ISO timestamp
   updatedAt: ISO timestamp
   deletedAt?: ISO timestamp
-  syncState: LOCAL_ONLY | PENDING | SYNCING | SYNCED | FAILED | CONFLICT
+  syncState: LOCAL_ONLY | PENDING | SYNCING | SYNCED | FAILED
   revision: integer | opaque version
 }
 ```
 
 - Weight input must be finite, positive, measured in canonical kg. **Sensible range thresholds require medical/product review**; implausible values trigger confirmation or review without pretending to diagnose.
-- Unique `id` ensures retries are idempotent. Editing preserves identity and revision; deletion is a tombstone until synced.
-- The product must choose whether backdated weight edits trigger recalculation of **current** active goals. PROPOSED: only a new or corrected current/latest effective weight triggers reevaluation; historical weigh-in changes never retroactively rewrite prior goal versions.
-- On simultaneous writes from two devices, resolve by documented conflict policy; never silently drop a measurement.
+- Weight ID remains stable across edits; deduplicate retries by UNIQUE(owner_user_id, operation_id) plus identical identity/payload, not by entity ID alone. Deletion yields a tombstone; delayed UPDATE returns ENTITY_DELETED.
+- D03: latest valid measured_at determines the current weight source. Backdated records do not replace a newer source; edit/delete of the reference triggers reevaluation. Historical target versions remain unchanged; fixtures/tests OPEN.
+- Two-device edits follow server-ordered LWW, with persistent device sequence and receipts. Keep independent weight records; newest valid measured_at determines the weight source, not phone edit-arrival assumptions.
 
 ## 6. Auto-recalculation and safety handling
 
 1. Save validated weight entry locally and mark sync state.
 2. Determine if it is eligible to be the effective current weight for goal evaluation.
 3. Invoke approved Nutrition Engine with complete current user profile, goal configuration, eligibility status and explicit engine version.
-4. If engine returns `READY` with approved clinical guardrails, activate a new goal version following effective-date policy (TBD) and sync it idempotently.
+4. Activate a reviewed READY target only through server validation/commit, forward-effective with immutable history per Decision 03/schema. Offline values remain provisional; fixtures/integration tests OPEN.
 5. For `NEEDS_REVIEW`, `UNSUPPORTED`, `NEEDS_INPUT`, `INVALID_INPUT`, or `MACRO_ALLOCATION_CONFLICT`, **do not activate** a newly calculated target. Display status and guidance; do not manufacture fallback values.
-6. If user is on manual target, changing weight does not silently erase manual choice; policy for prompting vs auto-overriding manual targets is **OPEN**.
-7. Concurrent offline changes must converge to a single documented effective goal version upon sync, with conflicts surfaced.
+6. Manual target/override is post-MVP; latest valid weight triggers automatic reevaluation in MVP while preserving historical target versions.
+7. Offline edits converge by server-ordered LWW; server activates a single valid forward-effective target version under per-user locking. No normal stale-edit conflict modal.
 8. The computation algorithm's parameters remain **clinical-review pending**; this feature spec does not approve them.
 
 ## 7. Offline sync, queries, and cache
@@ -178,8 +180,8 @@ WeightEntry {
 - Progress reads a *single coherent local view* of entries, dates, goal versions and sync states; do not mix cached goal data with newer unsynced food logs without a visible status.
 - Display pending/failed sync banner only when relevant, without hiding local progress.
 - Weight writes and food-log edits are saved locally first; use operation IDs / revisions for idempotent server upserts.
-- Online reconciliation merges server-authoritative changes with local pending operations; conflict resolution must be specified in `offline-sync-spec.md`.
-- Distinguish `SYNCED`, `PARTIALLY_SYNCED`, `LOCAL_ONLY`, `SYNC_FAILED`, `CONFLICT` at feature summary level if needed.
+- Reconcile server changes then reapply pending operations in device order using sync-protocol-final-design.md; retain outbox through CURSOR_EXPIRED resync.
+- Distinguish SYNCED, PARTIALLY_SYNCED, LOCAL_ONLY and SYNC_FAILED; actionable rejection is separate from normal LWW reconciliation.
 - Cache must be partitioned by authenticated user; logout/account switch must not expose previous user's data.
 - No sensitive analytics payloads in error telemetry by default; metrics should be privacy-minimized.
 - Ensure offline range queries do not silently omit uncached days: show `data belum dimuat` separate from `no data`.
@@ -192,7 +194,7 @@ WeightEntry {
 | No weight entries | Empty weight chart | Catat berat badan |
 | Logged food with all energy unknown | `Tidak tersedia` | View food details |
 | Day with partial nutrient | Known sum + `parsial` | Inspect item data |
-| Log-only user | Recorded amounts only, no targets | Open profile goals where allowed |
+| Missing historical/pending target | Recorded intake, no fabricated target or percentage | Explain state; not LOG_ONLY access |
 | Selected range entirely uncached offline | `Data belum tersedia di perangkat` | Retry when online |
 | Sync pending | Pending marker | Continue using local data |
 | Sync failed | Persistent warning, retry | Retry sync |
@@ -230,7 +232,7 @@ All derived data must come from shared canonical models/services, not duplicate 
 - [ ] Known-day averages expose their denominator and partial coverage; no fictitious zero-filled daily average.
 - [ ] Weight entries support create/edit/delete, dates, proper units, validation, idempotent sync.
 - [ ] Automatic goal recalculation preserves historical goal versions; unapproved or failed calculations cannot overwrite active target.
-- [ ] Log-only has no target chart percentage.
+- [ ] Pending/missing historical targets have no fabricated percentage; LOG_ONLY/manual mode not active MVP.
 - [ ] Date range boundaries and timezone changes are tested; day selection routes to the correct diary date.
 - [ ] Offline data remains visible, with reliable sync state and per-user isolation.
 - [ ] Chart text alternatives pass accessibility checks.
@@ -256,13 +258,13 @@ All derived data must come from shared canonical models/services, not duplicate 
 | PR-T14 | Coverage | One logged day in 7 days | One observed day; denominator disclosed |
 | PR-T15 | Coverage | Day with partial energy | Partial label; known sum not presented as exact daily total |
 | PR-T16 | Coverage | All items missing sodium | Sodium unavailable; not 0 mg |
-| PR-T17 | Coverage | User marks day complete (if approved) | Distinct completion vs presence-of-log flag |
-| PR-T18 | Exception | Log-only user | No recommendation or percent-to-goal |
+| PR-T17 | Coverage | Optional Selesai Mencatat | Distinct from Hari Aktif and nutrient coverage; no unknown-to-zero conversion |
+| PR-T18 | Exception | Missing historical/pending target | No fabricated recommendation or percent-to-goal |
 | PR-T19 | Exception | Goal changes midrange | Targets dated correctly; no retroactive re-targeting |
 | PR-T20 | Exception | Auto engine `NEEDS_REVIEW` | Prior safe goal behavior per policy; no unsafe new activation |
 | PR-T21 | Offline | Add log with airplane mode | Local chart updates; pending sync visible |
 | PR-T22 | Offline | Retry same weight operation | Exactly one server record |
-| PR-T23 | Offline | Sync conflict on weight edit | Conflict surfaced, nothing silently lost |
+| PR-T23 | Offline | Two-device weight edit | Server-ordered LWW; independent measurements retained; tombstone/receipts enforced |
 | PR-T24 | Offline | Switch accounts with local cache | No cross-account data shown |
 | PR-T25 | Offline | Older dates not cached | Distinguish unavailable cache vs true no logs |
 | PR-T26 | Timezone | Entry near midnight in Indonesia | Stays on correct diary date |
@@ -279,20 +281,20 @@ All derived data must come from shared canonical models/services, not duplicate 
 |---|---|---|---|
 | PG-D01 | Time presets | rolling 7/30/90 days | Product/UX |
 | PG-D02 | Section navigation | Nutrisi / Berat / Konsistensi | Product/UX |
-| PG-D03 | Definition of completed day | explicit user confirmation | Product/UX |
+| PG-D03 | Selesai Mencatat | APPROVED D10: optional explicit confirmation, separate from >=1-log Hari Aktif and coverage | Edit/delete marker behavior OPEN |
 | PG-D04 | Frequency denominator | elapsed eligible days in range | Product/UX |
 | PG-D05 | Multiple weigh-ins/day chart value | latest timestamp on day; retain all raw events | Product/UX |
-| PG-D06 | Backdated weigh-in triggers recalc? | only effective current weight triggers | Product + clinical review |
-| PG-D07 | Auto goal activation effective date | start next diary day proposed to avoid mid-day changes | Product + clinical review |
-| PG-D08 | Manual goal + weight update | retain manual goal and ask user to review | Product + clinical review |
+| PG-D06 | Backdated weight recalc | D03: only reevaluate latest valid reference; backdated cannot arbitrarily replace it or rewrite history | Boundary fixtures/clinical review OPEN |
+| PG-D07 | Auto goal effective time | Design: server activation forward only; daily comparison at local day end per schema/Decision 03; fixtures/tests OPEN | Engineering + clinical review |
+| PG-D08 | Manual goal + weight update | RESOLVED MVP scope: manual post-MVP; automatic reevaluation preserves history | Future manual safety policy OPEN |
 | PG-D09 | Safety thresholds / reference weights | external expert validation pending | Clinical review |
 | PG-D10 | Data export/share chart | out of MVP until privacy policy approved | Product/legal |
 | PG-D11 | Timezone reconfiguration policy | preserve original diary dates unless explicit migration | Product/engineering |
-| PG-D12 | Conflict resolution across devices | define in offline-sync-spec | Engineering/security |
+| PG-D12 | Cross-device resolution | RESOLVED design: server-ordered LWW, per-owner idempotency and transactional per-user cursor | Concurrency verification OPEN |
 
 ## 14. Review gates and handoff
 
-**Product/UX:** Approve period semantics, completion definition, weigh-in representation, and what qualifies as a meaningful summary.  
+**Product/UX:** Period semantics, weigh-in graph representation and summary presentation remain review items. D10 optional completion and >=1-log Hari Aktif are settled; edit/delete marker details remain OPEN.
 **Clinical/nutrition:** Review all goal comparisons, recalc triggers, safety guardrails and restrictions for unsupported users; no clinical approval asserted here.  
 **Legal/privacy:** Confirm collection, storage, export/deletion and retention requirements for body and nutrition logs under applicable Indonesian law.  
 **Engineering:** Validate timezone identifiers, idempotent offline sync, conflict and historical effective-date policy, query performance and accessibility.
@@ -300,7 +302,7 @@ All derived data must come from shared canonical models/services, not duplicate 
 ### Recommended implementation slices (only after the above dependencies are resolved)
 
 1. Canonical daily nutrition aggregation with missingness metadata and unit tests.
-2. Progress page skeleton with no-data / partial / log-only states.
+2. Progress skeleton with no-data, partial and pending/unavailable target states; no active LOG_ONLY/manual mode.
 3. 7/30/90-day calorie & macro graphs with accessible alternatives.
 4. Weight-entry CRUD with offline store, verification and history chart.
 5. Consistency summary with explicit denominator and complete-day semantics.

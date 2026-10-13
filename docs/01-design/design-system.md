@@ -2,7 +2,7 @@
 
 **Version:** 1.0 — proposed visual baseline (review required)  
 **Project:** React Native + Expo + Expo Router / TypeScript  
-**Repository destination:** `docs/01-design/design-system.md`  
+**Repository destination:** [docs/01-design/design-system.md](design-system.md)\
 **Source of truth:** official logo and Bowi assets inside `assets/branding/`; exploratory references inside `docs/01-design/references/`  
 **Status:** Ready for UI wireframe/prototype, **not yet approved for production implementation**.
 
@@ -176,7 +176,7 @@ Inputs (conceptual, not exact API): `value`, `target|null`, `unit`, `label`, `nu
 
 Rules:
 - Ring fraction for valid target > 0: `min(max(value / target, 0), 1)` for track fill; **over-target must have additional explicit indicator** so clipping does not conceal excess.
-- With no target (`log-only`), show consumed value and **no misleading target ring**; use neutral visualization or no ring.
+- With a missing/pending target for an eligible profile or historical date, show known consumed values without a misleading target ring. MVP has no LOG_ONLY mode.
 - If there are **zero logs**, distinguish "Belum ada makanan dicatat" from a verified 0 nutrient value; do not claim full diary coverage.
 - If a logged food is missing a nutrient, aggregate known values but label **"Data sebagian"**; don't imply exact total.
 - Avoid claiming exceeding a protein target is inherently bad; use neutral category-specific wording.
@@ -199,7 +199,7 @@ Five tabs planned: `Home`, `Makanan`, `Progress`, `Profil`, `AI`. Candidate: rou
 - **Do not** treat the prominent center `+` of the reference as a sixth tab. It is a contextual action if used.
 - If `AI` is not implemented, decide between a disabled `Segera Hadir` route or hiding it in MVP — **decision still open**.
 - Food-logging entry points remain available from Home meal rows and Foods tab.
-- Navbar behavior across keyboard, modal, and nested stacks must be documented in `navigation-spec.md` / wireframes.
+- Navbar behavior across keyboard, modal, and nested stacks must be documented in [navigation-spec.md](navigation-spec.md) / wireframes.
 
 ## 9. Logo and mascot usage
 
@@ -228,7 +228,7 @@ Use smaller inline graphics for simple loading states. Mascot is never a replace
 
 ## 10. UI states and accessibility
 
-Every screen/component that performs data actions needs: initial loading, content, empty, validation error, recoverable error, offline/pending sync, disabled, and success where applicable. Nutrition-specific: log-only (no goal), unknown nutrient, partial-data nutrient, over-target, historical target version.
+Every screen/component that performs data actions needs: initial loading, content, empty, validation error, recoverable error, offline/pending sync, disabled, and success where applicable. Nutrition-specific: missing/pending automatic target, unknown nutrient, partial nutrient data, over-target, historical target version. No active LOG_ONLY mode in MVP.
 
 - Color cannot be the only differentiator: add concise text/icon.
 - Contrast: target WCAG AA as a design audit benchmark (normal text 4.5:1; large text 3:1), and test interactive controls/focus states. Native platform accessibility requirements also apply.
@@ -295,6 +295,6 @@ Implementation principles:
 
 ## 14. Next work item
 
-Create `docs/01-design/home-ui-direction.md` plus low-fidelity wireframe(s) for Home using the user's circular-ring screenshot as **top-priority compositional reference**. Then review color pairs and navigation on mobile screen widths before finalizing the high-fidelity component variants.
+Create [docs/01-design/home-ui-direction.md](home-ui-direction.md) plus low-fidelity wireframe(s) for Home using the user's circular-ring screenshot as **top-priority compositional reference**. Then review color pairs and navigation on mobile screen widths before finalizing the high-fidelity component variants.
 
 **Do not instruct Codex to generate every screen yet.** This v1.0 document specifies proposed visual rules, not sign-off on all UI details or the medical/nutrition rules.

@@ -2,19 +2,19 @@
 
 **Version:** 1.0 — planning draft  
 **Status:** FOR OWNER REVIEW; not approved as final UI  
-**Destination:** `docs/01-design/food-ui-direction.md`  
+**Destination:** [docs/01-design/food-ui-direction.md](food-ui-direction.md)\
 **Platform:** React Native + Expo / Expo Router / TypeScript  
 **Prepared:** 13 October 2026
 
 ## 0. Context and decision hierarchy
 
-This document translates the approved *provisional* Home visual style to the Food tab and food-logging screens. It does not change the functional decisions in `docs/03-features/food-logging-spec.md`, nutrient integrity rules in `docs/02-architecture/food-database-spec.md`, or route rules in `docs/01-design/navigation-spec.md`.
+This document translates the approved *provisional* Home visual style to the Food tab and food-logging screens. It does not change the functional decisions in [docs/03-features/food-logging-spec.md](../03-features/food-logging-spec.md), nutrient integrity rules in [docs/02-architecture/food-database-spec.md](../02-architecture/food-database-spec.md), or route rules in [docs/01-design/navigation-spec.md](navigation-spec.md).
 
 **Confirmed visual baseline from owner:** Home design is approved **temporarily and revisable**. Forest green + cream, lots of breathing room, soft rounded cards, and minimalist rings. For macro progress, show `Protein`, `Karbo`, `Lemak` labels, percentages inside rings, and logged/target grams below; **no macro icons**. Do not mistake this provisional approval for a locked final design system.
 
 **Asset priority:** Official NUTRASA logo and Bowi assets in `assets/branding/` take precedence over old reference images. No invented mascot or copied competitor branding.
 
-**MVP scope:** search / Indonesian food categories / food detail / portion and meal-date selection / food log / favorites / recents / custom food / custom recipe / copy meal / local save and sync status. AI photo recognition and barcode scanning remain future scope.
+**MVP scope (O-18 RESOLVED):** search, Indonesian food categories, food detail, portion/date selection, food logs, food favorites, recent foods, simple custom foods, copy food logs, local save and sync status. User recipes, AI photo recognition and barcode scanning are post-MVP.
 
 ## 1. Design objectives
 
@@ -36,11 +36,11 @@ This document translates the approved *provisional* Home visual style to the Foo
 | Add food / portion editor | Quantity, unit, date, meal, preview and save | Accessible from detail; successful save returns to origin | Candidate design |
 | Recent & favorites | Quick selection of frequent foods | Reuse picker and portion editor | Confirmed feature, UI candidate |
 | Custom food form | Private food creation | Draft-preserving edit, validation and save | Confirmed feature, UI candidate |
-| Recipe builder | Ingredients, weights, finished yield and portions | Validation before publish to user's recipes | Confirmed feature, UI candidate |
+| Recipe builder | Ingredients, weights, finished yield and portions | Validation before publish to user's recipes | Post-MVP concept; not MVP approval |
 | Copy meal sheet | Source and target dates/meals, preview items | Explicit confirmation and reversible result | Confirmed feature, UI candidate |
 | Daily diary | Inspect/edit/delete selected day items | Return to same selected date | Confirmed feature, UI candidate |
 
-**Routing constraint:** Expo Router path and modal boundaries are implementation choices. Draft route intent must align with `navigation-spec.md`; don't invent file paths prematurely.
+**Routing constraint:** Expo Router path and modal boundaries are implementation choices. Draft route intent must align with [navigation-spec.md](navigation-spec.md); don't invent file paths prematurely.
 
 ## 3. Proposed Food landing layout
 
@@ -93,7 +93,7 @@ This document translates the approved *provisional* Home visual style to the Foo
 - `1 potong`, `1 centong`, `1 porsi`, `1 mangkuk` only when backed by a food-specific conversion. Do not claim one centong has a universal gram conversion.
 - Preview recalculates without mutating an already saved log. Unknown nutrients remain unknown, not `0`.
 - If nutrition is partial, show a concise `Data nutrisi sebagian` affordance with optional detail.
-- For log-only users, log food normally but do not invent a personalized target ring or remaining calories.
+- Missing/pending automatic targets must not produce invented rings or remaining calories. MVP accepts eligible adults 18+ only and has no LOG_ONLY mode.
 
 ### Minimal wireframe
 ```text
@@ -128,7 +128,7 @@ This document translates the approved *provisional* Home visual style to the Foo
 | CTA | Forest green, descriptive label, visible disabled/loading states | AI/camera icon for manual logging |
 | Snackbar | `Tersimpan di perangkat` / `Tersinkron` as appropriate | Calling pending offline logs `Synced` |
 
-Use `Plus Jakarta Sans` and `lucide-react-native` through centralized wrappers **as candidates** from `design-system.md`; final library and token selection requires review before installation. Use semantic colors and focus/contrast/accessibility tests, not arbitrary hex values in individual screens.
+Use `Plus Jakarta Sans` and `lucide-react-native` through centralized wrappers **as candidates** from [design-system.md](design-system.md); final library and token selection requires review before installation. Use semantic colors and focus/contrast/accessibility tests, not arbitrary hex values in individual screens.
 
 ## 7. App states & copy rules
 
@@ -139,7 +139,7 @@ Use `Plus Jakarta Sans` and `lucide-react-native` through centralized wrappers *
 | Partial nutrition | `Sebagian informasi nutrisi belum tersedia` without 0 substitution |
 | Offline | Cached search/foods available; show `Offline` if live search unavailable |
 | Save pending | Show `Tersimpan di perangkat` and eventual sync result |
-| Conflict or failed sync | Preserve item; visible retry/error status, never silently lose log |
+| Failed/rejected sync | Preserve pending work and show retry/error; concurrent valid changes follow server-ordered LWW, not manual conflict selection |
 | Duplicate add tap | Disable/guard save in-flight; retries idempotent |
 | Back from editor | Unsaved changes confirmation when substantive |
 | Item unavailable | Show fallback, source status and safe navigation |
@@ -151,7 +151,7 @@ Use `Plus Jakarta Sans` and `lucide-react-native` through centralized wrappers *
 - Preserve `selectedLocalDate`, `mealType`, and `origin` across picker/detail/editor and back navigation. Do not convert a local diary day to UTC without policy.
 - Logging must immediately update local diary and Home progress, then sync asynchronously; expose lifecycle clearly.
 - Edit/delete/copy preserve nutrient snapshots and histories, as in existing functional spec.
-- Custom foods and recipes are private by default, pending any future moderation capability.
+- Simple custom foods are private in MVP; user recipes are private by default in post-MVP design. Enforce owner isolation and logout cleanup per Decision 08.
 - Reusable primitives should be feature-owned first; promote to shared UI only when more than one feature has a true need.
 - Do not create screens, state stores, database migrations or dependencies from this draft until UI and technical contracts are approved.
 
@@ -178,16 +178,16 @@ Use `Plus Jakarta Sans` and `lucide-react-native` through centralized wrappers *
 | FOOD-UI-04 | Category tiles style | Lightweight labels with limited iconography |
 | FOOD-UI-05 | Nutrient source in basic or expanded detail | Expanded section + summary completeness notice |
 | FOOD-UI-06 | Favorite quick action shown in results? | In detail or swipe-safe row action, not oversized buttons |
-| FOOD-UI-07 | Recipe builder layout | Separate focused screen, not forced into picker |
+| FOOD-UI-07 | Recipe builder layout (post-MVP only) | Separate focused screen, not forced into picker |
 | FOOD-UI-08 | Copy meal flow | Preview confirmation before committing |
 | FOOD-UI-09 | Dashboard `Tambah Makanan` icon | Manual-entry icon; avoid camera until AI exists |
 
 ## 11. Next deliverables
 
 1. Product owner review of the above visual direction and open decisions.
-2. Low-fidelity wireframes for Food landing, Search, Detail/Portion, Recipe Builder, and Copy Meal, including states.
+2. Low-fidelity wireframes for MVP Food landing, Search, Detail/Portion and Copy Food Log, including states; Recipe Builder remains post-MVP.
 3. High-fidelity mockups using **real official brand assets** and approved design tokens.
-4. UX prototype test covering an Indonesian dish, an unavailable dish, a custom recipe and an offline save.
+4. UX prototype test covering an Indonesian dish, an unavailable dish, a simple custom food and an offline save.
 5. Screen-specification handoff and implementation tasks for Codex.
 
 **Sign-off status:** Home = provisionally approved and may change. Food UI = proposed, awaiting review. Clinical/safety/food-source/licensing decisions remain subject to separate reviews.

@@ -2,7 +2,7 @@
 
 **Versi:** v1.5 (draft developer review)  
 **Platform:** React Native + Expo + Expo Router + TypeScript  
-**Lokasi repository:** `docs/01-design/navigation-spec.md`  
+**Lokasi repository:** [docs/01-design/navigation-spec.md](navigation-spec.md)\
 **Status:** DRAFT — keputusan yang belum disetujui ditandai `[PROPOSED]`; belum instruksi untuk langsung membangun semua screen.
 
 ## 1. Tujuan dan batasan
@@ -13,18 +13,18 @@ Dokumen ini mendefinisikan hierarki layar, route map, alur pengguna, aturan akse
 
 ### Diputuskan
 - Login / register sebelum onboarding; pengguna lama dengan sesi dan onboarding lengkap langsung ke Home.
-- Email tidak terverifikasi boleh melanjutkan onboarding; beberapa operasi akun dapat dibatasi. Persisnya masih perlu finalisasi.
-- Draft onboarding lokal hingga selesai, baru dikirim ke server sesuai aturan verifikasi.
+- Verifikasi email opsional; onboarding, penyimpanan profil final, Home, dan sync tidak diblokir oleh email belum terverifikasi. Tindakan sensitif mengikuti reautentikasi Firebase.
+- Draft onboarding lokal hingga selesai; server memvalidasi token dan eligibility saat penyimpanan, bukan mewajibkan email verified.
 - Onboarding visual, body type opsional dan tidak memengaruhi perhitungan; target berat wajib untuk cutting/bulking.
-- Pengguna yang tidak didukung kalkulator otomatis boleh menjalankan **log-only mode**.
+- MVP hanya dewasa 18+ dengan profil didukung; tidak ada LOG_ONLY aktif atau target numerik bagi profil tidak eligible.
 - Target hasil kalkulator yang layak otomatis aktif, tanpa halaman konfirmasi wajib; status tidak layak tidak boleh diaktifkan.
 - Navigasi bawah yang diinginkan: Home, Makanan, Progress, Profil, AI Tracking (AI bukan fitur aktif MVP).
-- Makanan: search, kategori, detail, unit/porsi, food log, custom food, custom recipe, recent, favorite, copy meal.
+- Makanan MVP: search, kategori, detail, porsi, food log, custom food sederhana, recent, favorit makanan, dan salin catatan. Recipe builder post-MVP (O-18 final).
 - Progress: nutrisi, berat badan, konsistensi; kalender dan log mengikuti tanggal jurnal yang dipilih.
 - Offline-tolerant dan sinkronisasi; perubahan lokal yang pending tidak boleh hilang.
 
 ### Prinsip implementasi
-1. `app/` root Expo Router berisi route dan layout; logika bisnis ada di `src/features/`.
+1. `src/app/` Expo Router berisi route dan layout tipis; logika bisnis ada di `src/features/`. Pertahankan konvensi repository.
 2. Satu screen memiliki satu route canonical; jangan duplikasi implementasi demi asal navigasi.
 3. Gunakan tabs untuk area utama, stack untuk detail, dan modal/sheet hanya untuk tugas singkat.
 4. Protected routes adalah proteksi navigasi sisi klien, **bukan otorisasi backend**.
@@ -36,9 +36,9 @@ Dokumen ini mendefinisikan hierarki layar, route map, alur pengguna, aturan akse
 
 ### State akses (terpisah)
 - `session`: `INITIALIZING | SIGNED_OUT | SIGNED_IN | SESSION_RECHECK | ERROR`.
-- `onboarding`: `NOT_STARTED | IN_PROGRESS | NEEDS_REVIEW | COMPLETED | LOG_ONLY`.
+- `onboarding`: `NOT_STARTED | IN_PROGRESS | NEEDS_REVIEW | COMPLETED | INELIGIBLE`.
 - `emailVerification`: `NOT_APPLICABLE | UNVERIFIED | VERIFIED | UNKNOWN`.
-- `sync`: `LOCAL_ONLY | PENDING | SYNCING | SYNCED | CONFLICT | FAILED` (hanya status data; tidak otomatis mengubah route utama).
+- `sync`: `LOCAL_ONLY | PENDING | SYNCING | SYNCED | FAILED` (status data); receipt/rejection ditangani per operasi, normal LWW bukan konflik revisi.
 
 ### Route resolution
 1. `INITIALIZING`: tahan konten terlindungi di splash/bootstrap; jangan render dashboard sementara.
@@ -46,18 +46,18 @@ Dokumen ini mendefinisikan hierarki layar, route map, alur pengguna, aturan akse
 3. `SIGNED_IN + NOT_STARTED/IN_PROGRESS`: buka onboarding dari langkah valid terakhir.
 4. `SIGNED_IN + NEEDS_REVIEW`: alur peninjauan/penjelasan; jangan masukkan target yang belum layak.
 5. `SIGNED_IN + COMPLETED`: buka Home atau deep link yang boleh diakses.
-6. `SIGNED_IN + LOG_ONLY`: buka Home mode log-only; target kalori/makro tidak ditampilkan sebagai target otomatis.
+6. `SIGNED_IN + INELIGIBLE`: jelaskan ketidaklayakan MVP; jangan masuk Home lewat LOG_ONLY atau membuat target numerik.
 7. Session expired ketika online: bersihkan navigasi terlindungi dan minta autentikasi ulang. Ketika offline, kebijakan membuka cache pribadi memerlukan spesifikasi keamanan tersendiri.
-8. `UNVERIFIED` tidak otomatis menghalangi onboarding; fitur yang memerlukan verifikasi dicek per-aksi, jangan menutup seluruh aplikasi tanpa keputusan produk.
+8. `UNVERIFIED` tidak menghalangi fitur utama, onboarding, Home, atau sync; aksi sensitif memakai reautentikasi Firebase bila diperlukan.
 
-**[OPEN]** Konfirmasi apakah pengguna unverified bisa menyimpan profil final, masuk Home lokal, menyinkron log, atau harus menyelesaikan verifikasi; jangan implementasikan guard granular sebelum disetujui.
+**RESOLVED D01:** profil final, Home, dan sync tersedia dengan token valid serta eligibility yang sesuai meski email belum verified. Status/aksi verifikasi berada di Profil > Pengaturan > Data Diri; integrasi SDK dan keamanan tetap perlu diuji.
 
 ## 3. Lima tab utama
 
 | Tab | Label | Tujuan landing | Status | Aturan |
 |---|---|---|---|---|
 | 1 | Home | `/home` | MVP | Dashboard tanggal terpilih dan diary |
-| 2 | Makanan | `/foods` | MVP | Cari, recent, favorites, kategori, custom food/recipe |
+| 2 | Makanan | `/foods` | MVP | Cari, recent, favorit, kategori, custom food sederhana; resep pengguna post-MVP |
 | 3 | Progress | `/progress` | MVP | Grafik nutrisi, berat badan, konsistensi |
 | 4 | Profil | `/profile` | MVP | Data pengguna, tujuan, akun, privacy |
 | 5 | AI | `/ai` | [PROPOSED] | Placeholder noninteraktif “Coming Soon”, tidak meminta pembayaran dan tidak menjanjikan fungsi aktif |
@@ -117,9 +117,9 @@ Langkah diperlakukan sebagai tahapan konsep: setelah UX review boleh digabung da
 | FD-05 | Portion/log composer | `/food-log/new` | MVP |
 | FD-06 | Edit existing log | `/food-log/[logId]/edit` | MVP |
 | FD-07 | Custom food create/edit | `/custom-food/new`, `/custom-food/[foodId]/edit` | MVP |
-| FD-08 | Recipe list | `/recipes` | MVP |
-| FD-09 | Recipe create/edit | `/recipes/new`, `/recipes/[recipeId]/edit` | MVP |
-| FD-10 | Recipe detail | `/recipes/[recipeId]` | MVP |
+| FD-08 | Recipe list | `/recipes` | FUTURE — post-MVP |
+| FD-09 | Recipe create/edit | `/recipes/new`, `/recipes/[recipeId]/edit` | FUTURE — post-MVP |
+| FD-10 | Recipe detail | `/recipes/[recipeId]` | FUTURE — post-MVP |
 | FD-11 | Recent/Favorites | Sections on `/foods` | MVP; dedicated routes unnecessary initially |
 | FD-12 | Copy meal source picker | `/food-log/copy` | MVP, modal/sheet [PROPOSED] |
 | FD-13 | Food feedback/report | `/foods/[foodId]/report` | [PROPOSED] |
@@ -140,7 +140,7 @@ Langkah diperlakukan sebagai tahapan konsep: setelah UX review boleh digabung da
 | PF-02 | Account details | `/profile/account` | MVP |
 | PF-03 | Body/activity settings | `/profile/body` | MVP |
 | PF-04 | Nutrition goals | `/profile/goals` | MVP |
-| PF-05 | Edit goal / manual override | `/profile/goals/edit` | MVP |
+| PF-05 | Edit goal / manual override | `/profile/goals/edit` | FUTURE — post-MVP |
 | PF-06 | Preferences | `/profile/preferences` | MVP |
 | PF-07 | Security/session | `/profile/security` | MVP |
 | PF-08 | Privacy & data | `/profile/privacy` | MVP |
@@ -158,10 +158,10 @@ Langkah diperlakukan sebagai tahapan konsep: setelah UX review boleh digabung da
 
 ## 5. Expo Router — struktur rute rekomendasi (konseptual)
 
-**Catatan:** Di proyek sebelumnya disepakati `app/` di root. Jangan membuat `app/` dan `src/app/` sekaligus. Bila memilih `src/app/`, lakukan migrasi terencana dan konsisten; contoh berikut memakai root `app/`.
+**Catatan:** Repository memakai `src/app/`; pertahankan lokasi ini dan route tipis sesuai AGENTS.md. Contoh konseptual berikut mencakup rute masa depan yang diberi label; bukan instruksi migrasi atau pembuatan semua rute.
 
 ```text
-app/
+src/app/
 ├── _layout.tsx                 # providers + root stack + route guards
 ├── index.tsx                   # bootstrap / role-safe redirect
 ├── (auth)/
@@ -212,7 +212,7 @@ app/
 │   ├── custom-food/
 │   │   ├── new.tsx
 │   │   └── [foodId]/edit.tsx
-│   ├── recipes/
+│   ├── recipes/                # POST-MVP; bukan route aktif MVP
 │   │   ├── index.tsx
 │   │   ├── new.tsx
 │   │   ├── [recipeId]/index.tsx
@@ -227,7 +227,7 @@ app/
 │       ├── body.tsx
 │       ├── goals/
 │       │   ├── index.tsx
-│       │   └── edit.tsx
+│       │   └── edit.tsx        # manual override POST-MVP
 │       ├── preferences.tsx
 │       ├── security.tsx
 │       ├── privacy.tsx
@@ -258,8 +258,8 @@ Dari jurnal pilih item -> edit. Edit jumlah/porsi menghasilkan snapshot baru unt
 ### F-04 Copy meal
 Pilih tanggal+meal sumber -> preview item -> pilih tujuan -> simpan item baru dengan IDs baru dan snapshot sumber; hindari copy ke hari asal secara tidak sengaja. Saat sebagian gagal, tampilkan hasil partial dan retry tanpa duplikat.
 
-### F-05 Pengguna log-only
-Home tampilkan asupan diketahui dan label 'Target belum tersedia'. Navigasi Food Logging, kalender, Progress, dan Profil tetap ada; tombol 'aktifkan target' menuju penjelasan dan kelayakan, bukan angka default.
+### F-05 Profil tidak eligible
+MVP hanya dewasa 18+ dengan profil didukung. Jelaskan ketidaklayakan dan arahkan koreksi jawaban bila sesuai; jangan membuka Home LOG_ONLY atau memberi target default.
 
 ### F-06 Auto target recalculation
 Catat berat -> tampilkan progres tersimpan -> evaluasi mesin nutrisi. Jika hasil layak aktifkan versi target baru menurut kebijakan tanggal berlaku; jika hasil tidak layak, status review dan simpan target terakhir yang valid sesuai peraturan yang masih perlu finalisasi. Jangan ubah nilai target histori diam-diam.
@@ -285,7 +285,7 @@ Jika deep link menuju detail makanan ketika signed out, arahkan login; pasca log
 |---|---|---|
 | `foodId` | opaque ID | format dan keberadaan, izin akses pada custom food |
 | `logId` | opaque ID | kepemilikan, hari, akun dan status perubahan |
-| `recipeId` | opaque ID | private ownership / public scope |
+| `recipeId` — post-MVP | opaque ID | future private ownership checks, not an active MVP route |
 | `categoryId` | string/ID | kategori published dan tidak dihapus |
 | `date` | ISO local date `YYYY-MM-DD` | tanggal valid; jangan parsing implicit UTC |
 | `mealType` | enum breakfast/lunch/dinner/snack | whitelist |
@@ -299,17 +299,17 @@ Jangan menaruh token login, data tubuh, nutrisi pribadi, atau nilai target lengk
 |---|---|---|
 | Sesi bootstrap belum selesai | Splash/system loading | Tidak masuk screen private |
 | Login gagal | Error terlokalisasi | Tetap login |
-| Email belum verified | Banner/info sesuai aksi | Onboarding tetap bisa lanjut |
+| Email belum verified | Info opsional di Profil > Pengaturan > Data Diri | Fitur utama/onboarding/sync tersedia; reauth tindakan sensitif |
 | Onboarding draft belum lengkap | Step yang belum valid | Next ditahan, back tetap mungkin |
-| Kalkulator unsupported | Log-only explanation | Dashboard log-only |
+| Profil tidak eligible | Penjelasan ketidaklayakan MVP | Tidak menyelesaikan onboarding atau membuka Home LOG_ONLY |
 | Perhitungan review | Penjelasan review | Jangan tampilkan target otomatis baru |
 | Search makanan kosong | Empty state, custom food CTA | Tetap di search |
 | Food ID tidak ditemukan | Not found + kembali | Fallback Food list |
 | Tidak ada jaringan | Offline indicator | Masih bisa log lokal sesuai cache |
 | Save lokal gagal | Error + retry | Tetap di form, jangan hilangkan input |
 | Save lokal sukses, sync pending | Pending icon | Kembali konteks sebelumnya |
-| Konflik sync | Conflict screen/badge | Jangan hapus draft lokal |
-| Logout saat pending ops | Peringatan data belum sync | Kebijakan clear/retain memerlukan review |
+| Edit lintas perangkat | Server-ordered LWW setelah pull | Antrean persisten; receipt per operasi; penolakan tombstone ENTITY_DELETED |
+| Logout saat pending ops | Sinkron dahulu / batal / hapus dengan konfirmasi | Bersihkan data pribadi saat logout selesai; isolasi akun; pengujian OPEN |
 | Delete account | Re-auth + konfirmasi | Clear user navigation/cache sesuai hasil backend |
 | Berganti akun | Per-account state reset | Re-resolve route dari nol |
 | Deep link tidak valid | Safe fallback | Home / Welcome |
@@ -318,15 +318,15 @@ Jangan menaruh token login, data tubuh, nutrisi pribadi, atau nilai target lengk
 
 | Dokumen | Hubungan utama |
 |---|---|
-| `onboarding-spec.md` | urutan pertanyaan, eligibility, onboarding completion |
-| `auth-spec.md` | providers, session, unverified permissions, reset links |
-| `nutrition-engine-spec.md` | target READY/NEEDS_REVIEW/UNSUPPORTED, target version |
-| `food-database-spec.md` | public/private food IDs, source status, portion system |
-| `food-logging-spec.md` | food selection context, save/copy/edit/delete |
-| `dashboard-spec.md` | date selection, diary context, daily summary |
-| `progress-spec.md` | period filters, weight tracking, completeness |
-| `profile-spec.md` | editable body and goals, deletion, privacy |
-| `offline-sync-spec.md` | local pending and conflict presentation |
+| [onboarding-spec.md](onboarding-spec.md) | urutan pertanyaan, eligibility, onboarding completion |
+| [auth-spec.md](../03-features/auth-spec.md) | providers, session, email opsional, sensitive reauth, reset links |
+| [nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md) | target READY/NEEDS_REVIEW/UNSUPPORTED, target version |
+| [food-database-spec.md](../02-architecture/food-database-spec.md) | public/private food IDs, source status, portion system |
+| [food-logging-spec.md](../03-features/food-logging-spec.md) | food selection context, save/copy/edit/delete |
+| [dashboard-spec.md](../03-features/dashboard-spec.md) | date selection, diary context, daily summary |
+| [progress-spec.md](../03-features/progress-spec.md) | period filters, weight tracking, completeness |
+| [profile-spec.md](../03-features/profile-spec.md) | editable body and goals, deletion, privacy |
+| [sync-protocol-final-design.md](../02-architecture/sync-protocol-final-design.md) | ordered LWW, owner idempotency, tombstones, transactional cursor, pending/retry states |
 
 ## 11. Test matrix (navigation acceptance tests)
 
@@ -335,8 +335,8 @@ Jangan menaruh token login, data tubuh, nutrisi pribadi, atau nilai target lengk
 | NAV-01 | Fresh install, signed out | Welcome/auth, no Home flash |
 | NAV-02 | Sign in, onboarding incomplete | Resume valid step |
 | NAV-03 | Sign in, completed | Home |
-| NAV-04 | Sign in, log-only | Home without auto goals |
-| NAV-05 | Unverified email | Can continue onboarding; gated action reflects policy |
+| NAV-04 | Sign in, profil tidak eligible | Tidak ada completion/Home LOG_ONLY atau target numerik |
+| NAV-05 | Unverified email | Onboarding/final save/Home/sync tersedia; reauth untuk tindakan sensitif |
 | NAV-06 | Finish onboarding | Back does not reopen onboarding |
 | NAV-07 | Auth state changes while viewing private screen | Protected route is removed |
 | NAV-08 | Deep link to food detail while signed out | Auth then guarded destination/fallback |
@@ -380,7 +380,7 @@ Success metric: a logged-in eligible user can navigate from Home to add a food t
 | ID | Open decision | Default recommendation | Required approval |
 |---|---|---|---|
 | NAV-D01 | Show AI tab while unavailable? | Placeholder Coming Soon | Product/UI |
-| NAV-D02 | Email unverified operation matrix | Onboarding allowed; server actions gated individually | Product/auth/security |
+| NAV-D02 | D01 RESOLVED: email optional; fitur utama tersedia | Status/aksi di Data Diri; reauth sensitif Firebase | SDK/security tests OPEN |
 | NAV-D03 | Food composer as full screen or bottom sheet? | Full screen for reliable complex portions | UX |
 | NAV-D04 | Date picker as modal vs screen? | Modal/sheet with calendar | UX |
 | NAV-D05 | Dedicated screens for Progress subsections? | One main view + weight detail | UX |
@@ -390,9 +390,9 @@ Success metric: a logged-in eligible user can navigate from Home to add a food t
 | NAV-D09 | Profile changes and automatic target effective time? | Use versioned targets; policy in nutrition engine | Medical/product |
 | NAV-D10 | Deep link after login when onboarding incomplete | Finish onboarding, then validate destination | Security/product |
 | NAV-D11 | Cached offline private content after token expires | Governed by security policy | Security |
-| NAV-D12 | Unverified sync permissions and account linking | Provider-specific policy | Security/legal |
+| NAV-D12 | Sync tidak diblokir email unverified; account linking masih OPEN | Token valid/ownership; kebijakan linking sesuai provider | Security/legal |
 | NAV-D13 | Onboarding personal-data legal notice & consent | Align with privacy assessment | Legal |
-| NAV-D14 | Logout/delete account with unsynced data | No silent loss or cross-account rehydration | Security/product |
+| NAV-D14 | Logout/delete workflow | D08 design: clear private local data after safe pending-outbox choice; retry coordinated Firebase/PostgreSQL/local deletion | Security/device tests OPEN |
 | NAV-D15 | Expo Router installed SDK and API compatibility | Check SDK; do not assume SDK 58 features | Engineering |
 
 **Rules pending medical/legal/security review must not be silently enabled simply because screens are designed.**
@@ -401,8 +401,8 @@ Success metric: a logged-in eligible user can navigate from Home to add a food t
 
 - [ ] Daftar rute MVP disetujui Product + Developer.
 - [ ] Perbedaan route canonical, tab, stack, modal disepakati.
-- [ ] Access policy `SIGNED_OUT/IN_PROGRESS/COMPLETED/LOG_ONLY` disetujui.
-- [ ] Email verification operation matrix disahkan.
+- [ ] Access policy `SIGNED_OUT/IN_PROGRESS/COMPLETED/INELIGIBLE` diuji; tidak ada LOG_ONLY aktif.
+- [ ] D01 email opsional dan reautentikasi tindakan sensitif diuji.
 - [ ] Semua parameter ID/date/meal punya validasi.
 - [ ] Navigasi Food Logging mempertahankan konteks tanggal dan meal.
 - [ ] Alur back, deep link, offline, dan account switch diuji di rancangan.

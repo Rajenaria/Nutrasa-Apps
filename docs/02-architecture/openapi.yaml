@@ -1,0 +1,3468 @@
+openapi: 3.1.0
+info:
+  title: NUTRASA MVP API
+  version: 1.5.0-draft
+  description: 'Typed engineering review draft. Not production approved; see contract-hardening-review-v1.4.md.
+    Offline conflict rule: server-ordered LWW, NOT actual physical action time.
+
+    Contract review draft, NOT approved for client generation or production. Domain, security and request bodies
+    require full semantic lint and integration review.'
+servers:
+- url: http://localhost:3000
+  description: Trusted local development only
+tags:
+- name: Account
+- name: Analytics
+- name: Catalog
+- name: Favorites
+- name: Goals
+- name: Health
+- name: Identity
+- name: Journal
+- name: Onboarding
+- name: Profile
+- name: Sync
+- name: Weight
+- name: custom-foods
+- name: recipes
+- name: saved-meals
+paths:
+  /api/v1/health/live:
+    get:
+      tags:
+      - Health
+      summary: Liveness
+      operationId: get_health_live
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HealthStatus'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+      security: []
+  /api/v1/health/ready:
+    get:
+      tags:
+      - Health
+      summary: Readiness
+      operationId: get_health_ready
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HealthStatus'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+      security: []
+  /api/v1/me/bootstrap:
+    post:
+      tags:
+      - Identity
+      summary: Bootstrap Firebase identity
+      operationId: post_me_bootstrap
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': &id001
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401': &id002
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403': &id003
+          description: Not eligible or deleting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422': &id004
+          description: Nutrition or serving unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '429': &id005
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500': &id006
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties: {}
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: &id008
+          type: string
+          format: uuid
+  /api/v1/me:
+    get:
+      tags:
+      - Identity
+      summary: Current account
+      operationId: get_me
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': &id007
+          description: Not found or not owned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+  /api/v1/me/onboarding:
+    get:
+      tags:
+      - Onboarding
+      summary: Onboarding state
+      operationId: get_me_onboarding
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      status: &id009
+                        type: string
+                        description: Opaque stable per-user commit-ordered cursor.
+                      draft:
+                        oneOf:
+                        - $ref: '#/components/schemas/OnboardingInput'
+                        - type: 'null'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+    put:
+      tags:
+      - Onboarding
+      summary: Commit onboarding with eligibility validation
+      operationId: put_me_onboarding
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingInput'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/profile:
+    get:
+      tags:
+      - Profile
+      summary: Read profile
+      operationId: get_me_profile
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProfilePatch'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+    patch:
+      tags:
+      - Profile
+      summary: Update profile
+      operationId: patch_me_profile
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProfilePatch'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfilePatch'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/preferences:
+    get:
+      tags:
+      - Profile
+      summary: Preferences
+      operationId: get_me_preferences
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PreferencesPatch'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+    patch:
+      tags:
+      - Profile
+      summary: Update preferences
+      operationId: patch_me_preferences
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PreferencesPatch'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferencesPatch'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/foods:
+    get:
+      tags:
+      - Catalog
+      summary: Search published foods
+      operationId: get_foods
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FoodPage'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema: *id009
+      - name: category_id
+        in: query
+        required: false
+        schema: &id010
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        required: false
+        schema: *id009
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+  /api/v1/foods/{food_id}:
+    get:
+      tags:
+      - Catalog
+      summary: Read published food
+      operationId: get_foods_food_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Food'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: food_id
+        in: path
+        required: true
+        schema: *id010
+  /api/v1/foods/{food_id}/servings:
+    get:
+      tags:
+      - Catalog
+      summary: Read serving conversions
+      operationId: get_foods_food_id_servings
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServingDefinition'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: food_id
+        in: path
+        required: true
+        schema: *id010
+  /api/v1/categories:
+    get:
+      tags:
+      - Catalog
+      summary: Food categories
+      operationId: get_categories
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+  /api/v1/catalog/changes:
+    get:
+      tags:
+      - Catalog
+      summary: Incremental catalog changes
+      operationId: get_catalog_changes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CatalogChangePage'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema: *id009
+      description: Catalog feed uses an independent opaque cursor. Clients must not substitute user sync cursor.
+  /api/v1/me/custom-foods:
+    get:
+      tags:
+      - custom-foods
+      summary: List custom-foods
+      operationId: get_me_custom_foods
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CustomFoodRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+    post:
+      tags:
+      - custom-foods
+      summary: Create custom-foods
+      operationId: post_me_custom_foods
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CustomFoodRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomFoodWrite'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/recipes:
+    get:
+      tags:
+      - recipes
+      summary: List recipes
+      operationId: get_me_recipes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RecipeRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+    post:
+      tags:
+      - recipes
+      summary: Create recipes
+      operationId: post_me_recipes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RecipeRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeWrite'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/saved-meals:
+    get:
+      tags:
+      - saved-meals
+      summary: List saved-meals
+      operationId: get_me_saved_meals
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SavedMealRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+    post:
+      tags:
+      - saved-meals
+      summary: Create saved-meals
+      operationId: post_me_saved_meals
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SavedMealRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedMealWrite'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/custom-foods/{id}:
+    patch:
+      tags:
+      - custom-foods
+      summary: Update custom-foods
+      operationId: patch_me_custom_foods_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CustomFoodRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomFoodPatch'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+    delete:
+      tags:
+      - custom-foods
+      summary: Delete custom-foods
+      operationId: delete_me_custom_foods_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      deleted:
+                        type: boolean
+                      id:
+                        type: string
+                        format: uuid
+                    required:
+                    - deleted
+                    - id
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/recipes/{id}:
+    patch:
+      tags:
+      - recipes
+      summary: Update recipes
+      operationId: patch_me_recipes_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RecipeRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipePatch'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+    delete:
+      tags:
+      - recipes
+      summary: Delete recipes
+      operationId: delete_me_recipes_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      deleted:
+                        type: boolean
+                      id:
+                        type: string
+                        format: uuid
+                    required:
+                    - deleted
+                    - id
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+    get:
+      tags:
+      - recipes
+      summary: Read recipe
+      operationId: get_me_recipes_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RecipeRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+  /api/v1/me/saved-meals/{id}/copy:
+    post:
+      tags:
+      - saved-meals
+      summary: Copy saved meal
+      operationId: post_me_saved_meals_id_copy
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FoodLog'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                journal_date: &id011
+                  type: string
+                  format: date
+                meal_type: *id009
+              required:
+              - journal_date
+              - meal_type
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/favorites:
+    get:
+      tags:
+      - Favorites
+      summary: List favorites
+      operationId: get_me_favorites
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FavoriteRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+  /api/v1/me/favorites/{type}/{id}:
+    put:
+      tags:
+      - Favorites
+      summary: Add favorite
+      operationId: put_me_favorites_type_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FavoriteRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema: *id009
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+    delete:
+      tags:
+      - Favorites
+      summary: Remove favorite
+      operationId: delete_me_favorites_type_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      deleted:
+                        type: boolean
+                      id:
+                        type: string
+                        format: uuid
+                    required:
+                    - deleted
+                    - id
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: type
+        in: path
+        required: true
+        schema: *id009
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/food-logs:
+    get:
+      tags:
+      - Journal
+      summary: Food log by date
+      operationId: get_me_food_logs
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FoodLog'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: date
+        in: query
+        required: true
+        schema: *id011
+    post:
+      tags:
+      - Journal
+      summary: Create log with immutable snapshot
+      operationId: post_me_food_logs
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FoodLog'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FoodLogInput'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/food-logs/{id}:
+    patch:
+      tags:
+      - Journal
+      summary: Edit log with source revision preservation
+      operationId: patch_me_food_logs_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FoodLog'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FoodLogPatch'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+    delete:
+      tags:
+      - Journal
+      summary: Tombstone log
+      operationId: delete_me_food_logs_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      deleted:
+                        type: boolean
+                      id:
+                        type: string
+                        format: uuid
+                    required:
+                    - deleted
+                    - id
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/journal-days/{date}/completion:
+    put:
+      tags:
+      - Journal
+      summary: Set optional day completion
+      operationId: put_me_journal_days_date_completion
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/JournalCompletionRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompletionInput'
+      parameters:
+      - name: date
+        in: path
+        required: true
+        schema: *id011
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/weights:
+    get:
+      tags:
+      - Weight
+      summary: Weight history
+      operationId: get_me_weights
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WeightRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+    post:
+      tags:
+      - Weight
+      summary: Record weight and evaluate goal
+      operationId: post_me_weights
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WeightRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WeightInput'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/weights/{id}:
+    patch:
+      tags:
+      - Weight
+      summary: Correct measurement
+      operationId: patch_me_weights_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WeightRecord'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WeightPatch'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+    delete:
+      tags:
+      - Weight
+      summary: Delete measurement and evaluate goal
+      operationId: delete_me_weights_id
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      deleted:
+                        type: boolean
+                      id:
+                        type: string
+                        format: uuid
+                    required:
+                    - deleted
+                    - id
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id010
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/goals/active:
+    get:
+      tags:
+      - Goals
+      summary: Active automatic target
+      operationId: get_me_goals_active
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    oneOf:
+                    - $ref: '#/components/schemas/Goal'
+                    - type: 'null'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+  /api/v1/me/goals/history:
+    get:
+      tags:
+      - Goals
+      summary: Historical automatic targets
+      operationId: get_me_goals_history
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Goal'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+  /api/v1/me/goals/recalculate:
+    post:
+      tags:
+      - Goals
+      summary: Re-evaluate automatic target
+      operationId: post_me_goals_recalculate
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    oneOf:
+                    - $ref: '#/components/schemas/Goal'
+                    - type: 'null'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties: {}
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/dashboard:
+    get:
+      tags:
+      - Analytics
+      summary: Daily dashboard
+      operationId: get_me_dashboard
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Dashboard'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: date
+        in: query
+        required: true
+        schema: *id011
+  /api/v1/me/progress/nutrition:
+    get:
+      tags:
+      - Analytics
+      summary: Progress nutrition
+      operationId: get_me_progress_nutrition
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProgressNutritionResponse'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: from
+        in: query
+        required: true
+        schema: *id011
+      - name: to
+        in: query
+        required: true
+        schema: *id011
+  /api/v1/me/progress/weight:
+    get:
+      tags:
+      - Analytics
+      summary: Progress weight
+      operationId: get_me_progress_weight
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProgressWeightData'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: from
+        in: query
+        required: true
+        schema: *id011
+      - name: to
+        in: query
+        required: true
+        schema: *id011
+  /api/v1/me/progress/consistency:
+    get:
+      tags:
+      - Analytics
+      summary: Progress consistency
+      operationId: get_me_progress_consistency
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProgressConsistencyData'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: from
+        in: query
+        required: true
+        schema: *id011
+      - name: to
+        in: query
+        required: true
+        schema: *id011
+  /api/v1/me/sync/push:
+    post:
+      tags:
+      - Sync
+      summary: Push ordered idempotent changes
+      operationId: post_me_sync_push
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data: &id015
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      results:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SyncResult'
+                      cursor:
+                        oneOf:
+                        - *id009
+                        - type: 'null'
+                    required:
+                    - results
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with different payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncPush'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+      description: The HTTP Idempotency-Key deduplicates the envelope. Each operation_id separately deduplicates
+        the logical mutation. Commit entity mutations, operation receipts, feed events, and cursor advancement atomically.
+  /api/v1/me/sync/pull:
+    get:
+      tags:
+      - Sync
+      summary: Pull scoped change feed
+      operationId: get_me_sync_pull
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SyncPullPage'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '410':
+          description: 'Cursor expired: retain pending outbox and perform full resync'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema: *id009
+      description: First request without cursor returns a consistent baseline and snapshot watermark via implementation-defined
+        bootstrap; expired cursor returns 410 CURSOR_EXPIRED. A resync must not delete pending local mutations.
+  /api/v1/me/account/deletion-request:
+    post:
+      tags:
+      - Account
+      summary: Start durable coordinated deletion
+      operationId: post_me_account_deletion_request
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeletionStatus'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+        '409':
+          description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      security:
+      - FirebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties: {}
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: UUID unique per logical mutation; retries reuse same UUID and identical payload
+        schema: *id008
+  /api/v1/me/account/deletion-status:
+    get:
+      tags:
+      - Account
+      summary: Read deletion status
+      operationId: get_me_account_deletion_status
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeletionStatus'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+                required:
+                - data
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id007
+        '422': *id004
+        '429': *id005
+        '500': *id006
+      security:
+      - FirebaseBearer: []
+components:
+  securitySchemes:
+    FirebaseBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
+  schemas:
+    Nutrients:
+      type: object
+      additionalProperties: false
+      properties:
+        energy_kcal:
+          oneOf:
+          - &id012
+            type: string
+            pattern: ^\d+(\.\d{1,5})?$
+            description: Decimal >= 0, validation/upper bounds enforced by server
+          - type: 'null'
+        protein_g:
+          oneOf:
+          - *id012
+          - type: 'null'
+        carbohydrate_g:
+          oneOf:
+          - *id012
+          - type: 'null'
+        fat_g:
+          oneOf:
+          - *id012
+          - type: 'null'
+        fiber_g:
+          oneOf:
+          - *id012
+          - type: 'null'
+        sugar_g:
+          oneOf:
+          - *id012
+          - type: 'null'
+        saturated_fat_g:
+          oneOf:
+          - *id012
+          - type: 'null'
+        trans_fat_g:
+          oneOf:
+          - *id012
+          - type: 'null'
+        cholesterol_mg:
+          oneOf:
+          - *id012
+          - type: 'null'
+        sodium_mg:
+          oneOf:
+          - *id012
+          - type: 'null'
+        potassium_mg:
+          oneOf:
+          - *id012
+          - type: 'null'
+      required: &id013
+      - energy_kcal
+      - protein_g
+      - carbohydrate_g
+      - fat_g
+      - fiber_g
+      - sugar_g
+      - saturated_fat_g
+      - trans_fat_g
+      - cholesterol_mg
+      - sodium_mg
+      - potassium_mg
+    NutrientCoverage:
+      type: object
+      additionalProperties: false
+      properties:
+        nutrient_code:
+          type: string
+          enum: *id013
+        known_sum:
+          oneOf:
+          - *id012
+          - type: 'null'
+        known_count:
+          type: integer
+          minimum: 0
+        unknown_count:
+          type: integer
+          minimum: 0
+        coverage_status:
+          type: string
+          enum:
+          - COMPLETE
+          - PARTIAL
+          - UNKNOWN
+        display_hint:
+          type: string
+          enum:
+          - EXACT
+          - AT_LEAST
+          - UNAVAILABLE
+      required:
+      - nutrient_code
+      - known_sum
+      - known_count
+      - unknown_count
+      - coverage_status
+      - display_hint
+    ApiError:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          properties:
+            code:
+              $ref: '#/components/schemas/ErrorCode'
+            message: *id009
+            details:
+              type: object
+              additionalProperties: true
+          required:
+          - code
+          - message
+        request_id: *id009
+      required:
+      - error
+      - request_id
+    Meta:
+      type: object
+      additionalProperties: true
+      properties:
+        request_id: *id009
+        next_cursor:
+          oneOf:
+          - *id009
+          - type: 'null'
+    IdResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            id: *id010
+          required:
+          - id
+        meta:
+          $ref: '#/components/schemas/Meta'
+      required:
+      - data
+    User:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id: *id010
+        account_status:
+          $ref: '#/components/schemas/AccountStatus'
+        email_verified:
+          type: boolean
+        onboarding_status:
+          $ref: '#/components/schemas/OnboardingStatus'
+      required:
+      - user_id
+      - account_status
+      - email_verified
+      - onboarding_status
+    OnboardingInput:
+      type: object
+      additionalProperties: false
+      properties:
+        date_of_birth: *id011
+        height_cm: *id012
+        weight_kg: *id012
+        calculation_parameter: *id009
+        activity_level: *id009
+        goal_type: *id009
+        target_weight_kg:
+          oneOf:
+          - *id012
+          - type: 'null'
+        body_type_visual:
+          oneOf:
+          - *id009
+          - type: 'null'
+      required:
+      - date_of_birth
+      - height_cm
+      - weight_kg
+      - calculation_parameter
+      - activity_level
+      - goal_type
+    ProfilePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        height_cm: *id012
+        activity_level: *id009
+        goal_type: *id009
+        target_weight_kg:
+          oneOf:
+          - *id012
+          - type: 'null'
+        body_type_visual:
+          oneOf:
+          - *id009
+          - type: 'null'
+    PreferencesPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        language_code: *id009
+        time_zone: *id009
+        preferred_weight_unit:
+          type: string
+          enum:
+          - kg
+          - lb
+    Food:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id010
+        canonical_name: *id009
+        current_published_revision_id: *id010
+        basis_quantity: *id012
+        basis_unit:
+          type: string
+          enum:
+          - g
+          - ml
+        nutrients:
+          $ref: '#/components/schemas/Nutrients'
+        publication_status:
+          type: string
+          enum:
+          - PUBLISHED
+      required:
+      - id
+      - canonical_name
+      - current_published_revision_id
+      - basis_quantity
+      - basis_unit
+      - nutrients
+      - publication_status
+    FoodLogInput:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id010
+        journal_date: *id011
+        journal_time_zone: *id009
+        meal_type:
+          $ref: '#/components/schemas/MealType'
+        source_kind:
+          $ref: '#/components/schemas/SourceKind'
+        source_revision_id: *id010
+        quantity: *id012
+        unit: *id009
+      required:
+      - id
+      - journal_date
+      - journal_time_zone
+      - meal_type
+      - source_kind
+      - source_revision_id
+      - quantity
+      - unit
+    FoodLogPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        quantity: *id012
+        unit: *id009
+        journal_date: *id011
+        meal_type:
+          $ref: '#/components/schemas/MealType'
+        source_kind:
+          $ref: '#/components/schemas/SourceKind'
+        source_revision_id: *id010
+    FoodLog:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id010
+        journal_date: *id011
+        journal_time_zone: *id009
+        meal_type:
+          $ref: '#/components/schemas/MealType'
+        source_kind:
+          $ref: '#/components/schemas/SourceKind'
+        source_revision_id: *id010
+        quantity: *id012
+        unit: *id009
+        nutrient_snapshot:
+          $ref: '#/components/schemas/Nutrients'
+        revision:
+          type: integer
+          minimum: 1
+        deleted_at:
+          oneOf:
+          - &id014
+            type: string
+            format: date-time
+          - type: 'null'
+      required:
+      - id
+      - journal_date
+      - journal_time_zone
+      - meal_type
+      - source_kind
+      - source_revision_id
+      - quantity
+      - unit
+      - nutrient_snapshot
+      - revision
+    WeightInput:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id010
+        measured_at: *id014
+        journal_date: *id011
+        journal_time_zone: *id009
+        weight_kg: *id012
+      required:
+      - id
+      - measured_at
+      - journal_date
+      - journal_time_zone
+      - weight_kg
+    WeightPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        measured_at: *id014
+        journal_date: *id011
+        journal_time_zone: *id009
+        weight_kg: *id012
+    Goal:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id010
+        goal_mode:
+          type: string
+          enum:
+          - AUTO
+        effective_from: *id014
+        effective_to:
+          oneOf:
+          - *id014
+          - type: 'null'
+        energy_kcal: *id012
+        protein_g: *id012
+        carbohydrate_g: *id012
+        fat_g: *id012
+        formula_version: *id009
+      required:
+      - id
+      - goal_mode
+      - effective_from
+      - energy_kcal
+      - protein_g
+      - carbohydrate_g
+      - fat_g
+      - formula_version
+    SyncOperation:
+      type: object
+      additionalProperties: false
+      properties:
+        operation_id: *id010
+        device_sequence:
+          type: integer
+          minimum: 1
+        entity_type:
+          $ref: '#/components/schemas/SyncEntityType'
+        entity_id: *id010
+        kind:
+          $ref: '#/components/schemas/SyncOperationKind'
+        payload:
+          type: object
+          additionalProperties: true
+      required:
+      - operation_id
+      - device_sequence
+      - entity_type
+      - entity_id
+      - kind
+      - payload
+    SyncPush:
+      type: object
+      additionalProperties: false
+      properties:
+        device_id: *id010
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncOperation'
+          minItems: 1
+          maxItems: 100
+          description: Sorted strictly by device_sequence for this device; server checks sequence progression and
+            per-operation idempotency.
+      required:
+      - device_id
+      - operations
+    SyncResult:
+      type: object
+      additionalProperties: false
+      properties:
+        operation_id: *id010
+        status:
+          $ref: '#/components/schemas/SyncOperationStatus'
+          description: APPLIED, REPLAYED or REJECTED per logical operation; client retains rejected items for reconciliation.
+        error_code:
+          oneOf:
+          - *id009
+          - type: 'null'
+      required:
+      - operation_id
+      - status
+    SyncPushResult:
+      type: object
+      additionalProperties: false
+      properties:
+        data: *id015
+        meta:
+          $ref: '#/components/schemas/Meta'
+      required:
+      - data
+    SyncChange:
+      type: object
+      additionalProperties: false
+      properties:
+        cursor: *id009
+        entity_type: *id009
+        entity_id: *id010
+        change_type:
+          type: string
+          enum:
+          - UPSERT
+          - DELETE
+        revision:
+          type: integer
+          minimum: 1
+        payload:
+          type: object
+          additionalProperties: true
+      required:
+      - cursor
+      - entity_type
+      - entity_id
+      - change_type
+      - revision
+    Dashboard:
+      type: object
+      additionalProperties: false
+      properties:
+        journal_date: *id011
+        day_status:
+          type: string
+          enum:
+          - NO_LOGS
+          - LOGGED
+        completion_status:
+          $ref: '#/components/schemas/CompletionStatus'
+        nutrition_coverage:
+          type: array
+          items:
+            $ref: '#/components/schemas/NutrientCoverage'
+        goal:
+          oneOf:
+          - $ref: '#/components/schemas/Goal'
+          - type: 'null'
+      required:
+      - journal_date
+      - day_status
+      - completion_status
+      - nutrition_coverage
+    CompletionInput:
+      type: object
+      additionalProperties: false
+      properties:
+        completion_status:
+          $ref: '#/components/schemas/CompletionStatus'
+      required:
+      - completion_status
+    DeletionStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+          - REQUESTED
+          - PROCESSING
+          - COMPLETED
+          - FAILED_RETRYABLE
+          - NEEDS_REVIEW
+      required:
+      - status
+    SourceReference:
+      type: object
+      additionalProperties: false
+      properties:
+        source_kind:
+          $ref: '#/components/schemas/SourceKind'
+        source_id: *id008
+        source_revision_id: *id008
+      required:
+      - source_kind
+      - source_id
+      - source_revision_id
+    RecipeIngredientInput:
+      type: object
+      additionalProperties: false
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceReference'
+        quantity: &id016
+          type: string
+          pattern: ^(0|[1-9][0-9]*)(\.[0-9]{1,5})?$
+          description: Nonnegative decimal string; no JS float for authoritative calculations
+        unit:
+          type: string
+          enum:
+          - g
+          - ml
+        position:
+          type: integer
+          minimum: 0
+      required:
+      - source
+      - quantity
+      - unit
+      - position
+    RecipeWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        name: &id017
+          type: string
+          minLength: 1
+        yield_quantity: *id016
+        yield_unit:
+          type: string
+          enum:
+          - g
+          - ml
+        ingredients:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/RecipeIngredientInput'
+      required:
+      - id
+      - name
+      - yield_quantity
+      - yield_unit
+      - ingredients
+    CustomFoodWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        name: *id017
+        basis_quantity: *id016
+        basis_unit:
+          type: string
+          enum:
+          - g
+          - ml
+        nutrients:
+          $ref: '#/components/schemas/Nutrients'
+      required:
+      - id
+      - name
+      - basis_quantity
+      - basis_unit
+      - nutrients
+    SavedMealItemInput:
+      type: object
+      additionalProperties: false
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceReference'
+        quantity: *id016
+        unit:
+          type: string
+          enum:
+          - g
+          - ml
+        meal_type:
+          $ref: '#/components/schemas/MealType'
+      required:
+      - source
+      - quantity
+      - unit
+      - meal_type
+    SavedMealWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id008
+        name: *id017
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SavedMealItemInput'
+      required:
+      - id
+      - name
+      - items
+    NutrientDayValue:
+      type: object
+      additionalProperties: false
+      properties:
+        known_sum: *id016
+        known_count:
+          type: integer
+          minimum: 0
+        unknown_count:
+          type: integer
+          minimum: 0
+        coverage_status:
+          type: string
+          enum:
+          - COMPLETE
+          - PARTIAL
+          - UNKNOWN
+      required:
+      - known_sum
+      - known_count
+      - unknown_count
+      - coverage_status
+    NutritionDayPoint:
+      type: object
+      additionalProperties: false
+      properties:
+        date: &id018
+          type: string
+          format: date
+        journal_status:
+          type: string
+          enum:
+          - NO_LOGS
+          - LOGGED_OPEN
+          - LOGGED_COMPLETE
+        energy:
+          $ref: '#/components/schemas/NutrientDayValue'
+        protein:
+          $ref: '#/components/schemas/NutrientDayValue'
+        carbohydrate:
+          $ref: '#/components/schemas/NutrientDayValue'
+        fat:
+          $ref: '#/components/schemas/NutrientDayValue'
+        goal_version_id:
+          oneOf:
+          - *id008
+          - type: 'null'
+        goal_energy_kcal:
+          oneOf:
+          - *id016
+          - type: 'null'
+      required:
+      - date
+      - journal_status
+      - energy
+      - protein
+      - carbohydrate
+      - fat
+      - goal_version_id
+      - goal_energy_kcal
+    ProgressNutritionResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        time_zone: *id017
+        period_start: *id018
+        period_end: *id018
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/NutritionDayPoint'
+      required:
+      - time_zone
+      - period_start
+      - period_end
+      - days
+    SyncReceipt:
+      type: object
+      additionalProperties: false
+      properties:
+        operation_id: *id008
+        result:
+          type: string
+          enum:
+          - APPLIED
+          - DUPLICATE
+          - REJECTED
+        entity_revision:
+          oneOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+        server_sequence:
+          oneOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+        error_code:
+          oneOf:
+          - type: string
+          - type: 'null'
+        recovery_action:
+          type: string
+          enum:
+          - NONE
+          - RETRY
+          - REFRESH_ENTITY
+          - FULL_RESYNC
+          - CONTACT_SUPPORT
+      required:
+      - operation_id
+      - result
+      - entity_revision
+      - server_sequence
+      - error_code
+      - recovery_action
+    DeletionProgress:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+          - REQUESTED
+          - PROCESSING
+          - COMPLETED
+          - RETRY_PENDING
+        requested_at:
+          type: string
+          format: date-time
+        completed_at:
+          oneOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+      required:
+      - status
+      - requested_at
+      - completed_at
+    MealType:
+      type: string
+      enum:
+      - BREAKFAST
+      - LUNCH
+      - DINNER
+      - SNACK
+    SourceKind:
+      type: string
+      enum:
+      - CATALOG
+      - CUSTOM
+      - RECIPE
+    JournalStatus:
+      type: string
+      enum:
+      - NO_LOGS
+      - LOGGED_OPEN
+      - LOGGED_COMPLETE
+    CompletionStatus:
+      type: string
+      enum:
+      - OPEN
+      - CONFIRMED_COMPLETE
+    SyncEntityType:
+      type: string
+      enum:
+      - FOOD_LOG
+      - WEIGHT
+      - JOURNAL_COMPLETION
+      - CUSTOM_FOOD
+      - RECIPE
+      - SAVED_MEAL
+      - FAVORITE
+    SyncOperationKind:
+      type: string
+      enum:
+      - CREATE
+      - UPDATE
+      - DELETE
+      - SET_COMPLETION
+    AccountStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - PENDING_DELETION
+      - DELETED
+    OnboardingStatus:
+      type: string
+      enum:
+      - NOT_STARTED
+      - IN_PROGRESS
+      - COMPLETED
+      - INELIGIBLE
+    SyncOperationStatus:
+      type: string
+      enum:
+      - APPLIED
+      - REPLAYED
+      - REJECTED
+    DeletionRequestStatus:
+      type: string
+      enum:
+      - REQUESTED
+      - PROCESSING
+      - COMPLETED
+      - FAILED_RETRYABLE
+      - NEEDS_REVIEW
+    RecipePatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+        ingredients:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/RecipeIngredientInput'
+        yield_quantity:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)(\.[0-9]{1,5})?$
+        yield_unit:
+          type: string
+          enum:
+          - g
+          - ml
+      minProperties: 1
+    CustomFoodPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+        nutrients:
+          $ref: '#/components/schemas/Nutrients'
+        basis_quantity:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)(\.[0-9]{1,5})?$
+        basis_unit:
+          type: string
+          enum:
+          - g
+          - ml
+      minProperties: 1
+    WeightProgressPoint:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - measured_at
+      - weight_kg
+      properties:
+        id:
+          type: string
+          format: uuid
+        measured_at:
+          type: string
+          format: date-time
+        weight_kg:
+          type: string
+          pattern: ^\d+(\.\d{1,5})?$
+    ProgressWeightData:
+      type: object
+      additionalProperties: false
+      required:
+      - period_start
+      - period_end
+      - points
+      properties:
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeightProgressPoint'
+    ProgressConsistencyData:
+      type: object
+      additionalProperties: false
+      required:
+      - period_start
+      - period_end
+      - active_days
+      - completed_days
+      - eligible_days
+      properties:
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        active_days:
+          type: integer
+          minimum: 0
+        completed_days:
+          type: integer
+          minimum: 0
+        eligible_days:
+          type: integer
+          minimum: 0
+    ErrorCode:
+      type: string
+      enum:
+      - INVALID_REQUEST
+      - AUTH_REQUIRED
+      - ACCESS_DENIED
+      - NOT_FOUND
+      - VALIDATION_FAILED
+      - RATE_LIMITED
+      - ENTITY_DELETED
+      - CURSOR_EXPIRED
+      - IDEMPOTENCY_KEY_REUSED
+      - SERVER_ERROR
+      - SYNC_OPERATION_REJECTED
+      - ACCOUNT_DELETION_PENDING
+    PageInfo:
+      type: object
+      additionalProperties: false
+      properties:
+        next_cursor:
+          oneOf:
+          - type: string
+          - type: 'null'
+        has_more:
+          type: boolean
+      required:
+      - next_cursor
+      - has_more
+    FoodPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Food'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      required:
+      - items
+      - page
+    ServingDefinition:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        base_quantity:
+          type: string
+        base_unit:
+          type: string
+          enum:
+          - g
+          - ml
+        reviewed:
+          type: boolean
+      required:
+      - id
+      - label
+      - base_quantity
+      - base_unit
+      - reviewed
+    Category:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        parent_id:
+          oneOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+      required:
+      - id
+      - name
+      - slug
+      - parent_id
+    CatalogChange:
+      type: object
+      additionalProperties: false
+      properties:
+        cursor:
+          type: string
+        food_id:
+          type: string
+          format: uuid
+        change_type:
+          type: string
+          enum:
+          - UPSERT
+          - DELETE
+        published_revision_id:
+          oneOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+      required:
+      - cursor
+      - food_id
+      - change_type
+      - published_revision_id
+    CatalogChangePage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogChange'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      required:
+      - items
+      - page
+    CustomFoodRecord:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        current_revision_id:
+          type: string
+          format: uuid
+        revision:
+          type: integer
+          minimum: 1
+        basis_quantity:
+          type: string
+        basis_unit:
+          type: string
+          enum:
+          - g
+          - ml
+        nutrients:
+          $ref: '#/components/schemas/Nutrients'
+        deleted_at:
+          oneOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+      required:
+      - id
+      - name
+      - current_revision_id
+      - revision
+      - basis_quantity
+      - basis_unit
+      - nutrients
+      - deleted_at
+    RecipeRecord:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        current_revision_id:
+          type: string
+          format: uuid
+        revision:
+          type: integer
+          minimum: 1
+        yield_quantity:
+          type: string
+        yield_unit:
+          type: string
+        nutrients:
+          $ref: '#/components/schemas/Nutrients'
+        ingredients:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipeIngredientInput'
+        deleted_at:
+          oneOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+      required:
+      - id
+      - name
+      - current_revision_id
+      - revision
+      - yield_quantity
+      - yield_unit
+      - nutrients
+      - ingredients
+      - deleted_at
+    SavedMealItem:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        quantity:
+          type: string
+        unit:
+          type: string
+        nutrients:
+          $ref: '#/components/schemas/Nutrients'
+      required:
+      - id
+      - display_name
+      - quantity
+      - unit
+      - nutrients
+    SavedMealRecord:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        revision:
+          type: integer
+          minimum: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedMealItem'
+        deleted_at:
+          oneOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+      required:
+      - id
+      - name
+      - revision
+      - items
+      - deleted_at
+    FavoriteRecord:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_kind:
+          $ref: '#/components/schemas/SourceKind'
+        source_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - source_kind
+      - source_id
+      - created_at
+    WeightRecord:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        measured_at:
+          type: string
+          format: date-time
+        weight_kg:
+          type: string
+        revision:
+          type: integer
+          minimum: 1
+        deleted_at:
+          oneOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+      required:
+      - id
+      - measured_at
+      - weight_kg
+      - revision
+      - deleted_at
+    JournalCompletionRecord:
+      type: object
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/CompletionStatus'
+        revision:
+          type: integer
+          minimum: 1
+      required:
+      - date
+      - status
+      - revision
+    SyncPullPage:
+      type: object
+      additionalProperties: false
+      properties:
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncChange'
+        next_cursor:
+          type: string
+          description: Opaque per-user, commit-ordered cursor; never infer from SQL sequence allocation or timestamp.
+        has_more:
+          type: boolean
+      required:
+      - changes
+      - next_cursor
+      - has_more
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - degraded
+      required:
+      - status
+    DeletionReceipt:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          $ref: '#/components/schemas/DeletionRequestStatus'
+        request_id:
+          type: string
+          format: uuid
+      required:
+      - status
+      - request_id
+security:
+- FirebaseBearer: []

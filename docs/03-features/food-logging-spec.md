@@ -1,10 +1,12 @@
 # NUTRASA — Food Logging Feature Specification
 
 **Version:** 0.9 | **Date:** 13 October 2026  
-**Repository path:** `docs/03-features/food-logging-spec.md`  
+**Repository path:** [docs/03-features/food-logging-spec.md](food-logging-spec.md)\
 **Status:** Developer planning draft — agreed functional scope, proposed detailed behaviors. NOT production approval.
 
 > **Scope:** the user-facing workflow from discovering Indonesian food to adding, editing, deleting, copying, favoriting and tracking foods/recipes across selected dates, including offline-tolerant operation. This is a functional contract, not an instruction to start coding or an approved clinical nutrition model.
+
+**Release scope — O-18 final:** food favorites, recents, simple custom food and copying food logs are MVP. User recipe builder/logging is post-MVP; future recipe behavior below is retained as design, not active MVP or implementation evidence.
 
 ## 0. Source of truth & decision status
 
@@ -14,16 +16,16 @@
 - Eleven nutrients: energy, protein, carbs, total fat, fiber, total sugar, saturated fat, trans fat, cholesterol, sodium, potassium.
 - Core public-food data reviewed: energy, protein, carbohydrate, total fat. Unknown extras are allowed and **must not be turned into zero**.
 - User-facing search, food category browsing, food detail, variable quantity and food-specific units including grams, milliliters and verified household portions.
-- Food log with breakfast, lunch, dinner, snacks, editable history, custom foods, custom recipes, favorite foods, recently used foods and copy meal.
+- MVP food log includes meal groups, editable history, simple custom foods, food favorites, recents and copying logs. User recipes are post-MVP.
 - Date-based diary, dashboard and progress; offline-tolerant local writes with subsequent sync.
-- Personalized targets come from the Nutrition Engine; unsupported profiles may use log-only mode.
+- MVP is for supported adults 18+; automatic targets only. Unsupported profiles do not enter LOG_ONLY or receive numeric targets.
 
 ### 0.2 Implementation proposals — pending owner approval
 - Search-first food picker, with browse categories as an alternative.
 - Four meal types (`BREAKFAST`, `LUNCH`, `DINNER`, `SNACK`) and multiple snacks per date.
 - Food picker remembers the origin meal/date and never silently changes it.
 - Copying a meal duplicates its **items into a new meal/date** without rewriting original entries.
-- Recipe logging uses a versioned recipe and captured nutrient snapshot; custom foods and recipes are private to their owner by default.
+- Food logs pin composition versions and nutrient snapshots. User recipe logging/models are post-MVP; private food sources require ownership validation.
 - Recent foods are derived from actual logs; favorites are explicit user actions.
 - Local-first writes with queued operations, idempotency keys and explicit sync status.
 - Adding an item with unknown optional nutrients is allowed; public catalog entries missing *all* core nutrients are not published by default.
@@ -48,7 +50,7 @@
 | Food Detail / Portion Editor | See provenance, nutrients, units and quantity | Search / category / recent | Add to selected meal/date |
 | Day Diary | Review all logged items for selected day | Home/calendar | Edit, delete, copy, change meal |
 | Custom Food Editor | Enter owned food and core nutrients | Food Picker no result / add | Save to private catalog, optionally log |
-| Recipe List + Builder | Compose reusable dish from ingredients | Food tab | Save recipe revision, log portions |
+| Recipe List + Builder — POST-MVP | Future ingredient composition | Future food entry | Not active MVP; preserve future revision/snapshot design |
 | Favorites & Recent | Fast re-logging | Food tab | Choose amount and meal |
 | Copy Meal | Choose source and destination day/meal | Diary item/group | Preview, confirm, create copies |
 | Sync Status | Pending/failed operations and recovery | Diary/header/settings | Retry/resolution |
@@ -59,7 +61,7 @@
 
 1. User selects date and meal, or opens Food tab and chooses destination.
 2. User searches by dish/alias or browses a category; show loading, empty, error and offline states.
-3. User selects a food identity and an available food/recipe revision.
+3. Select a food and available composition revision; user recipe selection is post-MVP.
 4. Display its base basis (e.g., per 100 g) and portion units **only where conversions are documented**.
 5. User chooses unit and numeric quantity; app derives effective grams/ml when convertible.
 6. App previews energy and nutrient totals plus data completeness/sources; unknown remains unknown.
@@ -75,7 +77,7 @@
 - Every log item stores `journal_local_date` and `journal_timezone` (IANA zone) as explicit journal attribution, plus `created_at_utc` and `updated_at_utc`.
 - Selected journal date controls all meal entries and summaries; editing a past day must not move items to today.
 - The **journal date is a civil calendar date**, not recomputed from UTC on every read; time-zone travel must not silently shift existing diary records.
-- Day with no entries → `NO_DATA`, not assumed zero intake; a day with entries can remain `PARTIAL` unless user explicitly marks complete (if day completion is approved).
+- No entries means NO_DATA, not zero intake. Hari Aktif requires >=1 non-deleted log. Optional Selesai Mencatat is independent of nutrient coverage; marking complete never turns unknown into known.
 - DST/date-boundary/time-zone migrations require tests; no implied morning/noon timestamps used to derive diary day.
 - Food logs count as consumed intake; calorie target is a separate goal. Do not subtract exercise calories unless a separate approved feature does so.
 
@@ -94,14 +96,14 @@ For a nutrient `n` with a known base quantity:
 ### 5.2 Unknown values and daily aggregation
 - Known `0` means measured/reported zero; `null` means missing. Both must persist distinctly.
 - For a nutrient, sum known contributions and carry `is_complete=false` if *any* included item has unknown value for that nutrient.
-- A daily total showing `600 mg sodium (partial)` means **at least 600 mg from known entries**, not necessarily the full amount consumed.
+- Partial nonnegative totals display >= known sum with Data parsial; entirely unknown displays —, not zero. Known zero and missing values remain distinct.
 - Distinguish `NO_LOG`, `KNOWN_ZERO` and `PARTIAL_DATA` in APIs/UI; do not show a green “target achieved” indicator on incomplete data.
 - Core published foods must have reviewed calories/protein/carbs/fat; private custom foods may be saved as drafts when not complete, but must not contribute fictitious zeros on logging.
-- For user-added entries, require core numeric values or an explicit log-only/unknown path approved later. MVP proposed rule: cannot log a private food until all four core fields are present and validated.
+- Private food core-field validation remains a proposed data rule requiring review; no LOG_ONLY access path exists in MVP. Incomplete drafts cannot supply fictitious zeros. Four reviewed core fields are mandatory for published catalog foods.
 
 ### 5.3 Progress indicators
 - Calorie & macro consumed values should refresh from the same diary aggregate, not from duplicated component state.
-- `remaining = goal - consumed` only when goal is active. In log-only mode show consumed values without target divisions (no `0/0` bars).
+- remaining = goal - consumed only with a valid active automatic goal and appropriate data completeness. Pending/unavailable targets must not produce 0/0 or percentages; this is not LOG_ONLY access.
 - Nutrients with maxima (such as sodium) use a **limit indicator**, not a “fill to 100%” success convention.
 - Cross-day progress respects the goal version active on the relevant diary date; changes to today's goal do not rewrite past goal snapshots.
 
@@ -142,7 +144,7 @@ For a nutrient `n` with a known base quantity:
 - No cross-account reading, mutation, cache or search leakage.
 - Show whether each value is manually entered/estimated; **do not claim verified** solely because fields are filled.
 
-## 9. Recipe builder
+## 9. Recipe builder — POST-MVP (O-18 final)
 
 1. Enter recipe name and optionally category, notes and number of servings.
 2. Add one or more ingredients from permitted catalog/private foods with known quantities.
@@ -157,7 +159,7 @@ For a nutrient `n` with a known base quantity:
 
 ## 10. Favorites, recents and copy meal
 
-**Favorites:** user explicitly marks/unmarks a food or recipe; unique per user+food identity. A favorite's next log uses the current approved revision, with portion preview before adding.
+**Favorites — MVP:** explicitly mark/unmark food identity, unique per owner+food. Preview approved revision and portion for the next log; recipe favorites are outside active MVP.
 
 **Recents:** derived from most recent successful local diary entries (including pending sync); deduplicated by food identity for presentation, while all log items remain intact. Do not turn a recent list into an additional source of truth.
 
@@ -174,7 +176,7 @@ For a nutrient `n` with a known base quantity:
 - Delete with reversible undo affordance where practical; use a deletion tombstone for offline synchronization, not immediate disappearance from the sync ledger.
 - Repeated edits before sync should collapse safely into final intent while retaining idempotent operation history.
 - Editing a copy never affects the source; changing a favorite does not mutate existing entries.
-- If there is a server rejection or cross-device conflict, show what was accepted and a user recovery path; never discard the only surviving local change silently.
+- Successful cross-device edits follow server-ordered LWW. Rejections/timeouts retain recovery data and honest pending status; normal stale edits do not require side-by-side conflict resolution.
 
 ## 12. Offline-tolerant design and synchronization
 
@@ -185,13 +187,13 @@ For a nutrient `n` with a known base quantity:
 - App update and migration must preserve pending operations, diary items and snapshots; migrations tested against older local databases.
 
 ### 12.2 Operation model (proposal)
-- Each create/edit/delete/copy uses `operation_id`, `client_entity_id`, `account_id`, `device_id` (privacy-reviewed), entity version/base revision, timestamp, payload and status.
-- Operation statuses: `QUEUED`, `SENDING`, `ACKNOWLEDGED`, `RETRYABLE_ERROR`, `CONFLICT`, `PERMANENT_ERROR`.
+- Each create/edit/delete/copy uses stable operation_id, entity ID, owner-bound account context, device_id, device_sequence, canonical payload and status; timestamps/base revision are diagnostic.
+- Operation statuses: QUEUED, SENDING, ACKNOWLEDGED, RETRYABLE_ERROR, PERMANENT_ERROR; normal stale edits are not revision conflicts.
 - Retry with exponential backoff and jitter when appropriate; no assumption of always-on background execution.
-- Server enforces account authorization, validates nutrition snapshots/provenance as relevant, and deduplicates `operation_id`.
+- Server validates token/ownership/snapshots and UNIQUE(owner_user_id, operation_id); identical identity/payload retry returns stored receipt without a new mutation, mismatched payload is rejected.
 - Tombstones avoid resurrecting an offline-deleted item after fetching remote state.
-- Last-write-wins should **not** be applied indiscriminately to conflicting diary edits. Proposed policy: detect divergent versions and present actionable resolution / preserve both versions in recoverable history. Exact policy requires technical approval.
-- Offline custom food/recipe creation must sync before or atomically alongside logs referencing it, using dependency ordering.
+- Server-ordered LWW applies to valid edits of existing entities; ordered per-device operations and mutation/feed/receipt are atomic. UPDATE on tombstone is rejected with ENTITY_DELETED. Cursor is a transactional per-user counter, not phone time or ordinary identity/sequence; see sync protocol final.
+- Offline custom-food references preserve dependency/device sequence and ownership; user recipe synchronization is post-MVP.
 - No external provider data is cached offline unless license authorizes it.
 
 ### 12.3 Visible states
@@ -202,7 +204,7 @@ For a nutrient `n` with a known base quantity:
 | Syncing | “Menyinkronkan…” |
 | Synced | No intrusive notice; status accessible |
 | Retryable error | “Belum tersinkron. Coba lagi” |
-| Conflict | “Ada perubahan dari perangkat lain. Tinjau” |
+| Rejected operation | `Perubahan belum diterima server. Periksa detail atau coba lagi.` |
 | Permanent error | “Perubahan perlu diperbaiki sebelum disimpan ke akun” |
 
 ## 13. View state / accessibility matrix
@@ -220,7 +222,7 @@ For a nutrient `n` with a known base quantity:
 | Save failed locally | Do **not** claim success; preserve form for retry |
 | Sync failed remotely | Retain local record and explicit pending state |
 | Unauthorized | Re-authenticate; don't expose another account's data |
-| Unsupported nutrition-goal profile | Log-only diary; no fake calorie target |
+| Unsupported profile | Ineligible for MVP; no numeric target or LOG_ONLY diary |
 | Screen reader / large text | Semantically labeled portions/buttons; no information conveyed by color alone |
 
 ## 14. Data contracts (conceptual, not database SQL)
@@ -228,14 +230,14 @@ For a nutrient `n` with a known base quantity:
 ```ts
 // Pseudotypes: finalize with schema and API design after product approval.
 type NutrientKey =
-  | 'energy_kcal' | 'protein_g' | 'carbohydrate_g' | 'fat_total_g'
-  | 'fiber_g' | 'sugar_total_g' | 'fat_saturated_g' | 'fat_trans_g'
+  | 'energy_kcal' | 'protein_g' | 'carbohydrate_g' | 'fat_g'
+  | 'fiber_g' | 'sugar_g' | 'saturated_fat_g' | 'trans_fat_g'
   | 'cholesterol_mg' | 'sodium_mg' | 'potassium_mg';
 
 type NutrientVector = Record<NutrientKey, number | null>;
 type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
 type LogSyncStatus = 'QUEUED' | 'SENDING' | 'ACKNOWLEDGED' |
-  'RETRYABLE_ERROR' | 'CONFLICT' | 'PERMANENT_ERROR';
+  'RETRYABLE_ERROR' | 'PERMANENT_ERROR';
 
 type FoodLogItem = {
   clientId: string;
@@ -257,7 +259,7 @@ type FoodLogItem = {
 };
 ```
 
-**Contract caveats:** serving conversion must be revision-bound; recipe identity can replace food identity where needed; aggregated state and server IDs are specified at schema phase. These pseudotypes deliberately avoid false implementation precision.
+**Contract caveats:** serving conversion is revision-bound; user recipe identity is a post-MVP extension. Aggregated state and server IDs follow schema. Pseudotypes are illustrations; typed runtime sync payloads remain OPEN.
 
 ## 15. QA test matrix (minimum cases)
 
@@ -271,7 +273,7 @@ type FoodLogItem = {
 | FL-06 | Search typo/alias Indonesian dish | Consistent match/ranking |
 | FL-07 | No results offline | Explain cache limitation; custom food available |
 | FL-08 | Add item with unknown sodium | Sodium partial, not 0 |
-| FL-09 | Log-only account | Show consumed without numeric target |
+| FL-09 | Unsupported account/profile | No MVP LOG_ONLY access or fabricated numeric target |
 | FL-10 | Add on yesterday | Yesterday only updated |
 | FL-11 | Edit logged portion | Preview and day total update |
 | FL-12 | Move to another meal/day | Remove from source and add to destination atomically |
@@ -283,11 +285,11 @@ type FoodLogItem = {
 | FL-18 | Recent after offline log | Appears once in recents, correct chronology |
 | FL-19 | Save incomplete private food draft | Allowed as draft, logging restricted under proposed MVP rule |
 | FL-20 | Edit private food after logging | Old log nutrient snapshot unchanged |
-| FL-21 | Recipe cooked yield missing | Keep draft, block false per-100 g output |
-| FL-22 | Recipe ingredient optional nutrient null | Recipe/day optional nutrient marked partial |
-| FL-23 | Create custom recipe offline and log | Dependency-ordered synchronization |
+| FL-21 | Post-MVP recipe cooked yield missing | Keep draft; block fabricated per-100 g values |
+| FL-22 | Post-MVP recipe optional nutrient null | Recipe/day optional nutrient remains partial |
+| FL-23 | Post-MVP custom recipe offline logging | Future dependency-order design; not MVP acceptance |
 | FL-24 | Sync interrupted on send | Retry idempotently |
-| FL-25 | Remote and local edit diverge | Detect conflict, retain recoverable versions |
+| FL-25 | Two-device edits on same log | Latest valid server-applied write wins; ordered receipts and tombstones |
 | FL-26 | Switch account with pending operations | No cross-account data leakage |
 | FL-27 | Change device timezone | Existing journalLocalDate unchanged |
 | FL-28 | Catalog revision changes | Previously logged snapshot unchanged |
@@ -303,10 +305,10 @@ type FoodLogItem = {
 ## 16. Acceptance criteria / Definition of Done
 
 - Users can search/browse and log any of the initial curated foods using valid units, correct selected diary date/meal and reversible edits/deletes.
-- Custom foods, recipes, recents, favorites and copy meal each have tested basic and exceptional flows.
+- MVP simple custom foods, recents, food favorites and copying logs have tested flows; user recipe tests are post-MVP.
 - Every saved log has a stable identity and immutable nutrient snapshot; historical records don't silently change after catalog revisions.
-- `null` nutrient propagation, partial labels and log-only dashboard all work correctly.
-- Offline create/edit/delete/copy and dependent custom-recipe logs survive restart and reconcile without duplicates.
+- Null propagation, partial labels and unavailable-target states remain correct; no LOG_ONLY active MVP.
+- Offline create/edit/delete/copy and custom-food references survive restart and reconcile without duplicates; recipe dependencies are post-MVP.
 - Server access checks and local account isolation prevent cross-user data exposure.
 - No misleading successful-save indicator is shown after failed local writes.
 - Accessibility, Indonesian localization, date/time-zone behavior, and critical tests pass.
@@ -319,7 +321,7 @@ type FoodLogItem = {
 3. Implement local diary repository and pure nutrient scaling/aggregation with tests.
 4. Implement Food Picker + Food Detail + Portion Editor using a small approved seed subset.
 5. Implement basic diary add/edit/delete and dashboard derived totals.
-6. Implement private custom foods and versioned recipe builder.
+6. Implement simple private custom foods in MVP; versioned user recipe builder post-MVP.
 7. Implement recents, favorites and copy meal.
 8. Implement mutation queue, synchronization, idempotency and conflict recovery.
 9. Validate performance on lower-end Android, offline transitions, accessibility, and security.
@@ -332,13 +334,13 @@ type FoodLogItem = {
 | FL-D01: Meal categories | Breakfast/lunch/dinner/snack; unlimited entries | UI and schema |
 | FL-D02: Food tab destination | Ask for meal/date if not launched from Home | Prevents wrong logging |
 | FL-D03: Required custom-food fields | Energy and three macros for loggable entry; incomplete drafts allowed | Avoid bogus totals |
-| FL-D04: Recipe yield | Require known cooked weight or verified portion yield before logging | Prevents fabricated values |
+| FL-D04: Recipe yield — post-MVP | Require known cooked weight or reviewed serving yield | Nutrition/yield validation OPEN; not MVP builder |
 | FL-D05: Copy-meal semantics | Duplicate logged quantities and snapshots, never auto-merge | Historical integrity |
 | FL-D06: Source visibility | Show source, method and partial-data labels on Food Detail | Trust and transparency |
 | FL-D07: Favorites/recents | Favorites explicit; recents generated from diary | Reduces duplicate state |
 | FL-D08: Day completeness | Optional “Tandai hari selesai”, separate from presence of logs | Honest analytics |
 | FL-D09: Account-private catalog | Private by default; no direct public contribution | Privacy/moderation |
-| FL-D10: Offline failure/conflicts | Persist queue, retry, make conflicts visible | Data integrity |
+| FL-D10: Offline failure | Persistent per-device queue, server-ordered LWW, per-owner receipts and tombstone rejection | Design set; concurrency/ownership tests OPEN |
 | FL-D11: Catalog admin | Start with validated CSV import/review pipeline rather than full admin UI | Scope control |
 | FL-D12: Third-party integrations | Defer live third-party food search until licensing verified | Compliance |
 
@@ -346,11 +348,11 @@ type FoodLogItem = {
 
 ## 19. Dependencies and consistency check
 
-- `docs/02-architecture/food-database-spec.md`: nutrient keys, provenance, servings, food revisions and catalog rights. If mismatched, update both docs together through decision log.
-- `docs/02-architecture/nutrition-engine-spec.md`: targets and log-only. Logging totals must not recalculate nutritional targets independently.
-- `docs/01-design/onboarding-spec.md`: authentication, supported profile status and goals.
-- Future `docs/03-features/dashboard-spec.md`: diary display, partial coverage, selected date and calorie/macro progress.
-- Future `docs/02-architecture/offline-sync-spec.md`: authoritative conflict/idempotency/security design.
-- Future `docs/02-architecture/database-schema.md` and `api-contract.md`: persistence and transport contracts.
+- [docs/02-architecture/food-database-spec.md](../02-architecture/food-database-spec.md): nutrient keys, provenance, servings, food revisions and catalog rights. If mismatched, update both docs together through decision log.
+- [docs/02-architecture/nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md): automatic targets and eligibility; logging totals do not independently recalculate targets.
+- [docs/01-design/onboarding-spec.md](../01-design/onboarding-spec.md): authentication, supported profile status and goals.
+- Future [docs/03-features/dashboard-spec.md](dashboard-spec.md): diary display, partial coverage, selected date and calorie/macro progress.
+- [docs/02-architecture/sync-protocol-final-design.md](../02-architecture/sync-protocol-final-design.md): authoritative LWW, owner idempotency, transactional cursor and recovery; implementation/tests remain OPEN.
+- Future [docs/02-architecture/database-schema.md](../02-architecture/database-schema.md) and [api-contract.md](../02-architecture/api-contract.md): persistence and transport contracts.
 
 **Change control:** Product decisions belong in the decision log. Do not let generated code or visual mockups override explicit business rules.

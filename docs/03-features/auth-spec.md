@@ -2,9 +2,9 @@
 
 **Versi:** Draft v1.3  
 **Status:** Planning / developer handoff; belum disetujui untuk produksi  
-**Lokasi:** `docs/03-features/auth-spec.md`  
+**Lokasi:** [docs/03-features/auth-spec.md](auth-spec.md)\
 **Platform:** React Native + Expo + TypeScript + Expo Router  
-**Dependency:** `onboarding-spec.md`, `profile-spec.md`, `offline-sync-spec.md` (akan dibuat), kebijakan privasi, pemilihan backend/auth provider.
+**Dependency:** [onboarding-spec.md](../01-design/onboarding-spec.md), [profile-spec.md](profile-spec.md), [offline-sync-spec.md](../02-architecture/offline-sync-spec.md) (akan dibuat), kebijakan privasi, pemilihan backend/auth provider.
 
 ## 1. Tujuan
 
@@ -16,11 +16,11 @@ Menyediakan identitas akun dan akses aman untuk data personal NUTRASA (profil tu
 
 - Autentikasi dilakukan **sebelum onboarding**.
 - MVP menawarkan email/password, Google, dan Apple (implementasi platform disesuaikan).
-- Pendaftaran email belum terverifikasi **boleh melanjutkan onboarding**, dengan pembatasan operasi akun tertentu.
+- Verifikasi email opsional; akun terautentikasi dapat onboarding, mengakses fitur utama dan sinkronisasi tanpa syarat email verified. Reautentikasi Firebase tetap berlaku pada tindakan sensitif.
 - Nama tampilan/username **opsional**, diatur kemudian melalui Profil; username tidak menjadi metode login MVP.
-- Draft onboarding **disimpan lokal** dan baru dikirim ke server setelah onboarding selesai, sesuai validasi dan kebijakan verifikasi.
+- Draft onboarding disimpan lokal dan dikirim setelah selesai; server memvalidasi token, ownership dan eligibility, bukan mewajibkan email verification.
 - Pemberitahuan pemrosesan data saat pendaftaran dan pemberitahuan lebih spesifik sebelum pengisian data tubuh.
-- Saat target nutrisi layak dihitung, target awal **aktif otomatis**; bila tidak layak, log-only/needs-review mengikuti Nutrition Engine.
+- Target awal otomatis hanya untuk dewasa 18+ eligible dan hasil valid; tidak ada LOG_ONLY aktif atau target numerik untuk profil tidak eligible pada MVP.
 - Pengguna lama dengan sesi aktif dan onboarding lengkap masuk langsung ke Home.
 - Pengguna dengan profil tidak didukung kalkulator tetap boleh menggunakan mode pencatatan tanpa rekomendasi otomatis.
 - Mode offline-tolerant; perubahan lokal harus terlindungi dan tidak bocor saat akun berganti.
@@ -29,9 +29,9 @@ Menyediakan identitas akun dan akses aman untuk data personal NUTRASA (profil tu
 
 Tidak mengembangkan sistem password atau OAuth dari nol, tidak menjadikan username credential, tidak menyediakan login tamu anonim kecuali diputuskan kemudian, tidak mencakup 2FA khusus aplikasi, passkeys, login nomor telepon, social login tambahan, atau akun keluarga. Premium/AI tidak dibahas di spesifikasi ini.
 
-## 4. Pilihan backend/auth provider — BELUM FINAL
+## 4. Provider terpilih dan detail integrasi yang belum final
 
-**Rekomendasi arsitektur:** Pilih satu managed identity provider dengan dukungan email/password, Google, dan Apple; validasi kemampuan sesi mobile, account linking, reset password, verifikasi email, delete account, SDK Expo, fitur pengelolaan pengguna, dan biaya. Kandidat dapat dievaluasi nanti, tetapi **jangan memasang SDK atau mengunci vendor** sebelum keputusan `tech-stack.md` dan `system-architecture.md`.
+**Stack terpilih:** Firebase Authentication sebagai identity provider; Fastify lokal memverifikasi token dan mengelola API aplikasi, PostgreSQL lokal menyimpan data domain, dan Expo SQLite mendukung cache/outbox. Lihat [architecture-decisions.md](../02-architecture/architecture-decisions.md). Pilihan SDK Firebase JS/native, integrasi email/Google/Apple, sesi mobile, linking, reset, verification, deletion, platform/build dan biaya layanan sesuai batas plan masih memerlukan review. Pemilihan vendor tidak berarti SDK sudah dipasang atau alur login sudah berjalan.
 
 Backend menyimpan data pengguna dengan `user_id` internal stabil; simpan mapping `provider + provider_subject_id` bila perlu. Jangan jadikan alamat email sebagai primary key karena dapat berubah atau disembunyikan (Apple relay).
 
@@ -57,7 +57,7 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 
 ### 5.3 Onboarding state
 
-`NOT_STARTED`, `IN_PROGRESS`, `CALCULATING`, `NEEDS_REVIEW`, `LOG_ONLY`, `COMPLETED` — mengikuti `onboarding-spec.md`.
+`NOT_STARTED`, `IN_PROGRESS`, `CALCULATING`, `NEEDS_REVIEW`, `INELIGIBLE`, `COMPLETED` — mengikuti kontrak onboarding/schema; tidak ada LOG_ONLY aktif MVP.
 
 ### 5.4 Akun operasional
 
@@ -70,13 +70,13 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 | Sesi belum diperiksa | Splash/loading minimal | Tidak boleh flicker ke Home |
 | Signed out | Welcome / Sign in / Sign up | Rute publik |
 | Signed in + onboarding belum selesai | Onboarding step terakhir | Draft lokal bila tersedia |
-| Signed in + onboarding completed | Home | Termasuk log-only |
-| Email/password belum verified | Banner / pengingat verifikasi | Pembatasan aksi diputuskan server |
+| Signed in + eligible onboarding completed | Home | Profil dewasa 18+ didukung; tidak ada LOG_ONLY |
+| Email/password belum verified | Status/aksi opsional di Profil > Pengaturan > Data Diri | Onboarding, fitur utama dan sync tersedia; reauth tindakan sensitif |
 | Offline dan sesi sebelumnya dikenal | Data lokal milik user tersebut | Jangan klaim server session valid |
 | Sesi revoked | Login ulang | Hindari menampilkan data user lain |
 | Akun suspended/deleting | Status akun + support | Jangan lanjut sync normal |
 
-**Konflik yang perlu diselesaikan:** Diskusi sebelumnya pernah mengusulkan *profil final ditahan sampai email diverifikasi*. Hal ini **belum disetujui pengguna**. Default rancangan sekarang adalah onboarding lokal dapat selesai, sedangkan operasi server yang sensitif dapat dibatasi sampai verifikasi. Daftar aksi yang diizinkan/ditahan harus disahkan setelah pemilihan auth provider dan threat model.
+**RESOLVED D01:** Usulan historis menahan profil final sampai email verified tidak berlaku. Onboarding, penyimpanan profil final, Home dan sync tetap tersedia bagi akun valid/eligible. Status, verifikasi dan kirim ulang ada di Profil > Pengaturan > Data Diri. Integrasi SDK/persistensi serta reautentikasi sensitif tetap perlu diuji.
 
 ## 7. User flows
 
@@ -86,7 +86,7 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 2. Validasi format/aturan password pada klien dan server; hindari pesan yang membocorkan keberadaan akun.
 3. Backend/provider membuat identitas dan mengirim verification link/OTP sesuai penyedia.
 4. Aplikasi menyimpan sesi menggunakan penyimpanan aman jika sesi diberikan.
-5. Pengguna boleh melanjutkan onboarding sebagai `UNVERIFIED` sesuai pembatasan.
+5. Pengguna boleh menyelesaikan onboarding eligible sebagai UNVERIFIED dan memakai fitur utama/sync; email verification opsional.
 6. Verifikasi dilakukan melalui tautan aman; deep link diperiksa dan diverifikasi di server/provider.
 7. Perbarui status setelah fetch/refresh klaim dari server, bukan hanya mengandalkan parameter URL.
 
@@ -125,10 +125,10 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 
 ### 7.6 Sign out / switch account
 
-- Tampilkan peringatan jika ada operasi lokal belum tersinkron; tawarkan pilihan yang aman sesuai kebijakan.
+- Antrean belum tersinkron: pilih sinkron dahulu, batal, atau logout/hapus dengan konfirmasi kehilangan; tidak ada upload tersembunyi setelah logout.
 - Cabut sesi/credential dari perangkat; opsi server-side revoke saat tersedia.
 - Reset state in-memory, subscription, query cache, dan UI terkait pengguna.
-- Data lokal terenkripsi/terisolasi per user, tidak boleh muncul pada akun berikutnya.
+- Setelah logout selesai, hapus data pribadi SQLite/outbox/draft, credential/kunci dan cache memory; jangan hanya menyembunyikannya. SQLCipher/key lifecycle dan isolasi akun masih memerlukan uji perangkat.
 - Jika logout offline, jangan mempertahankan akses akun lama secara tidak sengaja melalui refresh otomatis.
 
 ### 7.7 Delete account
@@ -136,7 +136,7 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 - Masuk lewat Profil > Privasi & Data > Hapus Akun.
 - Minta reauthentication untuk tindakan sensitif jika relevan.
 - Jelaskan dampak dan kebijakan retensi; cek sync queue, file lokal, data backend, data provider dan akun tertaut.
-- Backend memproses penghapusan dengan audit minimal yang diizinkan; klien menghapus credential/cache milik akun terkait.
+- Backend mengoordinasikan penghapusan PostgreSQL/Firebase dan cleanup lokal melalui workflow idempotent/retry untuk kegagalan parsial, dengan audit minimal. Jangan menganggap transaksi lintas layanan atomik.
 - Kebijakan penghapusan, masa tenggang, ekspor, dan mekanisme pembatalan: **legal review required**.
 
 ## 8. Account linking dan duplicate identity — usulan
@@ -163,7 +163,7 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 - Proteksi enumerasi akun dan brute force; pertimbangkan CAPTCHA/risk detection hanya jika dibutuhkan.
 - Token diverifikasi untuk setiap operasi privat; cek akses ke resource (`owner_user_id`).
 - Reauthentication untuk perubahan email, password, penghapusan akun, dan link/unlink penyedia.
-- Penyimpanan token di storage aman, misalnya `expo-secure-store`, jika kompatibel dengan SDK auth pilihan; bukan AsyncStorage biasa.
+- Persistensi Firebase mengikuti SDK/adapter yang kompatibel dan diuji pada Expo 57; SecureStore untuk kunci/secret kecil sesuai platform. Jangan menganggap Firebase JS persistence otomatis memakai SecureStore; SDK/persistensi/threat review tetap OPEN.
 - Jangan memasukkan secret server atau client secret OAuth ke aplikasi mobile.
 - Rotasi/revokasi credential mengikuti kemampuan provider dan ancaman.
 
@@ -203,7 +203,7 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 
 **Profile**: menggunakan user ID stabil untuk data tubuh; jangan menaruh data kesehatan dalam payload token kecuali perlu dan aman.
 
-**Onboarding**: `user_id`, `status`, `completed_at?`, `profile_version`, `nutrition_plan_id?`, `log_only_reason?`.
+**Onboarding**: `user_id`, `status`, `completed_at?`, `profile_version`, `nutrition_plan_id?`; completion hanya profil eligible, bukan LOG_ONLY.
 
 **Client session**: token hanya lewat SDK/provider secure store; status bootstrap lokal, bukan penyimpanan manual password.
 
@@ -242,7 +242,7 @@ Folder contoh, **jangan membuat semuanya kosong** saat implementasi. Route group
 | AU-05 | Login berhasil | Sesi aman, route sesuai onboarding |
 | AU-06 | Login gagal | Tidak ada sesi, rate limiting berlaku |
 | AU-07 | Verifikasi email terlambat | Bisa resend sesuai cooldown |
-| AU-08 | Email belum verified | Onboarding diperbolehkan sesuai aturan; aksi terbatas diuji |
+| AU-08 | Email belum verified | Eligible onboarding/final save/Home/sync tersedia; Firebase reauth tindakan sensitif diuji |
 | AU-09 | Link verifikasi kedaluwarsa | Error aman + resend |
 | AU-10 | Forgot password email tidak dikenal | Pesan generik |
 | AU-11 | Reset password sukses | Password baru diterima, kebijakan sesi dijalankan |
@@ -252,8 +252,8 @@ Folder contoh, **jangan membuat semuanya kosong** saat implementasi. Route group
 | AU-15 | Apple menolak/menutup alur | Aplikasi kembali aman |
 | AU-16 | Aplikasi dibuka ulang, sesi valid | Langsung ke Home atau onboarding sesuai status |
 | AU-17 | Refresh gagal | Login ulang, queue lokal tidak bocor |
-| AU-18 | Sign out saat queue kosong | Sesi dan state pengguna terhapus dari UI |
-| AU-19 | Sign out dengan queue pending | Peringatan/penanganan sesuai kebijakan |
+| AU-18 | Sign out queue kosong | Sesi, kunci, SQLite pribadi/outbox/draft dan state memory dibersihkan |
+| AU-19 | Sign out queue pending | Sinkron dahulu/batal/hapus dengan konfirmasi; clear pribadi hanya setelah pilihan aman |
 | AU-20 | User A logout, User B login | Data A tak terlihat/tersinkron ke B |
 | AU-21 | Dua provider memakai email sama | Tidak auto-link tanpa bukti kepemilikan |
 | AU-22 | Unlink provider terakhir | Ditolak sampai tersedia alternatif login |
@@ -271,10 +271,10 @@ Folder contoh, **jangan membuat semuanya kosong** saat implementasi. Route group
 ## 15. Acceptance criteria sebelum implementasi selesai
 
 - Seluruh provider yang termasuk scope platform telah diuji pada development build/perangkat yang sesuai.
-- Route guard benar untuk signed-out, signed-in, incomplete onboarding, log-only, dan restricted account.
+- Route guard benar untuk signed-out, signed-in, incomplete onboarding, ineligible, dan restricted account; tidak ada LOG_ONLY aktif.
 - Backend memverifikasi credential dan kepemilikan seluruh data privat.
 - Tidak ada password/token di logs, analytics, crash reports, atau penyimpanan tak aman.
-- Pengguna email belum verified menjalani flow yang jelas dan konsisten dengan kebijakan pembatasan.
+- Email unverified tidak menghalangi fitur utama/onboarding/sync; status dan verify/resend tersedia di Profil > Pengaturan > Data Diri.
 - Pengguna dapat reset password, resend verifikasi, logout, serta kembali login.
 - Draft onboarding lokal dan offline cache terisolasi per akun.
 - Test AU-01..AU-32 lulus; dokumentasi risiko tersisa tercatat.
@@ -284,14 +284,14 @@ Folder contoh, **jangan membuat semuanya kosong** saat implementasi. Route group
 
 | ID | Pertanyaan | Rekomendasi awal | Perlu review |
 |---|---|---|---|
-| ADR-A01 | Provider auth utama | Satu managed provider | Technical + cost |
-| ADR-A02 | Email belum verified: fitur mana dibatasi | Batasi operasi berisiko, bukan seluruh onboarding | Product + security |
+| ADR-A01 | Provider auth utama | Firebase Authentication dipilih — ADR-001 | Pilihan provider selesai; detail SDK/platform dan cost limits masih perlu review |
+| ADR-A02 | Email belum verified | RESOLVED D01: seluruh fitur utama tersedia; reauth Firebase untuk tindakan sensitif | Implementasi keamanan OPEN |
 | ADR-A03 | Berapa lama sesi bertahan | Mengikuti kebijakan provider dan threat model | Security |
 | ADR-A04 | Apakah account linking tersedia MVP | Bisa tunda UI, siapkan model | Product + security |
 | ADR-A05 | Strategi pengamanan data offline | Enkripsi/isolasi sesuai threat model dan perangkat | Security |
 | ADR-A06 | Username unik atau hanya display name | Display name opsional, unik nanti | Product |
 | ADR-A07 | Alur delete, ekspor, dan retensi | Ditinjau berdasarkan kewajiban yang berlaku | Legal |
-| ADR-A08 | Verifikasi email saat transfer draft lokal | Tentukan status finalisasi server secara tegas | Product + security |
+| ADR-A08 | Verifikasi email saat transfer draft | RESOLVED D01: finalisasi server tidak mensyaratkan email verified; token/eligibility tetap divalidasi | Auth tests OPEN |
 | ADR-A09 | Login ulang setelah akun dihapus/suspended | Block token dan queue sesuai kebijakan | Technical |
 | ADR-A10 | Penanganan email yang tidak tersedia dari Apple | Gunakan provider subject ID | Technical |
 | ADR-A11 | Tautan/deep link, domain, redirect | Whitelist dan verifikasi sesuai SDK provider | Technical |
@@ -302,7 +302,7 @@ Folder contoh, **jangan membuat semuanya kosong** saat implementasi. Route group
 - **LEGAL REVIEW:** ketentuan akun dan privasi, dasar pemrosesan data tubuh, umur dan kelompok khusus, retensi/hapus/ekspor, ketentuan Apple/Google dan app stores.
 - **SECURITY REVIEW:** identitas provider, token/session/refresh/revocation, rate limit, linking, logout multi-akun, secure store, device-sharing, data cache, backend authorization.
 - **TECHNICAL REVIEW:** Expo SDK/provider SDK kompatibel, development builds, native capabilities, callback/deep-link, Android/iOS, RLS/API and auth provider support.
-- **PRODUCT REVIEW:** pembatasan email unverified, copywriting, flow recovery, login provider availability dan fallback.
+- **PRODUCT REVIEW:** copywriting, flow recovery, login provider availability dan fallback. D01 email opsional sudah diputuskan; jangan membuka kembali pembatasan fitur utama.
 
 ## 18. Referensi resmi untuk implementasi (cek lagi versi saat coding)
 
@@ -314,4 +314,4 @@ Folder contoh, **jangan membuat semuanya kosong** saat implementasi. Route group
 - OWASP Authentication Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
 - OWASP Session Management Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
 
-**Status akhir:** Spesifikasi produk dan teknis awal cukup untuk evaluasi arsitektur, **belum untuk implementasi auth produksi** sampai provider, pembatasan email, dan review keamanan/legal disetujui.
+**Status akhir:** Firebase Authentication dipilih, belum diimplementasikan. D01 email verification opsional sudah final; SDK/persistensi Firebase pada Expo 57, provider/platform serta review keamanan/legal tetap OPEN.
