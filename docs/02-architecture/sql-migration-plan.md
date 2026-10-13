@@ -1,0 +1,72 @@
+# NUTRASA — SQL Migration Plan v1.0
+
+**Status:** Rencana, **bukan skrip SQL**, tidak dieksekusi. Baseline: `database-schema.md` v1.2 dan `api-contract.md` v1.2. Target: PostgreSQL lokal pada masa development. 13 Oktober 2026.
+
+## 1. Prinsip eksekusi nanti
+
+- Gunakan satu mekanisme migration berurutan dengan tabel riwayat versi (dipilih saat implementasi backend). **Jangan menjalankan schema sync otomatis** yang bisa menghapus kolom produksi.
+- Setiap migration memiliki nomor urut, nama jelas, checksum, petunjuk rollback/roll-forward, dan tes terhadap database kosong serta database berisi data.
+- Mulai dengan seed **dummy nonlisensi** untuk pengujian. Jangan mengimpor 100 makanan sebelum sumber dan hak penggunaan dinyatakan boleh.
+- Jangan masukkan rahasia Firebase Admin ke SQL/commit. Database URL dan kredensial hanya melalui environment server lokal yang diabaikan Git.
+- Idempotency, unique constraints, foreign keys, CHECK constraints, dan perubahan domain + change feed harus dibuat dalam transaksi yang sesuai.
+- Postgres trusted dev host saja; jangan expose port 5432 ke internet publik.
+
+## 2. Urutan migration yang direncanakan
+
+| ID | Kelompok | Tabel/objek | Kriteria penerimaan |
+|---|---|---|---|
+| 001 | Foundation | Extensions UUID sesuai kebutuhan, enum/check domains, migration metadata | Tidak bergantung ekstensi yang tidak tersedia tanpa fallback |
+| 002 | Identity | `app_users`, `user_profiles`, `user_preferences`, `privacy_acknowledgements` | Firebase UID unik; eligibility; ownership FK |
+| 003 | Catalog provenance | `food_sources`, `categories`, `foods`, `food_aliases`, `food_categories` | Status izin eksplisit; alias unik; parent category valid |
+| 004 | Catalog composition | `food_revisions`, `food_revision_nutrients`, `serving_definitions`, `catalog_reviews`, `catalog_import_batches` | Revisi published immutable; empat nutrisi wajib & nonnegatif; nilai lain NULL |
+| 005 | Private food | `custom_foods`, `custom_food_revisions` | Revisi immutable; ownership dan soft-delete |
+| 006 | Recipes | `recipes`, `recipe_revisions`, `recipe_ingredients` | Bahan mengacu revisi sumber yang benar dan tidak lintas owner; non-nested MVP |
+| 007 | Favorites/meal templates | `favorite_foods`, `saved_meals`, `saved_meal_items` | Tombstone; salinan snapshot independen |
+| 008 | Journal | `food_log_items`, `journal_day_states` | Snapshot 11 nutrisi; nonnegative; status OPEN/CONFIRMED_COMPLETE independen |
+| 009 | Weights/goals | `weight_measurements`, `nutrition_goal_versions` | AUTO-only; rentang target tidak overlap per user; histori immutable |
+| 010 | Offline sync | `sync_operations`, `change_feed`, device-sequence tracking, tombstone retention bookkeeping | Receipt atomik dengan mutasi; operation-id+digest; per-account cursor |
+| 011 | Account deletion | `account_deletion_requests`, minimal durable retry metadata | Pending deletion memblokir penulisan; retry aman |
+| 012 | Indeks & search | Indeks owner/date, owner/cursor, measured_at, normalized names | Query plans diperiksa; pg_trgm opsional jika tersedia |
+| 013 | Seed development | Minimal katalog dummy, category dummy, test user fixtures terpisah | Tidak berisi data identitas nyata atau food source ilegal |
+
+**Keputusan desain yang perlu diwujudkan dalam DDL:** polymorphic references pada `recipe_ingredients`, favorites, dan `food_log_items` harus memakai typed nullable FKs plus CHECK tepat-satu-referensi, atau pendekatan penghubung tervalidasi di transaksi. Jangan gunakan `source_revision_id` bebas tanpa validasi relasi dan kepemilikan.
+
+## 3. Invariant yang wajib diuji
+
+1. `app_users.firebase_uid` unik; akun email belum diverifikasi tetap dapat mengakses fitur sesuai aturan Auth.
+2. Food published hanya jika sumber berizin dan komposisi energi, protein, karbohidrat, lemak sudah ditinjau; status sumber dan proses editorial diverifikasi saat publikasi, bukan hanya CHECK sederhana.
+3. Kandungan nutrisi tujuh metrik tambahan boleh NULL; unknown tidak direpresentasikan sebagai nol.
+4. Food log menyimpan revision-source dan immutable nutrient snapshot. Revisi katalog tidak mengubah histori.
+5. Delete menjadi tombstone; stale update tidak resurrect.
+6. `sync_operations` mencatat result receipt atomik dengan perubahan domain dan feed; retry operation_id identik memberi hasil identik; payload berbeda ditolak.
+7. Urutan operasi dari satu device dijaga; sequence gap, replay dan perangkat yang di-reset mempunyai aturan recovery.
+8. Weight yang dicatat mundur masuk grafik tetapi tidak mengganti pengukuran terbaru; edit/hapus latest dapat memicu goal recalculation serialized.
+9. Target baru berlaku sejak aktivasi server; histori versi lama tidak hilang; progress satu hari memakai target efektif di akhir hari lokal.
+10. Pemilik lain tidak dapat membaca/menulis data personal lewat seluruh query backend; test negatif wajib.
+11. Akun PENDING_DELETION tidak menerima sync mutasi baru.
+12. Hari tanpa log berbeda dari total nol; day completion tidak dianggap bukti kelengkapan nutrisi.
+
+## 4. Rencana pengujian migration
+
+- **Fresh install:** semua migration diterapkan dari database kosong tanpa intervensi.
+- **Re-run:** migration runner tidak mengulang script yang sudah sukses; checksum menolak perubahan migration historis.
+- **Upgrade:** dari versi sebelumnya dengan fixtures dummy, semua tabel dan foreign key tetap valid.
+- **Rollback/roll-forward:** sediakan backup `pg_dump` sebelum migrasi berisiko. Pada perubahan destruktif, gunakan expand-migrate-contract, hindari DROP mendadak.
+- **Load tests sederhana:** 100 dan 500 makanan; indeks pencarian, query food diary tanggal, 30 hari progress, 1.000 operasi sync dengan duplikasi dan order berbeda.
+- **Security tests:** SQL injection dihalangi prepared parameter, pemisahan akun, non-disclosure ID, dan batas akses database role.
+- **Failure injection:** transaksi putus tengah sync, retry deletion Firebase gagal, perubahan berat bersamaan, kehilangan koneksi mobile.
+
+## 5. Strategi database lokal → cloud
+
+Pengembangan awal menjalankan PostgreSQL pada komputer developer dan Fastify lokal. Ketika beta eksternal siap, gunakan managed PostgreSQL dan tempat deployment Fastify yang sesuai; pindahkan via backup/restore/migration yang teruji. **Jangan mengandalkan akses ponsel ke localhost komputer tanpa konfigurasi alamat LAN/emulator.** Simpan semua konfigurasi koneksi di server, tidak pada aplikasi mobile.
+
+## 6. Hal yang masih diblokir sebelum menulis migration eksekusi
+
+- Definisi schema fisik field per tabel dan constraints yang belum disebut rinci di v1.2.
+- Strategi typed foreign key referensi katalog/custom/resep.
+- Pemilihan migration runner dan connection role untuk production.
+- Kebijakan retensi tombstone/change_feed, expiry cursor serta strategi full resync saat purge.
+- Struktur job penghapusan akun yang durable tanpa layanan berbayar.
+- Review periode target, unit fisik, cakupan nilai, timezone DST, dan batas numerik.
+
+**Sign-off yang diperlukan:** Engineering lead review kontrak dan migration checklist. Legal/clinical food review terpisah sebelum publikasi katalog/target kepada pengguna.

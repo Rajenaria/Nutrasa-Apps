@@ -15,13 +15,13 @@
 ## 1. Ruang lingkup yang disepakati
 
 1. NUTRASA adalah pelacak nutrisi dengan fokus makanan Nusantara, menggunakan React Native + Expo.
-2. Visi untuk semua kelompok; **kalkulator otomatis MVP hanya dewasa yang memenuhi kriteria**. Kondisi medis/khusus tidak didukung untuk rekomendasi otomatis MVP.
+2. **MVP hanya untuk dewasa 18+ dengan profil yang didukung**. Profil tidak eligible tidak mendapat target numerik atau akses LOG_ONLY; rincian skrining tetap memerlukan review klinis/legal.
 3. Onboarding interaktif/visual; body type bersifat opsional dan **tidak masuk rumus**.
 4. Target cutting/bulking dipilih otomatis **berdasarkan profil**, bukan satu nilai tetap untuk semua orang.
 5. Protein berdasarkan berat acuan, tujuan, dan aktivitas; lemak 25–30% energi secara adaptif; karbohidrat dari energi tersisa, kemudian validasi.
 6. Berat terbaru memicu **perhitungan ulang otomatis**; hasil yang tidak lolos validasi tidak diberlakukan sebagai target aktif.
-7. Target nutrisi dapat disesuaikan secara manual dengan validasi.
-8. Food logging mencakup pencarian, kategori, custom food, resep, favorit, recent foods, copy meal, edit/hapus; offline-tolerant dengan antrean sinkronisasi.
+7. Target kalori dan makronutrien otomatis saja pada MVP; target manual/override ditunda ke post-MVP dengan review validasi.
+8. Food logging MVP mencakup pencarian, kategori, custom food sederhana, favorit, recent foods, salin catatan, edit/hapus, dan antrean sinkronisasi. Resep buatan pengguna post-MVP sesuai O-18.
 9. Katalog awal 100 makanan terkurasi menuju 500; energi dan tiga makro ditinjau, nutrisi lain boleh tidak tersedia.
 10. Makanan dengan data nutrisi parsial boleh dicatat, tetapi harus ada indikator ketidaklengkapan.
 11. Progress MVP mencakup kalori, makro, berat badan, dan konsistensi.
@@ -39,13 +39,13 @@
 | BR-007 | Lemak adaptif 25–30% energi | Disepakati (rancangan) | Validasi klinis dan constraint makro diperlukan |
 | BR-008 | Karbohidrat dari sisa energi | Disepakati (metode) | Tidak boleh negatif; cek constraint |
 | BR-009 | Berat badan baru memicu hitung ulang otomatis | Disepakati | Gunakan berat terbaru yang sah, simpan versi; validasi sebelum aktivasi |
-| BR-010 | Target manual dengan validasi | Disepakati | Batas aman dan kebijakan override perlu review |
+| BR-010 | Target otomatis saja pada MVP | Disepakati D02 | Manual/override post-MVP; batas aman tetap perlu review klinis |
 | BR-011 | Perubahan target menjaga histori | Disepakati sebagai invariant oleh owner | Detail versioning dan effective date masih memerlukan keputusan teknis/produk |
 | BR-012 | Nutrisi yang tidak diketahui = null, bukan 0 | Disepakati | Ketidaklengkapan harus dibawa sampai total harian |
 | BR-013 | Makanan parsial tetap dapat dicatat | Disepakati | UI memberi partial-data marker |
 | BR-014 | Log menyimpan nutrition snapshot | Disepakati sebagai invariant oleh owner | Histori stabil walau katalog/resep berubah; detail implementasi masih draft |
 | BR-015 | Offline write + idempotent sync | Disepakati (perilaku), desain teknis usulan | Isolasi per akun dan pemulihan konflik |
-| BR-016 | Hari tanpa log != 0 konsumsi | Usulan teknis | Bedakan belum dicatat, sebagian, hari selesai |
+| BR-016 | Hari tanpa log != 0 konsumsi | Disepakati D10 | Hari Aktif = minimal satu log; Selesai Mencatat opsional dan terpisah dari coverage nutrisi |
 | BR-017 | Semua rekomendasi menyimpan calculation_version dan source version | Usulan teknis | Auditability dan reproducibility |
 
 ## 3. Engine: kalkulasi dan precedence
@@ -86,11 +86,11 @@ Faktor aktivitas **kandidat pengujian, bukan final**: 1.20; 1.375; 1.55; 1.725; 
 
 ### 3.4 Recalculation akibat berat terbaru
 - Simpan penimbangan dengan timestamp dan tanggal lokal jurnal.
-- Perubahan berat yang valid memicu *recalculation request* otomatis; pekerjaan harus idempotent dan memakai input terkini.
+- Pengukuran valid terbaru menurut waktu pengukuran memicu reevaluasi idempoten; catatan mundur tidak otomatis mengganti acuan lebih baru, edit/hapus acuan dievaluasi ulang sesuai Decision 03 final.
 - Jika hasil aman menurut aturan yang sudah ditetapkan, buat versi goal baru secara atomik; jangan menimpa sejarah.
 - Jika belum layak, status `NEEDS_REVIEW`; target baru tidak aktif. **Perlu keputusan UX:** apakah target lama tetap terlihat dengan badge usang atau dibekukan dari rekomendasi.
 - Jika dua data berat berurutan datang saat offline, hitung ulang terhadap versi berat terbaru yang benar setelah sinkronisasi, hindari stale job.
-- Perlu ditentukan apakah koreksi pengukuran lama (backdated) memengaruhi goal pada masa lalu; usulan default: **tidak**.
+- Koreksi pengukuran historis tidak menulis ulang versi target lama; bila mengubah acuan valid terbaru, evaluasi ulang target kini secara forward-effective sesuai D03, dengan fixtures batas waktu tetap OPEN.
 
 ## 4. Nutrisi yang ditampilkan
 
@@ -101,7 +101,7 @@ Faktor aktivitas **kandidat pengujian, bukan final**: 1.20; 1.375; 1.55; 1.725; 
 | Karbohidrat | g | Target/rentang | null/unknown |
 | Lemak total | g | Target/rentang | null/unknown |
 | Serat | g | Referensi kecukupan | null/unknown |
-| Gula total | g | Pantauan; bukan gula bebas/tambahan | null/unknown |
+| Gula total (`sugar_g`) | g | Pantauan; bukan gula bebas/tambahan | null/unknown |
 | Lemak jenuh | g | Indikator pembatasan | null/unknown |
 | Lemak trans | g | Indikator minimisasi | null/unknown |
 | Kolesterol | mg | Pantauan | null/unknown |
@@ -112,12 +112,12 @@ Acuan nutrisi tambahan seperti WHO dan AKG Indonesia perlu dipetakan eksplisit p
 
 ## 5. Food data: kualitas dan perhitungan
 
-- Tipe makanan: bahan mentah, bahan matang, masakan jadi, produk kemasan, resep pengguna.
+- Tipe makanan MVP: bahan mentah, bahan matang, masakan jadi, produk kemasan. Resep buatan pengguna post-MVP; masakan katalog terkurasi tetap dapat menggunakan metode resep yang ditinjau.
 - Wajib ada `food_id`, nama/alias, kategori/tag, kondisi pengolahan, `basis_amount`, `basis_unit`, energi+protein+karbohidrat+lemak yang ditinjau, status review, sumber dan basis penggunaan legal.
 - Nutrisi tambahan boleh `null`. `0` hanya bila didukung data.
 - Perhitungan dari basis 100 g: `portion_value = per_100g_value × grams / 100`, jika gram basisnya jelas. Untuk cairan gunakan basis volume jika sumbernya memang per 100 ml.
 - Porsi rumah tangga khusus per makanan (centong, potong, mangkuk), harus disertai berat/volume terdefinisi dan sumber konversi; jangan buat konversi universal.
-- Untuk resep, jumlahkan komponen dengan unit konsisten; gunakan berat akhir/yield yang jelas untuk nutrisi per 100 g. Retensi dan penyerapan minyak perlu metode kurasi; hasil tetap estimasi.
+- **Post-MVP — resep pengguna:** jumlahkan komponen dengan unit konsisten; gunakan berat akhir/yield yang jelas untuk nutrisi per 100 g. Metode resep untuk katalog terkurasi tetap memerlukan review; retensi dan penyerapan minyak tidak diasumsikan.
 - Jika nutrisi satu bahan `null`, total nutrisi terkait berstatus `partial`; boleh tampil subtotal yang diketahui dengan penjelasan dan **jangan mengklaim total pasti**.
 - Catatan makanan menyimpan snapshot porsi, unit, energi/makro yang diketahui, nutrisi tambahan beserta completeness metadata, identitas sumber dan versi.
 - Revisi katalog tidak mengubah log lama secara diam-diam.
@@ -136,7 +136,7 @@ Acuan nutrisi tambahan seperti WHO dan AKG Indonesia perlu dipetakan eksplisit p
 - Peraturan minimum/maksimum dan kebijakan override **belum ditentukan**; tidak boleh dibuat diam-diam oleh implementer.
 
 ### State/Sync
-- Status minimal: `LOCAL_PENDING`, `SYNCING`, `SYNCED`, `SYNC_ERROR`, `CONFLICT`.
+- Status minimum: LOCAL_PENDING, SYNCING, SYNCED, SYNC_ERROR. Edit lintas perangkat mengikuti server-ordered LWW; receipt per-owner dan UPDATE tombstone ENTITY_DELETED, tanpa konflik stale-edit normal.
 - ID mutasi stabil, idempotency key, urutan mutasi, soft deletion/tombstone (jika dipilih), pemisahan data lokal per akun.
 - Progress membedakan no-log vs tracked-zero vs partial vs completed.
 - Jika pengguna offline, log lokal tidak boleh hilang akibat error jaringan; jangan mengklaim sudah synced sebelum konfirmasi server.
@@ -151,7 +151,7 @@ Acuan nutrisi tambahan seperti WHO dan AKG Indonesia perlu dipetakan eksplisit p
 | N-04 | 35th, 65kg, 160cm, aktivitas rendah, maintenance | Tidak ada defisit/surplus; angka reproducible |
 | N-05 | 30th, 75kg, 178cm, latihan kekuatan, muscle gain | Protein diturunkan dari berat acuan dan preset valid; tidak pakai body type |
 | N-06 | Berat valid berubah 70 → 69kg | Trigger re-evaluation; goal baru berversi; goal lama tidak ditimpa |
-| N-07 | Edit target manual dalam batas yang disetujui | Validasi makro-energi dijalankan; audit trail tersimpan |
+| N-07 | MVP: tidak ada edit target manual | Hanya target otomatis tervalidasi; manual/override post-MVP |
 | N-08 | Input sama di dua perangkat, rule version sama | Hasil deterministik setara (sesuai toleransi) |
 
 **Catatan:** kasus N-02/N-03/N-05 belum bisa mempunyai golden numeric expected value sebelum preset dan koefisien disetujui. Unit test dapat memakai oracle rumus mekanis tanpa mengklaim parameter klinis tervalidasi.
@@ -193,12 +193,12 @@ Acuan nutrisi tambahan seperti WHO dan AKG Indonesia perlu dipetakan eksplisit p
 | X-12 | Pengguna ganti akun dengan unsynced writes | Data akun lama tetap terisolasi |
 | X-13 | Konflik edit dua perangkat | Deteksi konflik, kebijakan resolusi terdokumentasi; hindari silently lost update |
 | X-14 | Recalculation target baru | Riwayat versi sebelumnya tetap tersedia |
-| X-15 | Resep diubah setelah dicatat | Snapshot nutrisi lama tetap sama |
+| X-15 | Post-MVP: resep pengguna diubah setelah dicatat | Snapshot nutrisi lama tetap sama |
 | X-16 | Jam lokal melewati tengah malam/ubah zona waktu | Konsisten dengan tanggal jurnal yang dipilih dan kebijakan timezone |
 | X-17 | Satu porsi tanpa konversi gram valid | Tidak membuat perkiraan diam-diam; minta gram/ml |
 | X-18 | Nilai nutrisi diketahui 0 vs unknown | 0 tetap 0; unknown tetap null |
 | X-19 | Sync server gagal permanen | UI status `SYNC_ERROR` + retry aman; catatan lokal tidak hilang |
-| X-20 | User logout dengan pending mutations | Peringatan risiko dan prosedur pemulihan sesuai desain |
+| X-20 | Logout dengan pending mutations | Pilih sinkron dahulu/batal/hapus dengan konfirmasi; bersihkan data pribadi setelah logout, tanpa lintas akun |
 
 ## 10. Kriteria penerimaan sebelum coding engine
 
@@ -218,7 +218,7 @@ Acuan nutrisi tambahan seperti WHO dan AKG Indonesia perlu dipetakan eksplisit p
 3. Tabel preset otomatis untuk cutting, bulking, muscle gain, dan recomposition, berikut batas kelayakannya.
 4. Metode berat acuan dan koefisien protein berdasarkan profil.
 5. Alokasi lemak adaptif 25–30% dan pengecualian/constraint makro.
-6. Batas dan kebijakan override target manual; siapa yang dapat memvalidasi.
+6. **Post-MVP / OPEN:** batas dan kebijakan override target manual; siapa yang dapat memvalidasi.
 7. Trigger auto-recalc dari pengukuran offline, threshold perubahan signifikan, dan handling outlier measurement.
 8. Penanganan target aktif sebelumnya bila perhitungan baru gagal guardrail.
 9. Penggunaan target nutrisi tambahan berdasarkan AKG, WHO, dan kelompok pengguna yang didukung.

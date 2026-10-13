@@ -5,7 +5,7 @@
 **Destination:** [docs/01-design/home-ui-direction.md](home-ui-direction.md)\
 **Status:** DESIGN DRAFT — not a coded screen, not clinical validation
 
-**Latest approved visual amendments:** [ui-approval-summary.md](ui-approval-summary.md) governs the compact Home layout: three separate macro circles, no food pictogram icons, center percentages when a valid target/data state permits them, and consumed/target quantity below. Progress has a different pattern of three concentric semicircular arcs. Preserve log-only/partial/unknown semantics; no percentage should be fabricated.
+**Latest approved visual amendments:** [ui-approval-summary.md](ui-approval-summary.md) governs the compact Home layout: three separate macro circles, no food pictogram icons, center percentages when a valid target/data state permits them, and consumed/target quantity below. Progress has a different pattern of three concentric semicircular arcs. Preserve missing/pending target/partial/unknown semantics; no percentage should be fabricated.
 
 ## 0. Purpose and source-of-truth hierarchy
 
@@ -21,15 +21,15 @@ Read together with:
 
 **Visual reference priority:** the user-provided image featuring a large calorie-progress ring and three small macro rings. The image is a **composition reference only**: do not copy the original app's logo, copy, interface assets, or exact pixel layout. Final NUTRASA logo and Bowi mascot files in `assets/branding/` have branding precedence. Other screenshot references are inspirational rather than authoritative.
 
-**Already agreed:** Indonesian-first calorie/nutrition tracker; Home + Makanan + Progress + Profil + AI entry planned; circular progress on Home prioritized; forest/cream brand direction; adult eligible users get estimated goals; unsupported profiles may use log-only; incomplete food data can be logged with a visible partial-data label; offline-tolerant logging.
+**Already agreed:** Indonesian-first tracker; existing Home/Makanan/Progress/Profil/AI visual direction; forest/cream branding; MVP only supports eligible adults 18+ with AUTO targets. No LOG_ONLY fallback. Partial nutrition remains labelled and offline logging follows the final sync design; implementation remains planned.
 
-**Do not silently finalize:** week-strip calendar, AI placeholder versus hidden tab, diary complete toggle, future-date writes, when an invalid auto-recalculation takes effect, manual goal handling, or the ultimate color/size selection. All remain review items.
+**Still open:** calendar placement, AI placeholder versus hidden tab, future-date writes, exact colors/sizes, and completion behavior after edits/deletes. Optional diary completion is approved (Decision 10); manual target controls are post-MVP. Automatic target history follows Decision 03.
 
 ## 1. Home design goals
 
 1. Within three seconds of looking at the screen, the user can recognize **selected date**, **recorded calories**, **target when available**, and **how to add food**.
 2. Calories + the 3 macro rings are the focal point, with generous cream whitespace and soft rounded cards.
-3. The screen handles **no data, partial nutrients, log-only, exceeded target, offline pending**, and **historic dates** without misleading numeric visuals.
+3. The screen handles **no data, partial nutrients, missing/pending target, exceeded target, offline pending**, and **historic dates** without misleading numeric visuals.
 4. Food logging remains prominent without obstructing navigation or content.
 5. Brand identity should feel warm, confident and approachable — forest green, creamy neutral surfaces, limited orange accents, Bowi used purposefully.
 
@@ -113,13 +113,13 @@ Orange is a category accent, **not** a danger indicator. Never equate food intak
 | Component | Required data | States |
 |---|---|---|
 | `HomeHeader` | selected local journal date, user locale, calendar trigger | today, past day, offline status |
-| `CalorieHeroCard` | recorded kcal, target or null, completeness, goal version | eligible, exceeded, log-only, partial, loading |
+| `CalorieHeroCard` | recorded kcal, target or null, completeness, goal version | eligible, exceeded, missing/pending target, partial, loading |
 | `NutritionRing` | nutrient, known value, nullable target, type, completeness | normal, full, above target, absent target, partial |
 | `MacroSummaryCard` | nutrient label, consumed, target, indicator | same as ring |
 | `MealSection` | type, day, logged items, known summary, add handler | empty, partial, pending sync |
 | `SyncStatus` | number/status of queued or failed mutations | hidden when fine, pending, error |
 | `HomeEmptyState` | reason (no entries; new account; offline catalog missing) | contextual and actionable |
-| `FoodDiaryActions` | selected date/meal | add, edit, copy meal, recipe/favorite navigation |
+| `FoodDiaryActions` | selected date/meal | add, edit, copy food log, food favorites; user recipe navigation post-MVP |
 
 All components read the same daily data selector; **no nutrition formula is implemented in visual components**.
 
@@ -135,15 +135,15 @@ All components read the same daily data selector; **no nutrition formula is impl
 - Remaining amount is clamped only when **displaying remaining**; do not hide a negative difference by calling it 0 without mentioning excess.
 - `0 logs` means **not yet recorded**, not proven 0 intake.
 
-### 6.2 No goal / log-only
+### 6.2 Missing or pending automatic target
 
 - Show `1.450 kcal tercatat`, **not** `1.450 / 0 kcal`.
 - Replace ring with a restrained decorative neutral circle or omit it; no implied percent achieved.
-- Offer a non-coercive link `Atur target` only if the user's profile/eligibility permits.
+- For eligible profiles, offer review of profile/automatic-target status where appropriate; do not offer manual target controls or an unsupported-profile LOG_ONLY fallback in MVP.
 
 ### 6.3 Incomplete nutrient data
 
-- If any logged food lacks this nutrient value, show known minimum/partial sum alongside `Data sebagian` and a tooltip/detail explaining uncertainty.
+- If some logged foods lack this nutrient, show `>=` the known sum with `Data sebagian`; if all values are unknown show `—`, not zero.
 - Do not silently substitute missing nutrient values with zero.
 - Treat calories/macros and supplementary nutrients separately regarding completeness; missing sodium must not erase a valid known protein total.
 
@@ -169,7 +169,7 @@ All components read the same daily data selector; **no nutrition formula is impl
 - Each group exposes a clear add control and opens food discovery pre-filled with `mealType` and `selectedDate`.
 - Entries display name, portion/units, and recorded calories when available; detail/edit/delete via clearly named actions.
 - After save, preserve selected date and return appropriately to the originating meal on Home; daily totals update from local data immediately.
-- Copy meal, favorites and recipe actions use existing Food Logging spec; do not create a duplicate food data source in Home.
+- Copy food logs and favorites follow Food Logging spec and O-18 (MVP); user recipes are post-MVP. Do not create a duplicate food data source in Home.
 - If food is missing from catalog, provide `Buat makanan sendiri` in food discovery flow; do not invent nutrition numbers.
 
 ## 9. Bottom navigation and Bowi
@@ -192,7 +192,7 @@ Bowi may appear in meaningful empty-state, short guidance, or onboarding-related
 | Valid goal and logs | Numeric calories, three macro rings, meal summaries | Add/edit food |
 | Over target | Ring full, numeric excess clearly stated, nonjudgmental language | View log/detail |
 | Partial nutrition | Known totals + `Data sebagian` for affected nutrient | See details |
-| Log-only | Consumed value without target percentages | Log food |
+| Missing/pending target | Known consumed value without target percentages; not LOG_ONLY mode | Review automatic target/profile status if eligible |
 | Offline pending sync | Local state visible, `Belum tersinkron` badge/status | Retry when possible |
 | Sync failed | Persisted logs remain; actionable failure message | Retry / details |
 | Offline no catalog cache | Preserve existing log view, explain search limitation | Custom food / retry |
@@ -214,7 +214,7 @@ Do not make actions hover-only or rely solely on colors. Labels and touch target
 
 - [ ] The owner approves wireframe hierarchy and priority of the calorie + macro rings.
 - [ ] The owner chooses calendar variant and navbar variant.
-- [ ] Hero card shows valid target and nullable-target (log-only) correctly.
+- [ ] Hero card shows valid target and nullable-target (missing/pending target) correctly.
 - [ ] Over-target state shows actual excess and no hidden numeric difference.
 - [ ] Missing nutrients show partial badge only for affected metrics.
 - [ ] One food add from a historical date returns to the same selected date.
@@ -235,7 +235,7 @@ Do not make actions hover-only or rely solely on colors. Labels and touch target
 | HOME-03 | Macro cards | Three cards with mini ring | PROPOSED, matches user's reference |
 | HOME-04 | Bottom tab style | Floating but compact and readable | OPEN, requires mockup |
 | HOME-05 | Fifth AI tab | Explicit disabled preview or hide | OPEN |
-| HOME-06 | Mark day complete | Separate intentional action | OPEN |
+| HOME-06 | Mark day complete | Optional action, independent of active day and nutrient coverage (D10) | APPROVED behavior; placement/edit-delete details OPEN |
 | HOME-07 | Future date logging | Browse only initially | OPEN |
 | HOME-08 | Nutrients detail entry | Single `Detail Nutrisi` button | PROPOSED |
 | HOME-09 | Bowi placement | Empty/offline/education states | PROPOSED |
@@ -249,7 +249,7 @@ Do not make actions hover-only or rely solely on colors. Labels and touch target
 2. Implement Home shell using shared theme tokens, `AppText`, and `AppIcon` (Lucide via wrapper).
 3. Wire components to a single selected-day view model from local/offline-backed store.
 4. Derive totals from food-log domain functions, **not inside components**.
-5. Add state previews/test fixtures outside production Home route; test normal, empty, log-only, partial, over target, pending sync.
+5. Add state previews/test fixtures outside production Home route; test normal, empty, missing/pending target, partial, over target, pending sync.
 6. Validate screen-reader focus, font scaling and safe-area tab layout.
 7. Obtain owner sign-off before pixel polish/animations.
 

@@ -14,7 +14,7 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 ### In-scope MVP
 - Ringkasan akun (nama tampilan opsional, email/metode login, status verifikasi).
 - Lihat/ubah data tubuh dan aktivitas; body type opsional hanya untuk tampilan.
-- Lihat target energi dan makro, sumber perhitungan, status target, serta target manual dengan validasi.
+- Lihat target energi/makro otomatis, sumber perhitungan, histori/tanggal efektif dan status; target manual/override post-MVP.
 - Riwayat versi target, termasuk hasil perubahan berat otomatis.
 - Pengaturan satuan, zona waktu jurnal dan preferensi dasar.
 - Status sinkronisasi, opsi retry, dan penjelasan data offline.
@@ -35,7 +35,7 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 | PR-003 | Pengguna dapat menyesuaikan target dengan validasi | Agreed |
 | PR-004 | Berat baru memicu hitung ulang otomatis | Agreed (cara aktivasi bergantung safety gate) |
 | PR-005 | Body type bersifat opsional dan tidak memengaruhi rumus | Agreed |
-| PR-006 | Pengguna unsupported dapat menggunakan log-only tanpa target otomatis | Agreed |
+| PR-006 | MVP hanya dewasa 18+ eligible; tidak ada LOG_ONLY atau target numerik bagi profil tidak didukung | Agreed D04; detail eligibility/review tetap OPEN |
 | PR-007 | Draft onboarding disimpan lokal sampai selesai | Agreed |
 | PR-008 | Fitur pencatatan offline-tolerant dengan sync | Agreed |
 | PR-009 | Histori target dan nutrisi log tidak boleh diubah diam-diam | Invariant disetujui owner dalam tugas merge; detail teknis/tanggal berlaku masih terbuka |
@@ -45,9 +45,9 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 **Tab Profil**
 1. **Header profil:** avatar default/maskot bila sesuai design system, display name atau sapaan generik, email yang boleh disamarkan, status verifikasi.
 2. **Data tubuh & aktivitas:** usia/tanggal lahir, tinggi, berat saat ini (derived from latest measurement), parameter rumus jika relevan, level aktivitas, body type opsional.
-3. **Tujuan & target nutrisi:** tujuan, target berat untuk cutting/bulking, rincian target kalori/makro, sumber otomatis/manual, tanggal berlaku, status READY/NEEDS_REVIEW/UNSUPPORTED.
+3. **Tujuan & target nutrisi:** tujuan, target berat kondisional, target otomatis dan tanggal efektif; manual post-MVP, tanpa target numerik untuk profil tidak eligible.
 4. **Preferensi:** satuan berat/tinggi, bahasa Indonesia (default), tanggal/zona waktu jurnal, notifikasi (jika modul reminder ada).
-5. **Akun & keamanan:** email/metode login, verifikasi, sign out, opsi pengelolaan akun.
+5. **Pengaturan > Data Diri:** status email dan aksi verifikasi/kirim ulang opsional; keamanan, sign out dan pengelolaan akun mengikuti Firebase reauth sensitif.
 6. **Privasi & data:** kebijakan, ringkasan izin/pemrosesan, ekspor data, hapus akun, status pending sync.
 7. **Bantuan & tentang aplikasi:** FAQ, laporkan bug/data makanan, app version.
 8. **AI & Premium:** entry point informational/coming soon hanya jika disetujui; tidak menjanjikan fitur yang belum tersedia.
@@ -70,15 +70,15 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 - Edit tanggal lahir/usia (berdasarkan kebijakan onboarding), tinggi, kategori fisiologis rumus, aktivitas, body type visual opsional.
 - Berat baru harus dicatat sebagai **weight measurement**, bukan sekadar menimpa satu field tanpa histori.
 - Jika data yang memengaruhi engine berubah, invalidasi kalkulasi lama dan jalankan evaluasi baru.
-- Data yang mengubah kelayakan dapat mengalihkan pengguna ke `LOG_ONLY` atau `NEEDS_REVIEW` tanpa memunculkan target asal.
+- Jika data mengubah eligibility, jelaskan status tidak eligible/NEEDS_REVIEW tanpa target numerik baru; tidak ada jalur LOG_ONLY aktif MVP. Perlakuan target sebelumnya mengikuti review keamanan dan histori.
 - Perubahan jenis data sensitif meminta pemberitahuan sesuai kebijakan privasi.
 
 ### P-04 Goals & nutrition targets
-- Tampilkan tujuan, target berat (wajib cutting/bulking pada profil supported), hasil energi/makro, tanggal efektif, `calculationVersion`, dan status sumber (`AUTO`/`MANUAL`).
+- Tampilkan tujuan, target berat kondisional, hasil otomatis energi/makro, tanggal efektif, calculationVersion dan sumber AUTO; tidak ada MANUAL aktif MVP.
 - Ubah tujuan -> lakukan eligibility check dan kalkulasi ulang; jangan memaksakan target pada profil unsupported.
-- Ubah target manual -> cek format, kelayakan, komposisi makro, dan aturan guardrail; blok bila melanggar aturan keselamatan yang telah disetujui.
+- Target manual/override ditunda ke post-MVP; jangan tampilkan kontrol edit angka target pada MVP. Review guardrails masa depan tetap OPEN.
 - Jika auto-recalculation dari berat baru valid, simpan versi target baru secara atomik dan tanggal berlaku eksplisit. Jika `NEEDS_REVIEW`, jangan mengaktifkan nilai berisiko.
-- **Perlu keputusan:** setelah edit manual, apakah update berat berikutnya otomatis menimpa override? Rekomendasi: manual override tetap berlaku sampai pengguna memilih kembali mode otomatis, kecuali safety gate mengharuskan review.
+- **RESOLVED D02/D03:** berat valid terbaru memicu reevaluasi target otomatis; versi histori dipertahankan. Precedence manual bukan fitur MVP; kebijakan post-MVP tetap memerlukan review.
 
 ### P-05 Weight entry / history
 - Tambah pengukuran dengan berat, tanggal/waktu pengukuran, satuan, sumber (manual).
@@ -98,8 +98,8 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 - Email login dan status verified dari auth provider tepercaya, bukan field yang pengguna bisa ubah sendiri tanpa verifikasi ulang.
 - Metode login/email/password, Google, Apple: linking/unlinking akun belum final; cegah lockout (tidak boleh hapus metode login terakhir sebelum pengganti terverifikasi).
 - Password reset lewat alur provider; jangan pernah menyimpan password di profil atau local storage.
-- Sign out harus memperingatkan pending offline operations. Jangan membocorkan data lokal pengguna sebelumnya setelah pergantian akun.
-- Verification pending: batasi **operasi terdefinisi** dan tampilkan CTA resend/refresh status; daftar operasi final perlu keputusan auth spec.
+- Logout: pending outbox offers sync first/cancel/clear with loss confirmation; completed logout clears private SQLite/draft/outbox, keys/session and memory. Account deletion coordinates Firebase/PostgreSQL/local with retry; device/security tests OPEN.
+- Email verification opsional: status, verify/resend di Profil > Pengaturan > Data Diri; onboarding/main features/sync tetap tersedia. Tindakan sensitif mengikuti reautentikasi Firebase.
 
 ### P-08 Privacy & data management
 - Privacy notice dan ketentuan dapat diakses sebelum dan setelah login.
@@ -119,7 +119,7 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 - `UserAccount`: id, authProviderLinks, emailVerified, timestamps.
 - `UserProfile`: userId, displayName?, username?, dateOfBirth?, heightCm?, activityLevel?, visualBodyType?, eligibilityFlags/status.
 - `WeightMeasurement`: id, userId, measuredAt, weightKg, createdAt, modifiedAt, deletedAt?, syncVersion.
-- `NutritionGoal`: id, userId, goalType, targetWeightKg?, mode(AUTO/MANUAL), effectiveFrom, effectiveTo?, engineVersion, inputSnapshot, kcalTarget?, proteinG?, carbsG?, fatG?, status, provenance.
+- `NutritionGoal`: id, userId, goalType, targetWeightKg?, mode(AUTO only MVP), effectiveFrom, effectiveTo?, engineVersion, inputSnapshot, kcalTarget?, proteinG?, carbsG?, fatG?, status, provenance; manual post-MVP.
 - `UserPreference`: userId, units, locale, diaryTimezone, notificationSettings.
 - `DataRequest`: id, userId, type(EXPORT/DELETE_ACCOUNT), status, requestedAt, completedAt?, errorCode?.
 - `SyncOperation`: opId, userId, entityId, operation, payloadVersion, status, retryCount.
@@ -134,10 +134,10 @@ Sensitive body data should be minimized and access-controlled; final schema will
 | Empty | Helpful CTA to complete profile or add weight |
 | Offline | Show locally available data + accurate saved locally status |
 | Pending Sync | Indicate unsynced, provide retry and potential sign-out warning |
-| Sync Conflict | Explain conflict and safe recovery, never silently discard new data |
+| Sync rejection/pending | Honest receipt/error state; recover unsent data; normal cross-device edits follow server-ordered LWW |
 | Unauthorized | Redirect/re-auth per auth state, clear sensitive in-memory data |
-| Unverified | Explain restricted operations, resend verification |
-| Unsupported | Display log-only; no fabricated nutrition target |
+| Unverified | Optional verify/resend at Pengaturan > Data Diri; main features/onboarding/sync available; sensitive reauth retained |
+| Unsupported | Ineligible for MVP; no fabricated target or LOG_ONLY access |
 | Needs Review | Show stale/suspended target state; no unsafe auto activation |
 | Invalid Input | Field-specific error; preserve edit draft |
 | Server Error | Retry without duplicate mutation; retain local data if permitted |
@@ -150,7 +150,7 @@ Sensitive body data should be minimized and access-controlled; final schema will
 3. Dashboard and Progress consume the same effective-dated goal history.
 4. Weight entered through Progress and Profile is the same entity set.
 5. Food log snapshots remain unchanged when profile/target changes.
-6. Manual goal adjustments must be distinguished from automatically generated goals.
+6. Target otomatis saja pada MVP; manual/override post-MVP. Histori target tetap mengikuti versi dan waktu efektif.
 7. Sync status is not the same as save success; local save can succeed before server confirms.
 8. PII must never be placed in analytics logs or error reports by default.
 9. Backend always enforces account ownership and authorization, regardless of route guards.
@@ -163,7 +163,7 @@ Sensitive body data should be minimized and access-controlled; final schema will
 | PF-01 | New account, no display name | Generic greeting, no broken UI |
 | PF-02 | Edit display name offline | Local pending; no false synced label |
 | PF-03 | Duplicate username | Conflict message if unique usernames supported |
-| PF-04 | Email unverified | Appropriate restrictions; onboarding draft preserved |
+| PF-04 | Email unverified | Main features/onboarding/sync available; optional verification in Data Diri and Firebase sensitive reauth |
 | PF-05 | Update weight 70→69 | Recalculation evaluated; goal version updated only if valid |
 | PF-06 | Weight 0 or NaN | Reject, preserve previous data |
 | PF-07 | Backdated weight | Does not blindly replace current goal |
@@ -171,13 +171,13 @@ Sensitive body data should be minimized and access-controlled; final schema will
 | PF-09 | Two same-day measurements | Deterministic latest measurement rule |
 | PF-10 | Update body height | Recalculate or flag review with versioning |
 | PF-11 | Age becomes unsupported | Disable default auto calculation; preserve logs |
-| PF-12 | Unsupported profile | Log-only without fabricated progress goals |
+| PF-12 | Unsupported profile | Ineligible for MVP; no numeric target or LOG_ONLY fallback |
 | PF-13 | User edits target beyond safety policy | Block unsafe target; explain why |
-| PF-14 | Manual target then weight change | Apply agreed override precedence; no unexpected overwrite |
-| PF-15 | Two devices change goal offline | Resolve conflict safely with audit trail |
+| PF-14 | Weight change in MVP | Automatic reevaluation from latest valid measurement; historical versions preserved; manual post-MVP |
+| PF-15 | Two devices edit weight/profile offline | Server-ordered LWW for edits; latest valid measured_at for weight source; serialized target versions |
 | PF-16 | Change units kg→lb→kg | Canonical value stable without cumulative rounding |
 | PF-17 | Change diary timezone | No silent movement of historical records |
-| PF-18 | Logout with pending operations | Warn; data isolated, no leakage to next account |
+| PF-18 | Logout with pending operations | Sync/cancel/confirmed loss choices; completed logout clears personal data; no cross-account leak |
 | PF-19 | Re-login on same device | Correct account-local queue restored safely |
 | PF-20 | Delete request with offline backlog | Old operations cannot resurrect deleted profile |
 | PF-21 | Export request offline | Clear queued/unsupported status, no false completion |
@@ -188,8 +188,8 @@ Sensitive body data should be minimized and access-controlled; final schema will
 | PF-26 | Reset password | Use approved provider flow; never store password locally |
 | PF-27 | App offline and privacy docs not cached | Show a safe fallback and ability to view once online |
 | PF-28 | Account deletion after reauthentication | Request tracked, access revoked per agreed policy |
-| PF-29 | Offline edit conflict with server version | Non-destructive recovery and clear status |
-| PF-30 | Profile screen with missing nutrition goal | Do not render 0 target; display setup/log-only context |
+| PF-29 | Two-device edit | Latest valid server-applied write wins; rejected tombstone/payload failures have safe recovery |
+| PF-30 | Nutrition goal missing/pending | No zero target; explain pending/review state without LOG_ONLY fallback |
 
 ## 9. Accessibility & localization
 
@@ -202,22 +202,22 @@ Sensitive body data should be minimized and access-controlled; final schema will
 ## 10. Security, legal & medical review gates
 
 - **LEGAL REVIEW REQUIRED:** health/body data processing basis, notice/consent, export/delete rights, retention, backup erasure, minor/unsupported access, platform account deletion requirements.
-- **MEDICAL/NUTRITION REVIEW REQUIRED:** eligibility, target ranges, auto recalculation, safety gates, personalization, and manual override restrictions.
-- **TECHNICAL REVIEW REQUIRED:** auth provider choices, account linking, local data encryption posture, conflict strategy, delete tombstones, background limitations, and analytics redaction.
-- **PRODUCT DECISION REQUIRED:** premium entry visibility, username uniqueness, email verification operation restrictions, export implementation schedule, manual goal precedence, weight measurement conflict policy.
+- **MEDICAL/NUTRITION REVIEW REQUIRED:** eligibility, target ranges, auto recalculation, safety gates and personalization; manual override review is post-MVP.
+- **TECHNICAL REVIEW REQUIRED:** Firebase SDK/persistence compatibility with Expo 57, account linking, SQLCipher device tests, server-ordered LWW/concurrency, tombstones, background limits and analytics redaction.
+- **PRODUCT DECISION REQUIRED:** premium visibility, username uniqueness and export schedule. Email optional, automatic-only MVP and no LOG_ONLY are RESOLVED; do not reopen their scope.
 
 ## 11. Open decisions / decision register
 
 | ID | Question | Proposed default | Status |
 |---|---|---|---|
-| PD-01 | Manual goals versus later auto-recalc | Preserve manual override; auto mode opt-in | Pending approval |
+| PD-01 | Manual goals versus auto-recalc | RESOLVED scope: manual post-MVP; automatic only MVP | Post-MVP safety/precedence review OPEN |
 | PD-02 | Multiple weight measurements per day | Allow; latest measuredAt with deterministic tie-break | Pending approval |
-| PD-03 | Effective date of automatic goal revision | From valid new measurement onward; never retroactive | Pending approval |
+| PD-03 | Automatic goal effective time | Forward from server activation per schema/Decision 03, never retroactive | Design set; boundary fixtures/tests OPEN |
 | PD-04 | Account export in MVP | Offer request-based export if supported; otherwise mark roadmap | Pending prioritization |
 | PD-05 | Username identifier | Optional display name now; unique username deferred | Pending approval |
 | PD-06 | Profile photo upload | Default avatar in MVP, upload later | Pending approval |
 | PD-07 | Premium/AI menu | Informational placeholder only if approved | Pending approval |
-| PD-08 | Email verification restrictions | Define exact protected operations in auth spec | Pending auth design |
+| PD-08 | Email verification | RESOLVED D01: optional, features available; Data Diri verify/resend | SDK/security tests OPEN |
 | PD-09 | Offline policy for sensitive profile edits | Local draft with explicit pending, final server validation | Pending security review |
 | PD-10 | Profile deletion and reactivation window | Defined via legal/backend policy, not assumed | Pending legal review |
 
@@ -228,7 +228,7 @@ Sensitive body data should be minimized and access-controlled; final schema will
 - All weight and goal updates preserve version history and effective dates.
 - Edit data from Profile is reflected in Progress/Dashboard consistently.
 - Unauthorized cross-account access fails on the backend; local data separated.
-- Operations needing verification and online connectivity are clearly marked.
+- Online-only actions and Firebase reauthentication for sensitive operations are clear; email verification does not gate main features.
 - Data deletion/export behavior is either implemented and tested or clearly out-of-scope; no misleading UI.
 - Test cases PF-01–PF-30 can be converted into unit/integration/E2E tests.
 - Pending legal/medical/technical decisions are recorded and block production claims where relevant.

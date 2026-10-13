@@ -7,7 +7,7 @@
 
 > **Purpose:** Define an Indonesian-first nutrition food catalog from 100 quality-controlled food entries, scalable to 500 and beyond; make food search, portions, food logs, recipes, offline caching, and progress calculations reliable. This is a product/data specification, not a populated database. No nutrition values are invented.
 
-**Selected stack:** Firebase Auth, local Fastify, local PostgreSQL, Expo SQLite; see [architecture-decisions.md](architecture-decisions.md). Recipe/favorite release timing remains OPEN under O-18; their modeled behavior is not P0 approval.
+**Selected stack:** Firebase Auth, local Fastify, local PostgreSQL, Expo SQLite; see [architecture-decisions.md](architecture-decisions.md). O-18 final: food favorites, recents, simple custom foods and copying food logs are MVP; user recipe builder is post-MVP. Models are not implementation evidence.
 
 ## 0. Decision register: agreed vs proposed
 
@@ -15,11 +15,11 @@
 - Primary focus: Indonesian foods and regional Indonesian preparations.
 - Internal controlled food catalog plus evaluation of external sources/APIs.
 - Initial release target: **100 reviewed foods**, then expand toward **500**.
-- Minimum reviewed nutrition: calories, protein, carbohydrate, total fat. Additional seven nutrients may be unknown.
+- Four reviewed core nutrients (energy/protein/carbohydrate/fat) are required for published catalog foods; seven additional nutrients may be null.
 - Track 11 fields: energy, protein, carbohydrate, total fat, fiber, total sugar, saturated fat, trans fat, cholesterol, sodium, potassium.
 - Permit incomplete nutrient records to be logged; visibly identify partial coverage. Never equate unknown with zero.
 - Allow manual portion quantity and food-specific units (g, ml, piece, spoon, ladle, serving where supported).
-- Support custom foods, user-defined recipes, favorites, recent foods, and copying meals.
+- MVP supports simple custom foods, food favorites, recent foods and copying food logs; user-defined recipes are post-MVP.
 - Offline-tolerant food logging with subsequent synchronization.
 - Nutrition logs feed date-based dashboard, progress, and history.
 
@@ -76,7 +76,7 @@
 - **Category** and **FoodCategory**: many-to-many taxonomy; primary classification plus discoverable tags.
 - **FoodAlias**: synonyms, regional names, spelling variations, normalized searchable form.
 - **ServingDefinition**: per-food household unit and grams/ml conversion, measurement method, confidence, revision association.
-- **Recipe** / **RecipeIngredient** / **RecipeRevision**: ingredient quantities, edible fraction where applicable, cooked final yield, calculation assumptions; account-private or curated.
+- **Recipe** / **RecipeIngredient** / **RecipeRevision**: user recipe models are post-MVP; curated catalog recipe calculations require reviewed ingredient/yield assumptions and provenance.
 - **FoodLog** / **FoodLogItem**: local and server IDs, account, meal type, journal local date and time zone, chosen food revision/recipe revision, amount, immutable nutrition snapshot, sync metadata.
 - **FavoriteFood**, **RecentFood**, **SavedMeal**: user-specific convenience records; favorites reference food identity, while saved/copy meals generate new log IDs and snapshots.
 - **CatalogImportBatch** / **CatalogReview**: reviewer, import source, validation failures, approval and publication audit.
@@ -104,7 +104,7 @@ Never allow account-private foods to be returned via public search API, external
 | `carbohydrate_g` | Karbohidrat | g | Yes |
 | `fat_g` | Lemak total | g | Yes |
 | `fiber_g` | Serat | g | No |
-| `total_sugar_g` | Gula total | g | No |
+| `sugar_g` | Gula total | g | No |
 | `saturated_fat_g` | Lemak jenuh | g | No |
 | `trans_fat_g` | Lemak trans | g | No |
 | `cholesterol_mg` | Kolesterol | mg | No |
@@ -118,7 +118,7 @@ Never allow account-private foods to be returned via public search API, external
 - Store **null** if nutrient is not reported/usable; `0` only when supported as a true zero.
 - A reported '< detection threshold' is *not* silently converted to zero; preserve qualifier/method if schema supports it.
 - For amount in grams where reference is per 100 g, `amount_nutrient = reference_nutrient * edible_grams / 100` (same principle for compatible 100 ml values).
-- When a nutrient value is null for any logged item, show **sum of known values with partial-coverage warning**, not a falsely complete total. Distinguish food count coverage from mass/energy coverage; avoid claiming false precision.
+- Partial nonnegative totals display >= known sum with Data parsial; entirely unknown displays —, not zero. Preserve food-count versus mass/energy coverage distinctions and avoid false precision.
 - Do not use the 4/4/9 check to overwrite a trusted source's reported energy. Flag large inconsistencies for manual review and consider carbohydrate definition and fiber first.
 - Precision: store decimal values with adequate precision; display rounding at UI boundary. Avoid cumulative rounding between servings, recipes and daily totals.
 - Nonnegative numeric nutrients are expected; outliers and logical consistency (`saturated_fat <= total_fat`, etc.) go to review, with exceptions/rounding handled explicitly.
@@ -173,7 +173,7 @@ Store *food-specific* conversions. Example: for a particular food entry `1 poton
 - When conversion absent, offer supported gram/ml measure instead of guessing.
 - For packaged food, preserve label's serving size and reference base.
 
-### 6.2 User recipes and batch yield
+### 6.2 User recipes and batch yield — POST-MVP
 
 1. User selects ingredients and quantities (with source revisions).
 2. System calculates total known nutrients across edible quantities.
@@ -199,10 +199,10 @@ Store *food-specific* conversions. Example: for a particular food entry `1 poton
 **Suggested scope:** include the published 100-food internal catalog in a versioned offline package/cache; public catalog updates are fetched when online. User-private food/recipe ownership and saved logs are scoped per authenticated account.
 
 - Locally assign immutable UUIDs for log operations and entries; queue create/update/delete and sync idempotently.
-- `LOCAL_SAVED`, `SYNC_PENDING`, `SYNCING`, `SYNCED`, `SYNC_FAILED`, `CONFLICT` are meaningful *persistence* states; separate loading/error/empty states.
+- `LOCAL_SAVED`, `SYNC_PENDING`, `SYNCING`, `SYNCED`, `SYNC_FAILED` are persistence states; distinguish actionable rejections from normal server-ordered LWW updates.
 - A failed request does not remove local data; retry with backoff. Never equate network connectivity to successful server commit.
 - Offline deletes use tombstones/operations; do not resurrect deleted entries after a sync.
-- Cross-device conflicts: need agreed precedence/version checks; do not silently discard a second device's change. No provisional simple 'last-write-wins' without business approval.
+- Cross-device edits follow server-ordered LWW with ordered per-device operations, per-owner idempotency and tombstones; phone timestamps are not conflict authority. See [sync-protocol-final-design.md](sync-protocol-final-design.md); concurrency tests remain OPEN.
 - Prevent mixing offline drafts and caches between accounts; choose secure storage/encryption controls after threat-model review.
 - Third-party live data must not be included in the offline bundle unless contract expressly allows it.
 
@@ -261,12 +261,12 @@ Use regional breadth and actual search demand to refine quotas. The list should 
 | FD-05 | Same name, different recipe | Distinguish preparation/revision/source |
 | FD-06 | Zero, negative, NaN amount | Block save and explain |
 | FD-07 | Rounding on fractional serving | Calculate precise value, round presentation only |
-| FD-08 | Recipe cooked yield missing | Block unsupported gram-based cooked inference; seek user input |
+| FD-08 | Post-MVP user recipe cooked yield missing | Block unsupported gram-based cooked inference; seek user input |
 | FD-09 | Reference energy differs from 4/4/9 | Flag review, do not overwrite automatically |
 | FD-10 | Catalog updated after log | Historic snapshot remains unchanged |
 | FD-11 | Offline add then edit then delete | Final synced state correct, no ghost entry |
 | FD-12 | Sync retry/duplicate request | Exactly one logical operation effect |
-| FD-13 | Cross-device concurrent edits | Conflict policy invoked; no silent overwrite |
+| FD-13 | Cross-device concurrent edits | Last valid server-applied write wins; tombstoned updates rejected with ENTITY_DELETED |
 | FD-14 | Logout with pending ops | Warn; secure account-isolated local data |
 | FD-15 | Provider API unavailable | Local catalog remains usable; optional provider section shows unavailable |
 | FD-16 | Provider license/cache expires | Purge restricted stored content per terms |
@@ -281,7 +281,7 @@ Use regional breadth and actual search demand to refine quotas. The list should 
 
 ## 12. QA & acceptance criteria
 
-**Calculation tests:** 100 g, 25 g, 175 g, half verified serving, fractional servings, ml basis, unknown field propagation, recipe ingredient summation, cooked yield, source energy mismatch.
+**Calculation tests:** 100 g, 25 g, 175 g, verified servings, ml basis, unknown propagation and source energy mismatch. Recipe/yield tests apply to reviewed catalog derivation or post-MVP user recipes, not an MVP builder.
 
 **Data tests:** schema validation, type/unit conversion, category mapping, alias search, collision handling, revision durability, provenance, invalid imports, zero-vs-null semantics.
 
@@ -299,7 +299,7 @@ Use regional breadth and actual search demand to refine quotas. The list should 
 6. Implement a minimal read-only internal catalog API + local caching.
 7. Implement search, categories, food detail and serving conversion end-to-end.
 8. Implement food logging snapshots and daily aggregate calculation.
-9. Add custom food, user recipes, recent, favorites and copy meal.
+9. Add simple custom food, recents, food favorites and copying food logs in MVP; user recipe builder post-MVP.
 10. Add offline mutations, sync conflict handling and account isolation.
 11. Expand reviewed dataset to 100 and perform launch acceptance suite.
 12. Expand toward 500 in release batches driven by data demand and coverage.
@@ -313,7 +313,7 @@ Use regional breadth and actual search demand to refine quotas. The list should 
 | FD-D03 | Whether to allow user food publication | Private only in MVP; submissions via moderation | Security/product |
 | FD-D04 | Whether gram entry mandatory for each food | Yes for solids; ml only where sourced | Nutrition |
 | FD-D05 | Recipe with unknown final cooked mass | Require final mass to calculate reliable cooked gram portions | Nutrition/UX |
-| FD-D06 | How to resolve multi-device edit conflicts | Explicit version checking and recoverable conflicts | Technical/product |
+| FD-D06 | Multi-device edit conflicts | RESOLVED design: server-ordered LWW, ordered outbox, owner-scoped receipts and tombstones; concurrency verification OPEN | Technical |
 | FD-D07 | What constitutes enough coverage at launch | 100 reviewed entries, 4 core nutrients, field provenance | Nutrition |
 | FD-D08 | Food categories and 100-food quotas | Use draft taxonomy, validate with Indonesian search tests | Product |
 | FD-D09 | External branded food/API visibility in MVP | Defer until licensing + API evaluation complete | Legal/technical |

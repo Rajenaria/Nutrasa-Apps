@@ -25,7 +25,7 @@
 |---|---|---|
 | OB-001 | Authentication precedes personalized onboarding | APPROVED |
 | OB-002 | Initial sign-in: email, Google, Apple; username optional (not an auth method by itself) | APPROVED product scope; TECH REVIEW |
-| OB-003 | Email/password accounts may continue onboarding unverified; selected account operations restricted until verified | APPROVED; restriction matrix SPECIFIED below |
+| OB-003 | Email verification optional; onboarding, final profile, Home and sync available with valid authentication | APPROVED D01; sensitive actions may require Firebase reauthentication |
 | OB-004 | One overall activity-level question; do not double-count exercise | APPROVED |
 | OB-005 | Interactive visual onboarding, back navigation, progress shown | APPROVED principle |
 | OB-006 | Body-type illustrations optional after body measurements and cannot affect calculations | APPROVED |
@@ -34,15 +34,15 @@
 | OB-009 | Draft saved locally during onboarding; sync/send to server only after completion | APPROVED |
 | OB-010 | Consent information at registration with additional data-use notice before body measurements | APPROVED product timing; LEGAL REVIEW for valid consent mechanism |
 | OB-011 | Eligible nutrition target activates automatically once fully validated, no mandatory plan-confirmation screen | APPROVED; CLINICAL REVIEW of thresholds |
-| OB-012 | Unsupported profiles use log-only without automatic recommendation | APPROVED |
-| OB-013 | Calculator for eligible adults only at MVP; special medical/physiological groups unsupported | APPROVED |
+| OB-012 | MVP only for eligible adults 18+; unsupported profiles cannot complete onboarding or enter LOG_ONLY | APPROVED D04; no numeric target for ineligible profiles |
+| OB-013 | MVP accepts eligible adults 18+ only; detailed special-condition screening remains subject to clinical/legal review | APPROVED scope; review gates remain OPEN |
 | OB-014 | Nutrition target presets determined by profile; fat 25–30% adaptive; protein uses reference weight and goal; carbohydrates remainder | APPROVED approach; CLINICAL REVIEW for numeric rules |
 | OB-015 | Automatic recalculation on changed weight, gated by safety checks and target history | APPROVED; SPECIFIED activation safeguards |
 | OB-016 | Offline-tolerant food logging, partial nutrient data permitted and marked | APPROVED global product scope |
 
 ## 2. Goals, non-goals, and key UX principles
 
-**Goals:** First-time user can authenticate, understand data processing, enter enough data for an eligible nutrition estimate, or safely start log-only; interrupt/resume onboarding; reach usable home screen with clear target provenance.
+**Goals:** First-time eligible adult can authenticate, understand data processing, obtain a validated automatic target, interrupt/resume onboarding, and reach Home. Explain ineligibility without numeric targets or a LOG_ONLY completion path.
 
 **Non-goals for this onboarding module:** full food search/logging UI, dietary diagnosis, pediatric/pregnancy/lactation/condition-specific calculation, AI features, premium purchase, notification permission, mandatory photo/body-type selection.
 
@@ -57,7 +57,7 @@ Launch / native splash → restore auth session + local state
 │  ├─ Continue with Google
 │  └─ Continue with Apple (platform-specific availability)
 └─ Valid session
-   ├─ Onboarding complete, valid server account → Home (normal or log-only)
+   ├─ Onboarding complete, eligible profile, valid server account → Home
    ├─ Partial onboarding (local draft for same user) → Resume onboarding
    └─ No onboarded profile → Begin onboarding
 
@@ -66,7 +66,7 @@ Goal → Age/eligibility → Body metrics → Optional visual body type
 → Overall activity → Goal weight (cut/bulk only)
 → Eligibility/special-condition disclosure/check
 → [eligible] Calculate → auto-activate safe plan → save complete profile → Home
-→ [unsupported] log-only setup → save complete profile → Home (no suggested targets)
+→ [unsupported] explain ineligibility → no completion or numeric target in MVP
 → [needs review / invalid] correction/help state; never invent targets
 ```
 
@@ -76,7 +76,7 @@ Goal → Age/eligibility → Body metrics → Optional visual body type
 
 - `(auth)/welcome`, `(auth)/sign-in`, `(auth)/register`, `(auth)/email-verification`.
 - `(onboarding)/goal`, `/age`, `/measurements`, `/body-type`, `/activity`, `/goal-weight`, `/eligibility`, `/result`, `/sync-pending`.
-- `(tabs)/index` (Home) only if session and confirmed completed profile are present; `LOG_ONLY` is a valid completion mode.
+- `(tabs)/index` (Home) requires session and server-confirmed completion for an eligible adult; LOG_ONLY is not an MVP completion mode.
 - Protected routes are **navigation UX**, never a substitute for server-side authorization.
 - Implementation may change route files to fit chosen Expo SDK; keep screen logic under `src/features/onboarding/` and route wrappers lightweight.
 
@@ -88,18 +88,18 @@ Goal → Age/eligibility → Body metrics → Optional visual body type
 | S01 | Welcome/auth | Sign in, register, password recovery, provider errors | Authentication required | Account created / session loaded |
 | S02 | Notice of data use | Concise purposes, privacy policy link, additional notice before body metrics | Required acknowledgement/consent mechanism TBD LEGAL | Goal |
 | S03 | Primary goal | Cutting / maintenance / bulking / muscle gain / general tracking; define mapping to engine | Yes | Age |
-| S04 | Age | Date of birth or age; age policy, timezone and precision | Yes for calculator | Under 18 → log-only eligibility branch |
+| S04 | Age | Date of birth or age; age policy, timezone and precision | Required for MVP eligibility | Under 18 → ineligible; no numeric target or LOG_ONLY |
 | S05 | Body measurements | Current weight kg, height cm, and required formula parameter with transparent explanation | Required only for automatic plan | Body type |
 | S06 | Visual body type | Illustrated options and “Lewati”; no engine effect | Optional | Activity |
 | S07 | Overall activity | One overall activity level, plain descriptions with work/exercise examples | Required for automatic plan | Goal weight |
 | S08 | Goal weight | Target kg for cutting/bulking; explicit intended goal direction | Conditional required | Eligibility |
-| S09 | Eligibility | Clear questions/notice for unsupported conditions, opt-out path | Required eligibility resolution for automatic plan | Calculate / Log-only |
+| S09 | Eligibility | Clear questions/notice for unsupported conditions, opt-out path | Required eligibility resolution | Calculate only when eligible; otherwise explain ineligibility |
 | S10 | Calculation state | Deterministic engine, loading only if actually running | Eligible users | Result / invalid / needs review |
 | S11 | Auto-activation/result | Show target kcal and P/C/F, “estimasi”, method/version, edit later, explanatory notice | Automatic if engine returns READY | Persistence |
-| S12 | Log-only explanation | No automatic calorie/macro goal; can log food; how to access supported plan later | Unsupported | Persistence |
+| S12 | Ineligibility explanation | Explain unsupported MVP profile without numeric targets or logging fallback | Unsupported | Correct answers where appropriate; no completion |
 | S13 | Save/sync completion | Persist server profile once; retry on errors, show pending state | Successful server acknowledgement | Home |
 
-**Age and special-condition path:** If outside calculator scope, avoid collecting unnecessary measurements and goal weight; offer log-only mode early. General tracking must not accidentally create a cutting/bulking target. Where a disclosure is declined or eligibility unknown, no automatic plan.
+**Age and special-condition path:** MVP requires age 18+ and a supported profile. If outside scope, explain ineligibility and avoid collecting unnecessary measurements; do not offer LOG_ONLY or fallback targets. Unknown eligibility requires resolution before completion; clinical/legal screening details remain OPEN.
 
 **Auth UI nuance:** username is a profile/display handle later, not a substitute for email/Google/Apple login in MVP. Email verification is applicable to email/password; provider token validation and trust are backend responsibilities. Apple provider availability and store requirements need TECH REVIEW.
 
@@ -122,7 +122,7 @@ Goal → Age/eligibility → Body metrics → Optional visual body type
 | `draft_updated_at` | timestamp | Resume ordering | Local required |
 | `calculation_version` | string | Calculation reproducibility | Upon auto plan |
 | `plan_status` | enum | READY / NEEDS_REVIEW / etc | Upon calculation |
-| `onboarding_mode` | `AUTO_PLAN` / `LOG_ONLY` | Home configuration | Completion |
+| `onboarding_mode` | `AUTO_PLAN` only in MVP | Home configuration | Eligible completion |
 | `onboarding_completed_at` | timestamp | Authoritative completion | On server ack |
 
 Avoid embedding credentials, access tokens, or comprehensive medical information in a draft. Birth date vs age-only and retention must be minimized in legal review. Each numeric entry retains typed value in the input component but normalizes to canonical units prior to evaluation.
@@ -137,9 +137,9 @@ Do not infer verified email from local cache; source is the trusted auth provide
 
 ### 6.2 Onboarding state
 
-`NOT_STARTED`, `IN_PROGRESS`, `CHECKING_ELIGIBILITY`, `CALCULATING`, `NEEDS_CORRECTION`, `NEEDS_REVIEW`, `UNSUPPORTED`, `COMPLETION_PENDING_SYNC`, `COMPLETED_AUTO_PLAN`, `COMPLETED_LOG_ONLY`.
+`NOT_STARTED`, `IN_PROGRESS`, `CHECKING_ELIGIBILITY`, `CALCULATING`, `NEEDS_CORRECTION`, `NEEDS_REVIEW`, `UNSUPPORTED`, `COMPLETION_PENDING_SYNC`, `COMPLETED_AUTO_PLAN`.
 
-`UNSUPPORTED` is a branch to log-only explanation, not a permanent dead end. `COMPLETION_PENDING_SYNC` is **not** completed. Persist draft after meaningful changes and on app lifecycle transitions as technically feasible, without assuming lifecycle hooks always fire.
+`UNSUPPORTED` explains ineligibility without an MVP completion path or numeric target. `COMPLETION_PENDING_SYNC` is **not** completed. Persist draft after meaningful changes and on app lifecycle transitions as feasible, without assuming lifecycle hooks always fire.
 
 ### 6.3 Nutrition result states
 
@@ -162,7 +162,7 @@ Only `READY` (from a clinically approved engine configuration) can activate an a
 
 ### 7.2 Clinical gate (CLINICAL REVIEW / BLOCKED FOR PRODUCTION)
 
-- Minimum supported adult age, special-population exclusions, anthropometric ranges, target-weight direction thresholds, safe calorie adjustment presets, activity mapping, protein reference weight/coefficients, adaptive 25–30% fat rule, macro minimums, pregnancy/lactation and other contraindications.
+- MVP scope minimum age 18+ is settled; clinical review remains OPEN for special-population exclusions, anthropometric ranges, target-weight direction, calorie presets, activity mapping, protein reference/coefficients, adaptive fat rule and contraindications.
 - Assess underweight or potentially unsafe goal changes via reviewed rules, not BMI alone as a simplistic diagnosis.
 - No automatically produced target for unsupported, declined eligibility, inconsistent physiological parameters, or failed review.
 - Auto-plan after onboarding and future auto-recalculations use **the same reviewed safety gate**, not separate looser implementations.
@@ -171,22 +171,23 @@ Only `READY` (from a clinically approved engine configuration) can activate an a
 
 - Registration includes appropriate privacy disclosure and lawful processing basis; the owner elected registration-time consent/notice with specific additional notice before body measurements. **UI timing is not proof of legally valid consent**.
 - Determine whether express, specific, separate consent is necessary for health-related body data; record version, timestamp, withdrawal process and retention policy, subject to Indonesian PDP law review.
-- Support children responsibly even though calculator is adults-only: child account eligibility and parental/guardian consent rules are separately unresolved; do not silently open ordinary accounts to minors.
+- MVP does not admit under-18 profiles. Age screening, notices, data minimization and legal handling remain OPEN; any future child access/guardian consent is outside current MVP and requires separate legal/product review.
 - Define deletion/export/access rights, security incidents, hosting/data transfer and privacy policy before release.
 
-## 8. Email verification restriction matrix (SPECIFIED pending auth review)
+## 8. Optional email verification and sensitive actions (D01)
 
 | Capability | Email unverified | Verified email / trusted social auth |
 |---|---|---|
 | Sign in & recover session | Allowed with valid authentication | Allowed |
 | Fill/resume local onboarding | Allowed | Allowed |
 | Calculate provisional plan after review | Allowed **locally** after eligibility checks | Allowed |
-| Commit final profile to server | **Blocked** until verified (proposed restriction; TECH REVIEW) | Allowed |
-| Reach synced Home | Blocked until final server commit (proposed) | Allowed |
+| Commit final profile to server | Allowed with valid authentication and eligible profile | Allowed on the same conditions |
+| Reach synced Home | Allowed after eligible server completion; email verification not required | Allowed on the same conditions |
 | Resend verification and change email | Allowed with rate limiting | As applicable |
-| Cross-device sync/account-sensitive changes | Restricted | Allowed subject to authorization |
+| Cross-device sync | Allowed with valid authentication/authorization | Allowed on the same conditions |
+| Account-sensitive changes | Firebase reauthentication where required | Firebase reauthentication where required |
 
-**Conflict resolution:** Product decision says onboarding can continue unverified. This matrix allows answering onboarding offline/local while verification is pending, but restricts final server activation, which means Home is not reached until verification succeeds for email/password accounts. This is a **proposed** restriction, not independently user-approved. If product owner prefers unverified Home, revise matrix and threat model explicitly before implementation.
+**RESOLVED D01:** Pending email verification does not block onboarding, final server save, Home or sync. Verification status, verify and resend actions are available at Profil > Pengaturan > Data Diri. Sensitive actions retain Firebase reauthentication and authorization; detailed SDK/platform behavior remains TECH REVIEW.
 
 ## 9. Local draft & completion protocol
 
@@ -194,10 +195,10 @@ Only `READY` (from a clinically approved engine configuration) can activate an a
 2. Store draft locally on step completion/change; persist only minimum information; no draft synced during onboarding.
 3. On relaunch, resolve authenticated identity first, then access **only** that user's draft. If account differs, do not show the previous draft.
 4. Before completion, rerun validation + eligibility + engine using latest inputs; do not trust previously cached READY output.
-5. Auto-plan: activate candidate locally only when status `READY`; log-only: no numeric target and do not display 0 as a recommended target.
+5. Show a provisional automatic candidate only when status `READY`; activate only after server validation/acknowledgement. Ineligible profiles receive no numeric target or completed onboarding.
 6. Send a single idempotent completion operation with stable `completion_request_id`, flow schema version, accepted notice/consent metadata, profile, and reviewed target data.
-7. Backend validates session, verification restrictions, consent/legal predicates, eligibility and numerical rules, and either recomputes authoritative target or verifies deterministic engine version. Client calculation is not security authority.
-8. Server returns authoritative `COMPLETED_AUTO_PLAN` or `COMPLETED_LOG_ONLY`, target version, and account/profile revision. Only then route to Home.
+7. Backend validates session, consent/legal predicates, eligibility and numerical rules, and recomputes or verifies the authoritative engine result. Email verification is not a completion prerequisite; client calculation is not security authority.
+8. Server confirms eligible automatic-plan completion, target version, and account/profile revision. Only then route to Home.
 9. On timeout, retry with same request ID; fetch remote status to avoid duplicate profile/plan creation.
 10. Once acknowledged, delete local sensitive draft (or retain only minimal state by approved retention policy). Any remaining local caches must be user scoped.
 
@@ -208,11 +209,11 @@ Only `READY` (from a clinically approved engine configuration) can activate an a
 ## 10. Auto-activation and automatic recalculation policy
 
 - First eligible plan is automatically activated **after** server acknowledgement, with a brief result summary. No confirmation button required. Do not imply a medical prescription.
-- For log-only completion, show `Target belum tersedia` instead of fake 0 or suggested macro values; users can still record nutritional intake.
+- Ineligible profiles cannot complete MVP onboarding; explain the reason without fake numeric targets or LOG_ONLY. Pending/review states must not be presented as active targets.
 - When weight changes later, recalculate automatically using latest valid weight and current reviewed rules. Existing plan remains active until the new candidate passes safety validation and server commit.
-- Never overwrite target history: store version, effective date/time, source `AUTO_INITIAL` / `AUTO_WEIGHT_UPDATE` / `MANUAL`, engine version, input reference and reason.
+- Never overwrite target history: retain version, effective time, automatic source `AUTO_INITIAL` / `AUTO_WEIGHT_UPDATE`, engine version, input reference and reason. Manual targets are post-MVP.
 - Multiple rapid/offline weight edits: use versioned ordering and idempotency; stale calculation results must not overwrite newer approved results.
-- Manual target override interactions are governed by Nutrition Engine specification and must be settled before implementation.
+- Manual target/override is post-MVP and not exposed in this onboarding flow.
 - Daily diary history must retain the target version effective on that day so graphs don't retroactively change.
 
 ## 11. UX screen states and user-facing copy examples
@@ -223,8 +224,8 @@ Only `READY` (from a clinically approved engine configuration) can activate an a
 | Unsupported | `Kami belum dapat menghitung rekomendasi otomatis untuk profil ini. Kamu tetap bisa mencatat makanan.` | Gunakan mode catatan |
 | Invalid weight | `Masukkan berat badan dalam kilogram dengan angka lebih dari nol.` | Perbaiki input |
 | Missing goal weight | `Isi target berat untuk tujuan ini.` | Isi target |
-| Eligibility unknown | `Kami belum bisa memberikan target otomatis berdasarkan jawaban ini.` | Ubah jawaban / Log-only |
-| Email pending | `Selesaikan verifikasi email untuk menyimpan profil ke akunmu.` | Kirim ulang / Ganti email |
+| Eligibility unknown | `Kami belum bisa memastikan kelayakan profil ini untuk MVP.` | Tinjau / Ubah jawaban |
+| Email pending | `Verifikasi email opsional. Status dan aksi tersedia di Profil > Pengaturan > Data Diri.` | Lanjutkan / Verifikasi |
 | Offline completion | `Jawaban tersimpan di perangkat. Sambungkan internet untuk menyelesaikan pengaturan.` | Coba lagi |
 | Engine needs review | `Target otomatis belum tersedia untuk data ini.` | Perbaiki data / Informasi |
 | Save failed | `Pengaturan belum berhasil disinkronkan. Jawabanmu masih tersimpan di perangkat.` | Coba lagi |
@@ -256,7 +257,7 @@ Visual guidance: progress bar measured by applicable steps, avoid flickering ste
 | OB-T04 | Maintenance user, no goal weight | Allowed |
 | OB-T05 | Body type skipped | Same nutrition result as when body type filled |
 | OB-T06 | Activity choice changed before finish | Recompute; no stale target |
-| OB-T07 | Account unverified email | Continue local steps; restrictions per approved matrix |
+| OB-T07 | Account unverified email | Eligible onboarding, final save, Home and sync allowed; sensitive Firebase reauth tested |
 | OB-T08 | Google/Apple sign-in success | No email/password verification step imposed incorrectly |
 | OB-T09 | Provider auth failed/cancelled | Preserve safe state, no phantom session |
 | OB-T10 | Logged-out user deep links Home | Auth gate works; backend still enforces authorization |
@@ -266,7 +267,7 @@ Visual guidance: progress bar measured by applicable steps, avoid flickering ste
 | OB-T14 | Offline mid-onboarding | Edits saved locally; flow can proceed to pending-sync |
 | OB-T15 | Offline during completion | No false COMPLETED; retry preserved |
 | OB-T16 | Two completion retries | Exactly one server completion / plan version |
-| OB-T17 | Under 18 / unsupported group | No standard calorie/macro recommendation; log-only branch |
+| OB-T17 | Under 18 / unsupported group | Ineligible; no standard target, completed onboarding or LOG_ONLY fallback |
 | OB-T18 | Eligibility declined/unknown | No target auto-activation |
 | OB-T19 | Nonnumeric, zero, negative weight | Validation; engine not called |
 | OB-T20 | Extreme measurements | Confirm/review as applicable, never invented safe number |
@@ -283,14 +284,14 @@ Visual guidance: progress bar measured by applicable steps, avoid flickering ste
 
 ## 14. Definition of Ready for Codex
 
-- [ ] Product owner accepts the **email-unverified restriction matrix** (currently proposed).
+- [ ] D01 optional verification flow and Firebase sensitive-action reauthentication are tested; main features remain available.
 - [ ] Clinical reviewer signs off eligibility, preset and nutrition engine parameters (production automated targeting blocked until then).
 - [ ] Legal reviewer approves notice, lawful basis, processing and retention for body/health-related data, including age/account policy.
 - [ ] Auth provider and backend approach decided, including Apple platform handling and account linking.
 - [ ] Local encryption/draft storage and user isolation design reviewed; logout/uninstall rules documented.
 - [ ] API shapes and server-side idempotency/validation planned.
 - [ ] UI visual specification and accessible copy approved.
-- [ ] Test fixtures cover READY, LOG_ONLY, INVALID_INPUT, UNSUPPORTED, NEEDS_REVIEW, and offline pending-sync.
+- [ ] Test fixtures cover READY, INVALID_INPUT, UNSUPPORTED, NEEDS_REVIEW, and offline pending-sync; no active LOG_ONLY/manual target.
 
 **Codex instruction:** Until readiness gates are passed, it may implement route scaffolding, forms, draft UX, and engine adapters behind feature flags with mock values; do not present unreviewed numerical targets as real nutrition advice, do not invent security or legal policy, and do not mark production-ready.
 
@@ -298,7 +299,7 @@ Visual guidance: progress bar measured by applicable steps, avoid flickering ste
 
 | ID | Decision still pending | Responsible | Priority |
 |---|---|---|---|
-| OD-01 | Exact unverified-email restricted actions; Home access policy | Product/Auth | HIGH |
+| OD-01 | D01 RESOLVED: email optional, including Home/final save/sync; Firebase sensitive-action implementation still OPEN | Product/Auth | SDK/security verification |
 | OD-02 | Minimum supported age, treatment of minors' accounts | Legal/Product | HIGH |
 | OD-03 | Clinical exclusions and intake guardrails / approved engine version | Nutrition professional | BLOCKING |
 | OD-04 | Specific notice/consent language and recordkeeping | Legal | BLOCKING |

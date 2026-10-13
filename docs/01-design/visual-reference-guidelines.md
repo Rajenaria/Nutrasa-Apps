@@ -48,7 +48,7 @@ Jika design system belum final, **jangan menganggap pilihan warna atau font dala
 - Fungsi dan informasi lebih penting daripada dekorasi. Dashboard harus memudahkan melihat konsumsi kalori/makro dan mencatat makanan.
 - Alur pengguna: autentikasi → onboarding → dashboard; pengguna yang telah menyelesaikannya tidak perlu mengulang tanpa alasan.
 - Food search, ukuran porsi, input manual, custom food, dan jurnal makan harus praktis.
-- Buat desain untuk loading, empty, error, offline, syncing, data nutrisi parsial, log-only mode, dan hasil kalkulasi yang belum tersedia.
+- Buat desain untuk loading, empty, error, offline, syncing, nutrisi parsial dan target AUTO yang belum tersedia; tidak ada LOG_ONLY aktif pada MVP.
 - Jangan menggunakan ilustrasi, grafik atau warna untuk menyembunyikan ketidakpastian data nutrisi.
 - Jangan mengubah business rules atau memperkenalkan fitur baru hanya karena muncul dalam gambar referensi.
 

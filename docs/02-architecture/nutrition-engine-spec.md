@@ -21,7 +21,7 @@
 **Tujuan:** menghasilkan target energi dan makronutrien harian yang transparan, dapat dijelaskan, memiliki versi, dapat diuji, dan tidak mengeluarkan rekomendasi otomatis ketika profil tidak sesuai.
 
 **APPROVED-PRODUCT:**
-1. NUTRASA melayani pasar Indonesia; kalkulator otomatis MVP difokuskan pada dewasa yang memenuhi kriteria.
+1. MVP hanya untuk dewasa 18+ dengan profil yang didukung; tidak ada LOG_ONLY aktif. Rincian eligibility tetap memerlukan review klinis/legal.
 2. Tujuan: maintenance, cutting, bulking, muscle gain; body recomposition butuh aturan tersendiri bila diaktifkan.
 3. Preset defisit/surplus dipilih otomatis berdasarkan profil, tanpa meminta pengguna memilih kecepatan.
 4. Protein ditentukan berdasarkan berat acuan, tujuan, dan aktivitas; lemak adaptif 25–30% energi sebagai rancangan; karbohidrat dari sisa energi.
@@ -56,7 +56,7 @@
 | `exercise_pattern` | structured | Disarankan | profil olahraga/protein | jangan hitung olahraga ganda |
 | `target_weight_kg` | decimal/null | Bersyarat | konsistensi tujuan, bukan otomatis penentu agresivitas | wajib untuk cutting/bulking sesuai OB-007; tidak wajib untuk maintenance/general tracking |
 | `special_condition_screen` | enum | Ya untuk rekomendasi | eligibility | `no_disclosed`, `yes`, `unknown`, `declined`; jangan memaksa detail diagnosis |
-| `manual_goal_preferences` | structured/null | Opsional | override tervalidasi | input eksplisit dan riwayat perubahan |
+| `manual_goal_preferences` | structured/null | Post-MVP, bukan input MVP | override masa depan | validasi dan kebijakan belum disetujui |
 | `body_type_visual` | enum/null | Opsional | personalisasi tampilan saja | **DILARANG** sebagai parameter engine |
 | `effective_date`, `timezone` | date/string | Ya | versi target harian | aturan tanggal lokal konsisten |
 
@@ -75,7 +75,7 @@ Semua langkah adalah pure/domain functions bila memungkinkan. Kalkulasi tidak me
 - Data kelayakan belum terjawab: `NEEDS_INPUT`, jangan menyiratkan 'sehat' secara default.
 - Pengguna tidak memenuhi penilaian penurunan berat: `GOAL_NOT_ELIGIBLE` untuk cutting, bukan otomatis maintenance tanpa pemberitahuan.
 - Nilai tinggi/berat di luar rentang wajar: minta konfirmasi angka, kemudian gate sesuai kebijakan yang ditinjau; jangan menolak hanya karena tidak biasa.
-- Status `UNSUPPORTED` membatasi kalkulator otomatis; keputusan akses ke food logging perlu ditetapkan terpisah pada user-flow produk.
+- Status `UNSUPPORTED` berarti profil tidak eligible untuk MVP, bukan akses LOG_ONLY; jangan memberikan target numerik.
 
 ### 4.2 RMR (kandidat yang memiliki referensi penelitian; suitability masih REVIEW-REQUIRED)
 
@@ -145,10 +145,10 @@ Rancangan selektor:
 
 ### 4.7 Nutrisi tambahan (konfigurasi terpisah)
 
-11 field: energy_kcal, protein_g, carbohydrate_g, fat_g, fiber_g, total_sugar_g, saturated_fat_g, trans_fat_g, cholesterol_mg, sodium_mg, potassium_mg.
+11 field: energy_kcal, protein_g, carbohydrate_g, fat_g, fiber_g, sugar_g, saturated_fat_g, trans_fat_g, cholesterol_mg, sodium_mg, potassium_mg.
 
 - `target`: energi/makro; `minimum/adequacy`: serat dan kalium bila sesuai; `limit`: natrium, lemak jenuh/trans; `information`: gula total, kolesterol sesuai konteks.
-- **Gula total bukan gula bebas/gula tambahan.** Jangan menerapkan batas WHO untuk *free sugars* pada kolom `total_sugar_g`.
+- **Gula total bukan gula bebas/gula tambahan.** `sugar_g` adalah field gula total; `total_sugar_g` hanya istilah lama. Jangan menerapkan batas WHO *free sugars* pada nilai gula total.
 - Referensi sekunder harus mencantumkan `source`, `year`, `population_group`, `unit`, dan status review.
 - Jika pedoman sekunder tidak sesuai profil, beri `not_applicable` atau `not_configured`; jangan membuat batas palsu.
 
@@ -186,19 +186,19 @@ type NutritionPlanResult = {
 
 ## 6. Perubahan berat dan auto-recalculation
 
-**APPROVED-PRODUCT:** hitung ulang otomatis setelah berat terbaru yang valid dicatat. **PROPOSED detail berikut:**
+**APPROVED-PRODUCT D03:** hitung ulang otomatis setelah catatan berat terbaru yang valid; histori tidak ditimpa. Detail kontrak mengikuti [Decision 03 final](decision-03-weight-history-final.md) dan [database-schema.md](database-schema.md); implementasi dan pengujian belum dilakukan.
 
-1. Simpan `weight_entry` dengan `id`, value, waktu pengukuran, waktu pencatatan, asal perangkat, dan revisi.
-2. Setelah disimpan, jadwalkan operasi hitung ulang deterministik berdasarkan entri berat terbaru yang sah.
+1. Simpan pengukuran dalam `weight_measurements` sesuai schema: ID, nilai, waktu pengukuran, asal perangkat, dan revisi; jangan menimpa catatan historis.
+2. Evaluasi ulang dari pengukuran valid terbaru menurut waktu pengukuran dan tie-break yang deterministik. Catatan mundur tidak otomatis menggantikan acuan lebih baru; edit/hapus acuan memicu evaluasi ulang.
 3. Pastikan hasil dengan revisi profil lebih lama tidak dapat menimpa revisi yang baru (*stale result guard*).
-4. Jika hasil `READY`, buat versi target baru dengan `effective_from` yang eksplisit (usulan: tanggal lokal berikutnya; keputusan produk masih terbuka), sambil menampilkan informasi bahwa target diperbarui.
+4. Jika hasil `READY`, buat versi target baru efektif pada aktivasi server, bukan retroaktif. Histori menggunakan versi yang berlaku pada tanggalnya; uji batas waktu lokal sebelum implementasi.
 5. Jika hasil `NEEDS_REVIEW`/`UNSUPPORTED`, jangan aktifkan target baru; tandai target lama sebagai **perlu ditinjau** dan tentukan secara eksplisit apakah boleh tetap ditampilkan sebagai histori/reference saja.
 6. Perubahan data berat typo, delete, atau koreksi tanggal harus memicu evaluasi ulang yang dapat direproduksi.
-7. Target manual pengguna tidak boleh diam-diam ditimpa: rekomendasi awal adalah simpan `manual_override` terpisah dan minta penegasan kebijakan precedence sebelum implementasi.
+7. Target otomatis saja pada MVP; manual/override post-MVP. Tidak ada precedence manual aktif yang perlu diterapkan pada MVP.
 8. Riwayat target bersifat immutable/versioned. Laporan tanggal lama menggunakan target yang berlaku pada tanggal itu.
 9. Offline: kalkulasi lokal boleh menampilkan **preview** jika ruleset tervalidasi dan lengkap; aktifkan melalui strategi sinkronisasi terversi untuk mencegah konflik dua perangkat.
 
-**Keputusan yang perlu disetujui:** waktu efektif (hari yang sama atau esok), prioritas override manual, dan status target lama ketika target baru diblokir.
+**OPEN:** fixture waktu efektif/zona waktu dan perlakuan target terakhir ketika kandidat diblokir harus diuji/review. Manual override ditunda ke post-MVP; bukan keputusan scope MVP yang terbuka.
 
 ## 7. Validasi berlapis
 
@@ -250,7 +250,7 @@ type NutritionPlanResult = {
 | N-02 | dewasa, cutting, olahraga sedang | pemilihan rule spesifik; tidak default -10% |
 | N-03 | dewasa, bulking, latihan kekuatan | preset surplus dan protein sesuai rule yang disetujui |
 | N-04 | dewasa, muscle gain, latihan tidak diketahui | NEEDS_INPUT |
-| N-05 | pengguna edit target manual dalam nilai wajar | cek validasi dan simpan override/version |
+| N-05 | MVP: pengguna mencari edit target manual | Kontrol tidak tersedia; target otomatis saja, manual post-MVP |
 | N-06 | berat berubah dua kali berdekatan | hanya versi profil terbaru berhak aktif |
 | N-07 | user kembali hari lalu | tampilkan target versi tanggal tersebut |
 
@@ -282,7 +282,7 @@ type NutritionPlanResult = {
 | X-07 | data ruleset berubah | rencana lama tetap menjelaskan ruleset versi lama |
 | X-08 | timezone berganti | tanggal target dijelaskan dan stabil; tidak dua target aktif untuk satu hari tanpa kebijakan |
 | X-09 | app crash saat queue sync | operasi lokal tidak hilang; proses idempotent |
-| X-10 | override manual vs recalc otomatis | precedence eksplisit, jangan overwrite diam-diam |
+| X-10 | Berat terbaru valid memicu recalc otomatis | Versi baru tidak menimpa histori; manual override tidak aktif MVP |
 | X-11 | sync gagal permanen | indikator retry/error; tidak mengaku tersinkron |
 | X-12 | logout dengan perubahan lokal | peringatan; tidak membocorkan data antar akun |
 
@@ -293,7 +293,7 @@ type NutritionPlanResult = {
 - [ ] Setiap koefisien produksi punya sumber, alasan, cakupan dan versi.
 - [ ] Algoritme seleksi tidak punya fallback angka tidak disetujui.
 - [ ] Semua unit & test matrix lulus dengan expected values yang terkunci.
-- [ ] Perubahan berat, target lama, dan override manual teruji end-to-end.
+- [ ] Perubahan berat, pencatatan mundur, edit/hapus acuan, dan histori target otomatis teruji end-to-end; manual post-MVP.
 - [ ] Privacy, pembatasan akses data, dan offline conflict plan disetujui.
 - [ ] Teks UI membedakan estimasi, target, batas, dan data tidak lengkap.
 - [ ] Mode unsupported tidak memberikan rekomendasi otomatis.
@@ -308,9 +308,9 @@ type NutritionPlanResult = {
 | D-03 | Policy berat acuan protein | Tergantung profil; bukan selalu berat aktual | Ahli gizi |
 | D-04 | Faktor aktivitas dan kuesioner | Pemetaan tervalidasi yang tidak double-count | Product + ahli gizi |
 | D-05 | Waktu efektif target setelah timbang | Kandidat hari berikutnya, histori tetap | Product |
-| D-06 | Interaksi target manual dengan recalculation | Kandidat manual override dipertahankan dan diinformasikan | Product |
+| D-06 | Manual target dan recalculation | RESOLVED scope: manual/override post-MVP; aturan keselamatan masa depan tetap OPEN | Product/nutrition |
 | D-07 | Penanganan target lama saat target baru needs review | Tampilkan sebagai historis, tandai tidak otomatis diperbarui | Product + ahli gizi |
-| D-08 | Jalur pengguna dewasa dengan profil unsupported | Tidak ada rekomendasi otomatis; tentukan apakah tracking nonpersonal boleh | Product + compliance |
+| D-08 | Profil dewasa unsupported | RESOLVED D04: tidak eligible MVP; tidak ada LOG_ONLY atau target numerik; detail skrining tetap OPEN | Product + compliance |
 | D-09 | Penyajian body type visual | opsional, tanpa dampak engine, tidak menghakimi bentuk tubuh | Product + UX |
 | D-10 | Frekuensi dan ambang auto recalc | Hitung setiap berat valid, kebijakan perubahan target/notification TBD | Product + ahli gizi |
 

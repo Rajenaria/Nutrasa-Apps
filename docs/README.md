@@ -1,17 +1,17 @@
 # NUTRASA — Documentation Index
 
-Dokumentasi utama berada di folder ini. Paket ekstraksi `_incoming-documentation-review/` tetap disimpan untuk pemeriksaan sumber, tetapi bukan bagian dari hierarki dokumentasi final dan bukan acuan canonical.
+Dokumentasi utama berada di folder ini. `_incoming-documentation-review/` adalah label paket sumber historis, bukan acuan kanonis; folder tersebut tidak ditemukan pada inspeksi M00-03B dan tidak dibuat atau dihapus oleh task ini.
 
 ## Source of truth and reading order
 
-1. [Product brief](00-overview/product-brief.md) — tujuan dan audiens.
-2. [Feature list](00-overview/feature-list.md) — cakupan draft; prioritas resep/favorit masih OPEN.
-3. [Architecture decisions](02-architecture/architecture-decisions.md) — stack terpilih dan istilah canonical.
-4. [Documentation audit](04-development/documentation-audit.md) — temuan, provenance, dan penyelarasan.
-5. [Decision register](04-development/decision-register.md) — keputusan disetujui versus O-01–O-18 yang masih terbuka.
-6. [Database schema](02-architecture/database-schema.md) dan [API contract](02-architecture/api-contract.md) — draft data/REST, belum migration/OpenAPI sign-off.
-7. Spesifikasi fitur dan [UI approval summary](01-design/ui-approval-summary.md) — perilaku serta baseline visual provisional.
-8. [Development task board](04-development/development-task-board.md) dan [Review sign-off checklist](04-development/review-signoff-checklist.md) — rencana dependensi dan review gates.
+1. [AGENTS.md root](../AGENTS.md) — aturan agen dan konvensi repository, termasuk `src/app/` dan `src/features/`.
+2. [Decision register v2](04-development/decision-register-v2.md) — keputusan 01–10 dan O-18 RESOLVED; [register lama](04-development/decision-register.md) menyimpan sejarah serta rincian isu tersisa.
+3. [Product brief](00-overview/product-brief.md), [feature list](00-overview/feature-list.md), dan [architecture decisions](02-architecture/architecture-decisions.md) — cakupan MVP dan stack terpilih.
+4. [Database schema](02-architecture/database-schema.md) dan [API contract](02-architecture/api-contract.md) — kontrak terselaraskan M00-03A; belum sign-off DDL/OpenAPI.
+5. [Decision 03](02-architecture/decision-03-weight-history-final.md), [Decision 07](02-architecture/decision-07-offline-sync-final.md), [Decision 08](02-architecture/decision-08-security-privacy-final.md), [sync protocol v1.6](02-architecture/sync-protocol-final-design.md), dan [database decisions v1.6](02-architecture/database-implementation-decisions-v1.6.md) — desain aktif.
+6. Spesifikasi fitur dan [UI approval summary](01-design/ui-approval-summary.md) — perilaku serta approval visual yang tetap dipertahankan.
+7. [Implementation pack](04-development/codex-implementation-pack.md), [task board M00–M10](04-development/codex-task-board-v1.md), [compatibility review](04-development/agents-compatibility-review.md), dan [readiness review](04-development/engineering-readiness-review-v1.6.md) — rencana implementasi dan hambatan OPEN.
+8. [Development task board](04-development/development-task-board.md) dan [review checklist](04-development/review-signoff-checklist.md) — pemetaan slice dan gates; [documentation audit](04-development/documentation-audit.md) adalah sejarah FASE 2, bukan status keputusan terkini.
 
 ## Daftar dokumen utama
 
@@ -20,7 +20,7 @@ Dokumentasi utama berada di folder ini. Paket ekstraksi `_incoming-documentation
 - [Product brief](00-overview/product-brief.md)
 - [Feature list](00-overview/feature-list.md)
 - [Business rules](00-overview/business-rules.md)
-- [Master development roadmap](00-overview/master-roadmap.md)
+- [Master development roadmap](00-overview/master-roadmap.md) — roadmap sekunder; klausul lama yang bertentangan mengikuti register v2 dan task board M00–M10.
 
 ### 01 — Design
 
@@ -46,6 +46,11 @@ Mockup approval: [approved-mockups/](01-design/approved-mockups/). Referensi eks
 - [Food database specification](02-architecture/food-database-spec.md)
 - [Nutrition Engine specification](02-architecture/nutrition-engine-spec.md)
 - [Offline sync specification](02-architecture/offline-sync-spec.md)
+- [Sync protocol v1.6](02-architecture/sync-protocol-final-design.md)
+- [Database implementation decisions v1.6](02-architecture/database-implementation-decisions-v1.6.md)
+- [Decision 03](02-architecture/decision-03-weight-history-final.md), [Decision 07](02-architecture/decision-07-offline-sync-final.md), [Decision 08](02-architecture/decision-08-security-privacy-final.md)
+- [OpenAPI](02-architecture/openapi.yaml) — draft tersedia; validasi semantik dan kontrak belum selesai.
+- Review schema/API, physical v1.5 dan migration plan adalah bahan review; keputusan v1.6 mengatasi klausul lama yang bertentangan, bukan bukti migrasi teruji.
 
 ### 03 — Features
 
@@ -57,8 +62,10 @@ Mockup approval: [approved-mockups/](01-design/approved-mockups/). Referensi eks
 
 ### 04 — Development
 
-- [Documentation audit](04-development/documentation-audit.md)
-- [Decision register](04-development/decision-register.md)
+- [Documentation audit](04-development/documentation-audit.md) — historis FASE 2.
+- [Decision register v2](04-development/decision-register-v2.md) — aktif; [register lama](04-development/decision-register.md) — sejarah dan isu rinci.
+- [Implementation pack](04-development/codex-implementation-pack.md), [task board M00–M10](04-development/codex-task-board-v1.md), [first audit prompt](04-development/codex-first-prompt.md)
+- [Agents compatibility review](04-development/agents-compatibility-review.md), [engineering readiness v1.6](04-development/engineering-readiness-review-v1.6.md)
 - [Development task board](04-development/development-task-board.md)
 - [Review sign-off checklist](04-development/review-signoff-checklist.md)
 
@@ -78,7 +85,8 @@ File pengarah tidak menyimpan salinan spesifikasi; pembaruan dilakukan pada path
 - **BLOCKED / REVIEW REQUIRED**: clinical, legal, security or technical prerequisite.
 - **PLANNED**: task/document exists but no implementation.
 - **IMPLEMENTED**: ada bukti kode dan validasi yang sesuai; saat ini fondasi mobile dan route placeholder, bukan fitur bisnis.
-- **OPEN**: belum ada keputusan final, termasuk prioritas rilis resep/favorit O-18.
+- **OPEN**: keputusan rinci atau pengujian belum selesai; lihat B01–B11 register v2.
+- **RESOLVED**: keputusan telah ditetapkan; O-18 selesai, bukan bukti fitur sudah diimplementasikan.
 
 ## Agent rules
 

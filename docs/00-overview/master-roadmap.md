@@ -13,7 +13,7 @@
 | Enam kelompok layar | DESIGN — provisionally approved | [UI approval summary](../01-design/ui-approval-summary.md); bukan approval implementasi pixel-perfect |
 | Auth, onboarding, katalog, food log, nutrition goals, dashboard, progress, profile, sync | PLANNED / spesifikasi draft | Dokumen tersedia; belum diimplementasikan dalam kode aplikasi |
 | Fastify, PostgreSQL, Firebase Auth, Expo SQLite | SELECTED STACK / integrasi direncanakan | [Architecture decisions](../02-architecture/architecture-decisions.md); pemilihan stack bukan instalasi atau layanan yang sudah berjalan |
-| Resep dan favorit | OPEN — prioritas rilis belum diputuskan | [O-18](../04-development/decision-register.md#o-18--prioritas-rilis-resep-dan-favorit); roadmap lama dan draft scope/API berbeda |
+| Favorit makanan, recent foods, custom food sederhana, salin catatan makanan; resep buatan pengguna | RESOLVED — scope O-18; implementasi PLANNED | [O-18](../04-development/decision-register.md#o-18--prioritas-rilis-resep-dan-favorit): empat fitur pertama MVP; resep buatan pengguna Post-MVP. Seluruh fitur tersebut belum dibangun |
 
 Status ini berasal dari pemeriksaan file repository, bukan uji runtime perangkat. Checklist milestone berikut adalah rencana, bukan laporan pekerjaan selesai. Perbarui status implementasi hanya dengan bukti kode dan validasi yang relevan.
 
@@ -93,14 +93,14 @@ Status ini berasal dari pemeriksaan file repository, bukan uji runtime perangkat
 | Kategori | Usulan untuk NUTRASA | Catatan |
 |---|---|---|
 | MVP wajib | Registrasi/login bila sinkronisasi akun diperlukan; onboarding kebutuhan dasar; target kalori/makro; cari/pilih makanan; input porsi; log makanan harian; edit/hapus log; ringkasan dan progress harian; riwayat sederhana; profil & pengaturan | Validasi lagi terhadap implementasi sekarang dan kebutuhan target user |
-| MVP bersyarat (usulan historis) | Database makanan internal/admin sederhana, custom food, pengukuran berat badan, guest mode | Lihat feature-list terbaru; guest mode belum disetujui dan login tetap sebelum onboarding |
-| Prioritas terbuka | Resep dan makanan favorit | Usulan historis: setelah MVP; draft scope: P0; draft API: P1. Keputusan rilis menunggu owner, lihat O-18 |
+| MVP bersyarat (usulan historis) | Database makanan internal/admin sederhana, pengukuran berat badan, guest mode | Lihat feature-list terbaru; guest mode belum disetujui dan login tetap sebelum onboarding. Custom food sederhana sudah ditetapkan MVP oleh O-18 |
+| Scope O-18 RESOLVED | Favorit makanan, recent foods, custom food sederhana, salin catatan makanan: MVP; resep buatan pengguna: Post-MVP | Keputusan final owner dalam [O-18](../04-development/decision-register.md#o-18--prioritas-rilis-resep-dan-favorit) menggantikan usulan historis roadmap/scope/API. Status implementasi: PLANNED, belum dibangun |
 | Setelah MVP (usulan historis) | Barcode, meal template, target mikro nutrien detail, visualisasi mingguan, reminder | Bukan prioritas final; gunakan feature-list dan decision-register untuk cakupan terkini |
 | Ekspansi | Rekomendasi AI, foto makanan, wearables, komunitas, gamifikasi, subscription | Butuh evaluasi biaya, akurasi, privasi, serta legal |
 
 ### 1.3 Definisikan aturan bisnis secara eksplisit
 
-Tabel di atas berasal dari roadmap umum dan tidak mengalahkan keputusan eksplisit dalam [feature-list](feature-list.md), [business-rules](business-rules.md), serta [decision-register](../04-development/decision-register.md). Resep/favorit tetap berstatus OPEN; jangan menetapkan P0 atau setelah MVP dari tabel ini saja.
+Tabel di atas berasal dari roadmap umum dan tidak mengalahkan keputusan eksplisit dalam [feature-list](feature-list.md), [business-rules](business-rules.md), serta [decision-register](../04-development/decision-register.md). O-18 berstatus RESOLVED: favorit makanan, recent foods, custom food sederhana dan salin catatan makanan MVP; resep buatan pengguna Post-MVP. Keputusan scope bukan bukti implementasi; seluruh fitur tersebut masih direncanakan, belum dibangun. Scope saved meals terpisah tidak diubah.
 - [ ] Apakah kalori memakai nilai dari sumber makanan atau dihitung dari makro? Putuskan prioritas dan toleransi perbedaan.
 - [ ] Makro MVP: protein, karbohidrat, lemak; tetapkan kebutuhan serat, gula, sodium, dll. sebagai opsional.
 - [ ] Tentukan unit penyimpanan dasar: gram, ml, per sajian; konversi porsi dan pembulatan.
@@ -242,7 +242,7 @@ Tabel di atas berasal dari roadmap umum dan tidak mengalahkan keputusan eksplisi
 - [ ] Seed katalog minimum makanan relevan target pasar; dokumentasikan asal nutrisi.
 - [ ] Implementasikan search & food detail dengan pagination/filter yang masuk akal.
 - [ ] Tambahkan unit/porsi dan aturan konversi yang konsisten, termasuk gram/ml/sajian.
-- [ ] Jika custom food masuk MVP, buat create/edit dan bedakan dari katalog publik.
+- [ ] Implementasikan custom food sederhana (MVP sesuai O-18), termasuk create/edit dan pemisahan dari katalog publik; fitur belum dibangun.
 - [ ] Test empty query, typo, duplicate names, incomplete macro, angka ekstrem, serta sumber eksternal gagal.
 - [ ] Optimasi indeks/response time hanya berdasar profil query nyata.
 
@@ -255,7 +255,7 @@ Tabel di atas berasal dari roadmap umum dan tidak mengalahkan keputusan eksplisi
 
 **Tujuan:** Menyelesaikan loop produk utama: catat → lihat hasil → koreksi.
 
-**Catatan existing:** Mulai dengan verifikasi dan penyempurnaan fitur tambah makanan & progress bar yang sudah ada, bukan membuat ulang.
+**Status perencanaan:** Fitur tambah makanan dan progress bar belum dibangun. Pertahankan fondasi Expo dan route placeholder yang tersedia; implementasikan food logging/dashboard sesuai spesifikasi dan verifikasi setelah implementasi.
 
 - [ ] Verifikasi model `food_logs`: user ID, food reference/snapshot, quantity, unit, meal, local date/time, nutrients snapshot.
 - [ ] Implement/rapikan create, read, edit, delete; cegah submit ganda dan update terlambat.
@@ -349,7 +349,7 @@ Tabel di atas berasal dari roadmap umum dan tidak mengalahkan keputusan eksplisi
 - [ ] Prioritaskan fitur lanjutan berdasar evidence, bukan hanya ide menarik.
 - [ ] Setiap fitur baru kembali ke mini-siklus: requirement → UX/data/API delta → vertical slice → test → rollout.
 - [ ] Uji biaya layanan/API/hosting dan lakukan optimasi ketika bottleneck terbukti.
-- [ ] Pertimbangkan barcode, favorit, foto/AI, integrasi wearable, dan subscription satu per satu.
+- [ ] Pertimbangkan resep buatan pengguna (Post-MVP sesuai O-18), barcode, foto/AI, integrasi wearable, dan subscription satu per satu; favorit makanan sudah ditetapkan MVP dan belum dibangun.
 
 **Deliverables:** Release cadence, changelog, metric review, backlog post-MVP.  
 **Exit Criteria:** Produk mempunyai ritme peningkatan, monitoring, dan proses support yang berkelanjutan.
@@ -420,7 +420,7 @@ docs/
 - [ ] **Langkah 2:** Tetapkan scope MVP minimum, terutama sumber makanan, porsi, target, auth, history, dan aturan kalkulasi.
 - [ ] **Langkah 3:** Buat screen specs & design tokens untuk UI yang ada; rapikan komponen secara bertahap.
 - [ ] **Langkah 4:** Cocokkan DB + API current dengan target schema, buat migration incremental (jangan langsung drop/recreate).
-- [ ] **Langkah 5:** Perkuat vertical slice yang sudah ada sampai CRUD + persistence + progress akurat.
+- [ ] **Langkah 5:** Bangun vertical slice food logging yang belum tersedia sampai CRUD + persistence + progress akurat; pertahankan fondasi repository yang sudah ada.
 - [ ] **Langkah 6:** Tambahkan auth/onboarding atau fitur dependen yang belum ada sesuai gap audit; urutan bisa digeser untuk menghindari mengulang kode existing.
 - [ ] **Langkah 7:** Tutup celah history/settings, lalu QA → beta → production.
 

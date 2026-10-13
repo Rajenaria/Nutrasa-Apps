@@ -4,7 +4,7 @@
 **Result:** DOCUMENTATION BASELINE ASSEMBLED; **NOT** implementation/production sign-off.\
 **Method (source review):** The incoming package reviewed Markdown supplied in conversation; it did not inspect the live repository or run migrations. **Repository merge review, 2026-10-13:** inspected the workspace, compared all 20 local Markdown documents against 28 package documents, inspected placeholder routes, and merged documentation with explicit owner approval. No migrations or application changes performed.
 
-**Provenance:** the source filenames in the inventory below are historical package labels, not current links. The incoming package remains unchanged outside the final documentation hierarchy; canonical files are indexed in [docs/README.md](../README.md).
+**Provenance:** inventory filenames below are historical package labels, not current links. Sections 1–9 preserve the FASE 2 audit and its then-current findings/evidence; they do not describe present repository readiness. See [docs index](../README.md).
 
 ## 1. Inventory and disposition
 
@@ -24,9 +24,11 @@
 | [product-brief.md](../00-overview/product-brief.md), [feature-list.md](../00-overview/feature-list.md) | Created in this review package |
 | [decision-register.md](decision-register.md), [architecture-decisions.md](../02-architecture/architecture-decisions.md), [development-task-board.md](development-task-board.md) | Created in this review package |
 
-## 2. Findings requiring reconciliation
+## 2. Historical findings requiring reconciliation (FASE 2)
 
-| ID | Finding | Current handling | Severity |
+**Superseded:** old email gates, MANUAL/LOG_ONLY modes, sugar alias, unresolved LWW and O-18 scope below are historical. Current [register v2](decision-register-v2.md), [register O-18](decision-register.md), [schema](../02-architecture/database-schema.md), [API](../02-architecture/api-contract.md) and [sync v1.6](../02-architecture/sync-protocol-final-design.md) govern. Product decisions are resolved; implementation, clinical/legal review and technical tests remain OPEN.
+
+| ID | Historical finding | Handling at FASE 2 | Severity at FASE 2 |
 |---|---|---|---|
 | C-01 | Older system architecture describes managed Postgres and leaves Fastify undecided | ADR-001 overrides: PostgreSQL + Fastify **local** approved | Resolved via decision |
 | C-02 | Historical Food Logging aliases differed from schema/API | Four aliases corrected in the merged pseudotype; canonical `fat_g`, `total_sugar_g`, `saturated_fat_g`, `trans_fat_g` | Resolved in documentation; implementation/types not generated |
@@ -48,7 +50,10 @@
 | C-18 | Engine/business rules call goal weight optional despite approved onboarding | Conditionally required for cutting/bulking per OB-007; not mandatory for maintenance/general tracking | Resolved from documented approval |
 | C-19 | Snapshot/history invariant still labelled only proposed in some drafts | Owner merge constraints require snapshot and preserved history; technical versioning/effective-date choices remain open | Invariant approved; implementation details open |
 
-## 3. Precedence rules
+## 3. Historical precedence rules (FASE 2)
+
+For current work use root [AGENTS.md](../../AGENTS.md), Decisions 01–10/O-18 and final v1.6 rules as indexed in [docs/README.md](../README.md). The precedence record below is preserved as history.
+
 1. Explicit user-approved product decisions in chat > suggestions in old drafts.
 2. [architecture-decisions.md](../02-architecture/architecture-decisions.md) for chosen stack and trust boundary.
 3. [database-schema.md](../02-architecture/database-schema.md) + [api-contract.md](../02-architecture/api-contract.md) for canonical field naming; update conflicting pseudotypes.

@@ -12,7 +12,7 @@
 Read together with:
 - [docs/00-overview/business-rules.md](../00-overview/business-rules.md) (draft; decision status applies)
 - [docs/02-architecture/nutrition-engine-spec.md](../02-architecture/nutrition-engine-spec.md) (calculation candidates, safety guards)
-- [docs/01-design/onboarding-spec.md](../01-design/onboarding-spec.md) (authentication, completed onboarding, log-only)
+- [docs/01-design/onboarding-spec.md](../01-design/onboarding-spec.md) (authentication, eligible adult completion, optional verification)
 - [docs/02-architecture/food-database-spec.md](../02-architecture/food-database-spec.md) (catalog, nutrient provenance and missing values)
 - [docs/03-features/food-logging-spec.md](food-logging-spec.md) (meal/date IDs, snapshot, partial totals and offline)
 
@@ -22,10 +22,10 @@ Read together with:
 
 1. Home/dashboard, Food, Progress, Profile and future AI Tracking are navigation destinations; exact AI placeholder visibility is not final.
 2. Core dashboard presents selected day/date, calories, protein, carbohydrates and fat, and meal diary (breakfast/lunch/dinner/snacks).
-3. Daily nutritional goals derive from the Nutrition Engine according to adult eligibility and user goal. Eligible computed targets can activate automatically; unsupported users can use **log-only mode** without generated targets.
+3. MVP accepts eligible adults 18+ only, with automatic validated targets. Unsupported profiles have no numeric recommendation or active LOG_ONLY access; pending/unavailable targets must not be displayed as zeros.
 4. Goal versions change after supported weight updates; historical data and old food-log nutrient snapshots must remain intact.
 5. Nutrient facts may be partially missing; unknown values are **not** zero.
-6. Users may create, edit and delete logs, favorite foods, copy meals, add custom food/recipes, and write logs while offline with later sync.
+6. MVP supports create/edit/delete/copy food logs, food favorites, recents, simple custom foods and persistent offline writes. User recipe builder is post-MVP (O-18 final).
 7. Progress covers calories, macros, weight and recording consistency; Home gives an overview, not a full analytics screen.
 8. Water/sleep/activity trackers, AI and premium are not required for first MVP launch.
 
@@ -47,7 +47,7 @@ Read together with:
 | DH-02 | As a logger, I can add food directly to a meal | Food picker receives selected `diaryDate` and `mealType` |
 | DH-03 | As a returning user, I can inspect past dates | Switching dates refreshes all date-scoped totals and meals |
 | DH-04 | As an offline user, I can view cached data and add items | Local entries appear immediately with sync state |
-| DH-05 | As a log-only user, I can track consumption without targets | No invented goal, remaining calories or percent achieved |
+| DH-05 | My eligible profile has a target pending/review state | No fabricated target, remaining calories or percentage; not a LOG_ONLY access mode |
 | DH-06 | As a user with missing nutrient values, I can recognize incomplete totals | Partial badge and explanation visible |
 | DH-07 | As a user who edited yesterday, I can trust history | Correct old date, old goal version, old snapshots |
 | DH-08 | As a user with expired credentials, I am not exposed to another user's data | Local view isolated; reauth flow is clear |
@@ -134,7 +134,7 @@ type GoalMetric = {
 type DailyDashboard = {
   userId: string;
   diaryDate: string; // YYYY-MM-DD, civil date
-  goalMode: 'ACTIVE' | 'LOG_ONLY' | 'NEEDS_REVIEW' | 'UNAVAILABLE';
+  goalMode: 'ACTIVE' | 'NEEDS_REVIEW' | 'UNAVAILABLE'; // AUTO only; no LOG_ONLY/manual MVP
   goalVersionId: string | null;
   metrics: Record<NutrientKey, NutrientSummary>;
   goals: Partial<Record<NutrientKey, GoalMetric>>;
@@ -154,7 +154,7 @@ type DailyDashboard = {
 1. `knownTotal` sums only known nutrient values from logged nutrient snapshots. If one or more entries lack this nutrient, use `PARTIAL_DATA`, not `COMPLETE_DATA`. For a day with no logs, `NO_LOGS`; a numeric zero alone cannot distinguish no logs.
 2. Every food log item should retain nutrient values at time of logging; recipe/catalog updates must not rewrite past snapshots.
 3. No entry-level nutrient should be silently inferred as zero from `null`.
-4. Goals come from the **effective dated goal version**, not a hardcoded constant or recalculation inside Home. If product policy uses a present-day target for all history instead, this requires explicit approval; recommendation is historical effective goal lookup.
+4. Targets come from the effective historical version per diary date, never a current target applied to all history or Home-side recalculation. Date/time boundary tests remain OPEN.
 5. Do not add `exerciseCalories` or subtract it from consumed kcal until an activity integration business rule is reviewed.
 6. Idempotent reads should distinguish unsynced local overlays from server totals to prevent double counting.
 7. Backend authorization enforces user ownership; UI tab guards alone are insufficient.
@@ -165,9 +165,9 @@ type DailyDashboard = {
 |---|---|---|
 | Energy goal active | `consumed` versus goal for selected date | `1.480 / 2.100 kcal` (illustrative only) |
 | Calorie remaining | goal − consumed *when known total complete* | Label `Sisa estimasi`; if negative say `Melebihi target` |
-| Missing energy for some entries | sum known values, `PARTIAL_DATA` | `≥ 1.480 kcal tercatat` or `1.480 kcal (parsial)`; do not imply complete intake |
+| Missing energy for some entries | Known sum, PARTIAL_DATA | >= 1.480 kcal tercatat + Data parsial (illustrative); entirely unknown —, not zero |
 | Macro goal active | known total, independent completeness flag | `Protein 75 / 120 g`, with partial badge if applicable |
-| Log-only | consumed without goal | `Protein tercatat: 75 g`, no percentage |
+| Target unavailable/pending for eligible profile | Recorded intake, no invented goal | No target division or percentage; not LOG_ONLY access |
 | Sodium/upper bound | known total, upper-bound policy | `Batas` not achievement / fill-to-win |
 | Unknown nutrient | value `null` or partial totals | `Belum tersedia` or `Data parsial`, never default 0 |
 | No food logged | `NO_LOGS` | empty-state; don't calculate average intake as zero |
@@ -182,8 +182,8 @@ type DailyDashboard = {
 |---|---|---|---|
 | `INITIAL_LOADING` | first local hydration | skeleton/placeholders, no fake target | await hydration |
 | `NO_DATA` | no log items selected date | empty meals and add prompts | add food |
-| `ACTIVE_GOAL` | applicable validated target | totals + target & macro bars | view/edit goal in Profile |
-| `LOG_ONLY` | unsupported profile / selected mode | consumption values only | keep logging |
+| `ACTIVE_GOAL` | validated automatic target | totals + target & macro bars | view automatic goal/history in Profile; manual post-MVP |
+| `UNAVAILABLE` | target data missing/pending for eligible profile | no invented numeric target | explain status; not unsupported-profile access |
 | `GOAL_REVIEW_REQUIRED` | recalculation fails eligibility | don't activate new target; clear notice | review profile/goal |
 | `PARTIAL_NUTRIENTS` | any missing field among entries | per-nutrient completeness indicator | food detail / explanation |
 | `OFFLINE_CACHED` | network absent, local data exists | last cached + pending operation state | continue logging |
@@ -196,7 +196,7 @@ type DailyDashboard = {
 
 ### 6.1 UI messages (Indonesian first; draft copy)
 - No logs: `Belum ada makanan yang dicatat pada tanggal ini.`
-- Log-only: `Kamu tetap dapat mencatat makanan. Target nutrisi otomatis belum tersedia untuk profil ini.`
+- Ineligible profile: `Profil ini belum didukung pada MVP.` Do not offer LOG_ONLY. Pending target for eligible profile: explain status without fabricated numbers.
 - Partial: `Sebagian makanan belum memiliki data nutrisi lengkap. Total yang ditampilkan hanya mencakup nilai yang diketahui.`
 - Pending: `Catatan tersimpan di perangkat dan akan disinkronkan.`
 - Sync failed: `Sebagian perubahan belum berhasil disinkronkan. Data lokal masih tersimpan.`
@@ -209,7 +209,7 @@ type DailyDashboard = {
 3. `READY` permits activation per approved rules. Other statuses must not create fabricated or invalid targets; clarify whether the last valid goal is held with warning or goal mode switches to review state (**OPEN: requires owner/clinical policy**).
 4. Every activated target has `effectiveFrom` and a version/revision ID; older entries and target versions remain available for history.
 5. For an offline weight update, use a deterministic revision/order and server reconciliation; don't show a new target as synced until confirmed. If local result available, it must be clearly labeled locally computed/pending.
-6. Backdated weight entries should not silently rewrite all historical target comparisons. Historical recomputation is a separate explicit policy (**OPEN**).
+6. Backdated measurements remain historical; they do not replace a newer valid weight source or rewrite prior target versions. Edit/delete of the current source triggers reevaluation per Decision 03 final; boundary tests remain OPEN.
 7. Prevent accidental recalc loops, duplicate versions for the same change, and races when weight changes twice quickly.
 
 ## 8. Offline data and sync presentation
@@ -217,7 +217,7 @@ type DailyDashboard = {
 - Hydrate from user-scoped local persistence quickly; reconcile with authorized server state when online.
 - When adding/editing/deleting a food log offline, update the selected day's totals based on local confirmed-or-pending records once; do not count server copy and local queue copy twice.
 - Display pending/failed sync count only when relevant; user can open detailed status from Home/Profile.
-- Server rejection/conflict must update local state predictably and preserve recoverable edits when possible.
+- Server-ordered LWW reconciles successful edits after pull; normal stale edits do not show a conflict modal. Rejections retain safe recovery data; tombstone UPDATE returns ENTITY_DELETED.
 - User log data must not leak when a different user signs in on the device.
 - No promise that background sync always runs when app closed; reconcile on launch/resume and network restoration subject to platform behavior.
 - Third-party food provider caching obeys license; local curated internal catalog can be packaged/cached within applicable rights.
@@ -248,7 +248,7 @@ type DailyDashboard = {
 ## 11. Acceptance criteria (release gate)
 
 - [ ] Home loads for a signed-in, completed-onboarding eligible user with valid dated goals.
-- [ ] Log-only user sees recorded nutrients without any invented target/remaining.
+- [ ] Eligible pending/unavailable target states show no invented target/remaining; unsupported profiles do not enter LOG_ONLY.
 - [ ] Selecting yesterday updates meal entries, energy and macros consistently.
 - [ ] Add button routes correct selected date/meal, including from historical dates.
 - [ ] Add/edit/delete/copy meal updates Home exactly once, including when offline.
@@ -270,14 +270,14 @@ type DailyDashboard = {
 |---|---|---|
 | DH-T01 | First login, zero logs | Empty state, not false 0-kcal day completion |
 | DH-T02 | Valid target, no logs | Goal displayed; intake has no-log semantics |
-| DH-T03 | Log-only mode | No target, no percent/remaining |
+| DH-T03 | Target unavailable/pending for eligible profile | No fabricated target, percent or remaining; no LOG_ONLY mode |
 | DH-T04 | Add 150 g from food detail | Correct proportional nutrients and selected meal |
 | DH-T05 | Change date to yesterday | All cards reflect yesterday's entries |
 | DH-T06 | Change date rapidly A→B→C | No stale results from A overwrite C |
 | DH-T07 | Duplicate network retry | One log and one aggregate |
 | DH-T08 | Offline add + restart | Saved locally and still visible pending |
 | DH-T09 | Offline delete + later sync | No ghost log resurrected from server |
-| DH-T10 | Recipe revised | Old diary value unchanged |
+| DH-T10 | Catalog revised; post-MVP recipe revised | Old diary snapshot unchanged |
 | DH-T11 | Missing sodium in one logged food | Sodium flagged partial, not 0 |
 | DH-T12 | Missing energy in one item | Energy sum flagged partial, no unqualified remaining |
 | DH-T13 | Protein exceeds target | Numeric overage displayed, visual fill capped |
@@ -289,7 +289,7 @@ type DailyDashboard = {
 | DH-T19 | Two meal cards show same food | Counts are independent per log entry |
 | DH-T20 | Calendar day with some logs | `HAS_LOGS`, not `COMPLETE` unless explicitly marked |
 | DH-T21 | Date change over DST/zone travel | Stored civil date does not drift |
-| DH-T22 | Sync conflicts on two devices | Deterministic resolution and user feedback |
+| DH-T22 | Same log edited on two devices | Latest valid server-applied write wins; ordered retries/tombstones verified |
 | DH-T23 | All optional nutrients unknown | Core totals valid; nutrition details mark unavailable |
 | DH-T24 | Remote call errors, cached data present | Cached data visible with stale/retry indication |
 | DH-T25 | Future date selected | UI follows approved future-date policy, no invented records |
@@ -302,7 +302,7 @@ type DailyDashboard = {
 | ID | Decision | Recommended default | Status |
 |---|---|---|---|
 | DHD-01 | Compact week strip vs date-header calendar popover | Date-header picker first; add week strip if usability supports | OPEN (UX) |
-| DHD-02 | Completion toggle for diary days | Explicit `Mark Day Complete` | OPEN (product) |
+| DHD-02 | Optional Selesai Mencatat | APPROVED D10: explicit marker separate from Hari Aktif and nutrient coverage | Edit/delete marker behavior and tests OPEN |
 | DHD-03 | Allow logs on future dates | Future browsing yes; disable future log until approved | OPEN (product) |
 | DHD-04 | Show 11 nutrients inline or separate details | Macro-first + details screen | OPEN (UX) |
 | DHD-05 | Historical target compared to what goal | Goal version effective on diary date | OPEN (product/technical) |
@@ -327,7 +327,7 @@ type DailyDashboard = {
 
 **Suggested vertical slices later:**
 1. Date picker + empty day local read model.
-2. Goal-aware energy and macro overview (log-only supported).
+2. Automatic goal-aware overview with pending/unavailable states for eligible profiles; no LOG_ONLY/manual MVP.
 3. Meal cards + food picker context contract.
 4. Local live totals and nutrient completeness.
 5. Offline pending/failed indicator and reconciliation.

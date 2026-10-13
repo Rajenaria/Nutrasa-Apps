@@ -45,7 +45,7 @@ An **approved visual direction** does not mean the underlying product feature, n
 - Iconography: minimal and purposeful; not every heading/card needs an icon. Use consistent line-style iconography via one semantic wrapper.
 - Mascot Bowi: use official provided poses, as a supporting accent at welcome/onboarding/empty/success/help states; no obligatory Bowi on each screen/card.
 - Keep Indonesian copy short and straightforward. Avoid long explanatory paragraphs in the main app UI; put optional explanations behind info/help affordances.
-- Preserve clarity if target or food data is unknown, partial, not synced or in log-only mode.
+- Preserve clarity if target or food data is unknown, partial or pending sync. A missing/pending target does not enable LOG_ONLY mode in MVP.
 
 ## 3. Compact, accessible component guidance — PROPOSED TOKENS / REVIEW ON DEVICE
 
@@ -100,13 +100,13 @@ All variants must be tested for WCAG-relevant contrast and visible disabled/erro
 
 **Details:** calorie card should not repeat identical numbers needlessly; in development, rationalize duplication while preserving approved layout proportions. The four meal types are Sarapan, Makan Siang, Makan Malam, Camilan. The home data must follow selected diary date and applicable target version. Empty diary ≠ zero intake; incomplete micronutrients must indicate partial data.
 
-**Not approved for functionality:** flame streak counter, photographing food, automatic AI logging, unverified data or guaranteed calorie budget in unsupported/log-only profiles. If AI features are unavailable, do not present working camera or AI actions.
+**Not approved for functionality:** flame streak counter, photographing food, automatic AI logging, unverified nutritional data or calorie budgets for unsupported profiles. MVP eligibility is 18+ supported profiles only; no LOG_ONLY mode. Unavailable AI actions must not appear functional.
 
 ### 5.2 Food Search / Detail / Logging
 
 Search prominent at top, category tiles compact, recent foods and common foods discoverable. Food detail shows item, clear per-serving basis and units, quantity and nutrient totals. Add flow selects meal/date, updates diary locally, then syncs. Layout is approved conceptually, not in exact screenshot ordering.
 
-**Product must still support:** custom food, favorites, recipes, recent foods, copy meal, edit/delete, offline queue and partial data, as specified in [food-logging-spec.md](../03-features/food-logging-spec.md) and [food-database-spec.md](../02-architecture/food-database-spec.md). The visual image does not authorize unlicensed photos, nutritional values or additional scan features.
+**MVP product support (O-18 RESOLVED):** simple custom food, food favorites, recent foods, copy food logs, edit/delete, offline queue and partial data. User recipes are post-MVP; draft recipe models/endpoints do not establish MVP scope. Existing Food Logging/Food Database specs govern behavior; mockups do not authorize unlicensed photos or scan features. See [Food Logging](../03-features/food-logging-spec.md) and [Food Database](../02-architecture/food-database-spec.md).
 
 ### 5.3 Progress
 
@@ -130,7 +130,7 @@ The previously generated storyboard accidentally placed a goal-selection screen 
 
 **Latest approved visual:** minimal text, compact inputs, one dominant question per step, understated progress dots, selected cards and optional Bowi illustration. Avoid lengthy subtitles and multiple informational cards on every screen.
 
-**Agreed behavior:** age and body measures, body-type illustration optional **after body measures**, one activity-level question, weight goal required for cutting/bulking, initial nutrition goal automatic only if engine result is valid, otherwise log-only or review handling, depending on eligibility. Name/username optional in Profile; draft saved locally and sent to server when completed. Notification request is optional and not a committed compulsory screen.
+**Agreed behavior:** supported adults 18+ only; age/body measures, optional body-type illustration after measures, one activity question, required weight goal for cutting/bulking. Targets are AUTO only; invalid results remain pending/review without false targets or LOG_ONLY fallback. Email verification is optional, including onboarding and main features. Name/username optional in Profile; private draft and server completion follow canonical specs. Notification permission remains optional.
 
 **Caution:** body types must not be used to calculate nutrition needs. Labels like ectomorph/mesomorph/endomorph in concept art are neither a validated metabolic model nor a reason to present idealized bodies. Inclusive physiological-parameter handling and unsupported-user paths must follow onboarding and nutrition-engine specs. The mockup's 2,100 kcal, macro values, ages and weights are only illustrations.
 
@@ -147,8 +147,8 @@ Every screen specification should include at least relevant variants:
 - `INITIAL_LOADING`, `READY`, `EMPTY`, `ERROR`, `RETRY`.
 - `OFFLINE_LOCAL`, `SYNC_PENDING`, `SYNCING`, `SYNCED`, `SYNC_FAILED` where private data changes are involved.
 - `PARTIAL_NUTRITION` and `UNKNOWN_VALUE` vs measured zero.
-- `LOG_ONLY`, `NO_TARGET`, `TARGET_PENDING_REVIEW`, `TARGET_OVER/UNDER` where applicable.
-- `NOT_AUTHENTICATED`, `ONBOARDING_IN_PROGRESS`, `EMAIL_UNVERIFIED` for guarded flows.
+- `NO_TARGET`, `TARGET_PENDING_REVIEW`, `TARGET_OVER/UNDER` where applicable for eligible profiles/history; no active `LOG_ONLY` state in MVP.
+- `NOT_AUTHENTICATED`, `ONBOARDING_IN_PROGRESS`, `EMAIL_UNVERIFIED`; unverified email is informational and does not block onboarding or main features. Sensitive operations still follow Firebase reauthentication rules.
 - Accessibility: long localized text, dynamic font scaling, screen reader, reduced motion, small screens, dark mode only if later approved.
 
 **Design constraint:** communicate errors, uncertainty and unsynced changes with short text + icon/indicator; do not depend on color or purely decorative rings.
@@ -169,10 +169,10 @@ Every screen specification should include at least relevant variants:
 - Exact token shades, font weight/size scale, ring diameters/stroke, shadow/radius values, all needing device/contrast review.
 - Bottom navigation: placement of AI vs central plus; whether AI tab is visible at all; icon assets and touch targets.
 - Food photography assets, image source rights, camera/barcode and AI feature availability.
-- Calendar exact shape; daily completion semantics; target overrun ring semantics.
+- Calendar exact shape and target overrun visuals; optional daily completion is approved, but placement and changes after edit/delete remain OPEN (D10/B10).
 - Full screen-by-screen wireframes and high-fidelity interaction states; confirmation dialogs and unsaved-form behavior.
-- Medical eligibility thresholds and energy/macronutrient coefficients; security/legal consent; account verification final restrictions.
-- Offline conflict behavior/backend, associated integrations, and storage security.
+- Eligibility screening details and nutrition coefficients; legal/privacy approval and sensitive-operation security tests. Email verification is already optional.
+- Offline integration tests: server-ordered LWW design is settled; typed sync payload, owner idempotency/cursor concurrency and SQLCipher security verification remain OPEN.
 
 ## 9. Implementation acceptance checklist for Codex
 
