@@ -32,32 +32,39 @@ paths:
       tags:
       - Health
       summary: Liveness
+      description: Public minimal probe implemented since M01. Returns status directly, without the domain data/meta envelope.
       operationId: get_health_live
       responses:
         '200':
-          description: Successful response
+          description: Process is alive; no dependency readiness or server details are exposed.
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: false
                 properties:
-                  data:
-                    $ref: '#/components/schemas/HealthStatus'
-                  meta:
-                    $ref: '#/components/schemas/Meta'
+                  status:
+                    type: string
+                    const: ok
                 required:
-                - data
+                - status
+              example:
+                status: ok
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
       security: []
   /api/v1/health/ready:
     get:
       tags:
       - Health
       summary: Readiness
+      description: Planned dependency readiness contract; not implemented. The current backend returns HTTP 404 NOT_FOUND.
       operationId: get_health_ready
       responses:
         '200':
-          description: Successful response
+          description: Planned successful readiness response; not currently implemented.
           content:
             application/json:
               schema:
@@ -70,6 +77,12 @@ paths:
                     $ref: '#/components/schemas/Meta'
                 required:
                 - data
+        '404':
+          description: NOT_FOUND while dependency readiness is not implemented.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
       security: []
   /api/v1/me/bootstrap:
     post:
@@ -93,11 +106,7 @@ paths:
                 required:
                 - data
         '400': &id001
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
+          $ref: '#/components/responses/BadRequest'
         '401': &id002
           description: Unauthorized
           content:
@@ -123,17 +132,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
         '500': &id006
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
+          $ref: '#/components/responses/InternalServerError'
         '409':
           description: Idempotency key reused with mismatched payload or immutable domain conflict (not normal LWW)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -177,7 +186,7 @@ paths:
         '401': *id002
         '403': *id003
         '404': &id007
-          description: Not found or not owned
+          description: NOT_FOUND; resource or route not found or not owned, without exposing another owner's data.
           content:
             application/json:
               schema:
@@ -259,6 +268,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -336,6 +349,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -413,6 +430,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -684,6 +705,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -763,6 +788,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -842,6 +871,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -890,6 +923,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -997,6 +1034,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -1140,6 +1181,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -1378,6 +1423,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -1426,6 +1475,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -1533,6 +1586,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -1616,6 +1673,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -1664,6 +1725,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -1837,6 +1902,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -2051,6 +2120,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -2144,6 +2217,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
       security:
       - FirebaseBearer: []
       requestBody:
@@ -2191,6 +2268,59 @@ paths:
       security:
       - FirebaseBearer: []
 components:
+  responses:
+    BadRequest:
+      description: INVALID_REQUEST for malformed input; VALIDATION_FAILED for Fastify JSON Schema validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          examples:
+            malformed:
+              value:
+                error:
+                  code: INVALID_REQUEST
+                  message: Invalid request.
+                request_id: req-1
+            validation:
+              value:
+                error:
+                  code: VALIDATION_FAILED
+                  message: Request validation failed.
+                request_id: req-1
+    PayloadTooLarge:
+      description: HTTP 413 INVALID_REQUEST; request body exceeds the server limit.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: INVALID_REQUEST
+              message: Invalid request.
+            request_id: req-1
+    UnsupportedMediaType:
+      description: HTTP 415 INVALID_REQUEST; request body media type is unsupported.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: INVALID_REQUEST
+              message: Invalid request.
+            request_id: req-1
+    InternalServerError:
+      description: SERVER_ERROR; safe message without internal error details or stack traces.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: SERVER_ERROR
+              message: An internal server error occurred.
+            request_id: req-1
   securitySchemes:
     FirebaseBearer:
       type: http
@@ -2306,14 +2436,18 @@ components:
           properties:
             code:
               $ref: '#/components/schemas/ErrorCode'
-            message: *id009
+            message:
+              type: string
+              description: Safe human-readable error message; no internal details or sensitive payloads.
             details:
               type: object
               additionalProperties: true
           required:
           - code
           - message
-        request_id: *id009
+        request_id:
+          type: string
+          description: Server-generated request identifier; UUID format is not required.
       required:
       - error
       - request_id

@@ -1,6 +1,6 @@
 # NUTRASA — API Contract v1.2 (Clean Contract)
 
-**Status:** Draft kontrak engineering konsisten Decision 01–10; bukan OpenAPI machine-readable, belum diimplementasikan. Tanggal 2026-10-13. Menggantikan API Contract v1.0/v1.1 untuk MVP. Referensi: `database-schema.md` v1.2 dan keputusan teknis 03, 07, 08.
+**Status:** Draft kontrak engineering konsisten Decision 01–10; bukan OpenAPI machine-readable. Fondasi liveness dan error handling tersedia sejak M02-01; endpoint domain belum diimplementasikan. Tanggal 2026-10-13. Menggantikan API Contract v1.0/v1.1 untuk MVP. Referensi: `database-schema.md` v1.2 dan keputusan teknis 03, 07, 08.
 
 ## 1. Boundary, autentikasi, otorisasi
 
@@ -20,8 +20,8 @@
 | Nutrisi | tepat 11 nama key di `database-schema.md`; `string|null` |
 | Pagination | `limit` dibatasi server, cursor opaque dan user-scoped |
 | Mutasi offline | `operation_id`, `device_id`, `device_sequence`, `entity_type`, `entity_id`, `kind`, `payload` |
-| Respon dasar | `{ "data": ..., "meta": { ... } }` |
-| Error dasar | `{ "error": { "code": "...", "message": "...", "details": ... }, "request_id": "..." }` |
+| Respon dasar | `{ "data": ..., "meta": { ... } }`; pengecualian liveness: `{ "status": "ok" }` |
+| Error dasar | `{ "error": { "code": "...", "message": "..." }, "request_id": "..." }`; `error.details` object opsional dan hanya berisi informasi aman |
 
 Tidak ada bentuk berbeda antara endpoint online dengan offline: mutasi online direpresentasikan dengan operation ID dan diproses service domain yang sama agar duplikasi tidak mungkin. Payload nutrisi hanya berasal dari server-resolved food revision dan data komposisi yang valid, bukan client-submitted arbitrary public nutrient calculations.
 
@@ -47,7 +47,7 @@ Seluruh endpoint personal membutuhkan Firebase token; response errors tidak meng
 
 | Area | Method & path | Ringkasan |
 |---|---|---|
-| Health | `GET /health/live`, `GET /health/ready` | Public liveness tanpa rahasia; readiness tidak membocorkan konfigurasi |
+| Health | `GET /health/live`, `GET /health/ready` | Public liveness: HTTP 200 `{ "status": "ok" }`; readiness masih direncanakan, saat ini HTTP 404 `NOT_FOUND` |
 | Session | `POST /me/bootstrap`, `GET /me` | Idempotent create/find akun dari Firebase UID; status verifikasi informasional |
 | Onboarding | `GET /me/onboarding`, `PUT /me/onboarding` | Baca/simpan onboarding setelah age+eligibility validation; commit draft lokal |
 | Profile | `GET /me/profile`, `PATCH /me/profile` | Baca/edit profil dan trigger recalculation jika input relevan berubah |
@@ -67,6 +67,8 @@ Seluruh endpoint personal membutuhkan Firebase token; response errors tidak meng
 | Account | `POST /me/account/deletion-request`, `GET /me/account/deletion-status` | Verifikasi ulang sesuai sensitivitas; durable workflow |
 
 **Tidak ada** `/me/goals/manual-proposal`, akses LOG_ONLY, recipe builder pengguna, atau endpoint publik CRUD katalog untuk klien pada MVP. O-18 menetapkan recent foods, custom food sederhana, favorit makanan, dan salin catatan MVP; scope saved meals terpisah tidak diubah. Editorial import via tooling admin terpisah.
+
+Liveness `GET /api/v1/health/live` memakai object minimal dengan hanya `status: "ok"`, tanpa `data` atau `meta`. Tidak ada alasan khusus untuk envelope sukses pada probe ini; format minimal mempertahankan implementasi dan tes M01/M02-01 tanpa mengungkap detail server. Klien/probe harus membaca `status` langsung, bukan `data.status`. Desain readiness di OpenAPI tetap merupakan rencana, bukan endpoint aktif.
 
 ## 5. Permintaan dan respon yang harus dipenuhi
 
@@ -116,17 +118,22 @@ Server untuk setiap operasi melakukan: verifikasi UID/ownership → cek UNIQUE(o
 
 | HTTP | Error code | Kapan |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Body, UUID, decimal, unit, date invalid |
+| 400 | `INVALID_REQUEST` | Input malformed, termasuk JSON kosong/rusak dan encoding URL tidak valid |
+| 400 | `VALIDATION_FAILED` | Input gagal validasi JSON Schema Fastify |
 | 401 | `AUTH_REQUIRED` | Firebase token invalid/expired |
 | 403 | `NOT_ELIGIBLE` / `ACCOUNT_DELETING` | Eligibility atau akun proses hapus |
 | 404 | `NOT_FOUND` | Objek tidak ada atau milik user lain |
 | 409 | `IDEMPOTENCY_KEY_REUSED` | Operation ID sama, payload beda; **bukan** stale revision LWW |
 | 410 | `CURSOR_EXPIRED` | Perlu full resync aman tanpa kehilangan outbox |
+| 413 | `INVALID_REQUEST` | Body melebihi batas server; pertahankan HTTP 413 |
+| 415 | `INVALID_REQUEST` | Content-Type body tidak didukung; pertahankan HTTP 415 |
 | 422 | `NUTRITION_UNAVAILABLE` | Komposisi/porsi tidak bisa divalidasi |
 | 429 | `RATE_LIMITED` | Abuse prevention |
 | 500/503 | `SERVER_ERROR` / `DEPENDENCY_UNAVAILABLE` | Jangan bocorkan kredensial atau SQL |
 
 Gunakan request ID untuk log aman tanpa menulis token, kesehatan pribadi, atau payload nutrisi sensitif. Rate limiting login ditangani Firebase untuk autentikasi; route API perlu rate limit terpisah.
+
+Kode 400 kanonis adalah `INVALID_REQUEST` dan `VALIDATION_FAILED`; `VALIDATION_ERROR` merupakan istilah lama yang tidak dipakai pada wire response. M02-01 mengimplementasikan fondasi 400/404/413/415/500 saja, dengan pesan aman dan `request_id` yang dibuat server; stack trace, pesan error internal, dan payload sensitif tidak dikirim. Respons reusable 413/415 dideklarasikan di OpenAPI untuk operasi dengan request body, tanpa menyatakan endpoint domain tersebut sudah tersedia. Pemetaan error domain/auth dan HTTP 503 masih memerlukan penyelarasan: `NOT_ELIGIBLE`, `ACCOUNT_DELETING`, `NUTRITION_UNAVAILABLE`, dan `DEPENDENCY_UNAVAILABLE` pada tabel belum terdapat dalam enum OpenAPI; task ini tidak menetapkan penggantinya.
 
 ## 7. Acceptance & pre-code gates
 

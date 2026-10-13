@@ -21,6 +21,9 @@ test('database readiness is not advertised before database integration', async (
   const response = await app.inject('/api/v1/health/ready');
 
   assert.equal(response.statusCode, 404);
+  const body: unknown = response.json();
+  assert.ok(typeof body === 'object' && body !== null && 'error' in body);
+  assert.deepEqual(body.error, { code: 'NOT_FOUND', message: 'Resource not found.' });
 });
 
 test('liveness is reachable over local HTTP', async (t) => {
