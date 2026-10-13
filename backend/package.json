@@ -14,10 +14,13 @@
     "test": "node --test tests/*.test.ts"
   },
   "dependencies": {
-    "fastify": "5.12.5"
+    "fastify": "5.12.5",
+    "pg": "8.23.1"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "node-pg-migrate": "9.0.0",
     "typescript": "6.0.3"
   }
 }
