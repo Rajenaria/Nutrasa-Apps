@@ -29,9 +29,11 @@ web-build/
 !.env.example
 
 # 5. FIREBASE CREDENTIALS
-*serviceAccountKey*.json
+*serviceAccount*.json
 *service-account*.json
-*firebase-adminsdk*.json
+*service_account*.json
+*firebase-admin*.json
+.secrets/
 google-services.json
 GoogleService-Info.plist
 
@@ -42,8 +44,16 @@ prisma/generated/
 # Local SQLite databases (jika digunakan)
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 *.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
 
 # 7. NATIVE BUILD & SIGNING
 *.jks

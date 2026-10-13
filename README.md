@@ -80,6 +80,30 @@ npx expo-doctor        # Konfigurasi dan kompatibilitas dependency
 
 Android memerlukan perangkat atau emulator yang sudah disiapkan. Gunakan Expo Go yang kompatibel dengan SDK proyek atau development build sesuai kebutuhan.
 
+## Pemeriksaan mobile dan backend
+
+Perintah `npm run typecheck` dan `npm run lint` di root tetap digunakan untuk
+fondasi Expo. TypeScript root memeriksa source mobile dan mengecualikan
+`backend/`; backend memiliki tsconfig sendiri. Konfigurasi ESLint root dipakai
+bersama dan lint root juga dapat memeriksa source backend.
+
+Belum ada script test mobile: source saat ini hanya route/layout placeholder.
+Tambahkan tes ketika ada perilaku aplikasi nyata yang perlu diuji, bukan tes
+placeholder atau runner tambahan pada tahap fondasi.
+
+Backend membutuhkan Node.js 24.12+ pada jalur 24.x. Setelah dependency root dan
+backend terpasang, jalankan dari `backend/`:
+
+```sh
+npm run typecheck
+npm run lint
+npm test
+```
+
+Typecheck dan Node test runner backend memakai dependency backend. Lint backend
+memakai instalasi ESLint root dan konfigurasi yang sama tanpa memasang linter
+kedua. Detail startup dan health tersedia di [backend/README.md](backend/README.md).
+
 ## Prinsip arsitektur
 
 - `src/app/` hanya untuk routes dan layouts. Letakkan implementasi fitur di `src/features/<nama-fitur>/`.
