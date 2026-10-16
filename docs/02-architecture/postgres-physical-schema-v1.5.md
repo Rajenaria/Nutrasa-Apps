@@ -18,7 +18,7 @@
 | `user_profiles` | `user_id uuid`, `date_of_birth date`, `height_cm numeric(8,2)`, `calculation_parameter text`, `activity_level text`, `goal_type text`, `onboarding_completed_at timestamptz`, `profile_revision integer`, `created_at timestamptz`, `updated_at timestamptz` NN; `target_weight_kg numeric(10,3) NULL`, `body_type_visual text NULL`; tanpa onboarding_status | PK(user_id), FK user_id ke app_users.id ON DELETE CASCADE; CHECK positif finite, revision > 0, kode tidak kosong, enum goal/activity, target wajib cut/bulk |
 | `user_preferences` | `user_id uuid`, `language_code text`, `time_zone text`, `preferred_weight_unit text`, `updated_at timestamptz` semuanya NN | PK(user_id), FK user_id ke user_profiles.user_id ON DELETE CASCADE; tanpa FK langsung ke app_users; CHECK unit kg/lb, language/time_zone tidak kosong; IANA divalidasi server |
 | `privacy_acknowledgements` | `id uuid`, `user_id uuid`, `notice_version text`, `ack_type text`, `acknowledged_at timestamptz` semuanya NN | PK(id), FK user_id ke app_users.id ON DELETE RESTRICT; UNIQUE(user_id,notice_version,ack_type); CHECK versi/type tidak kosong |
-| `food_sources` | `id uuid`, `name text`, `license_status text`, `reference text` | PK; CHECK license; sumber harus ALLOWED sebelum publish |
+| `food_sources` | Delapan kolom, tipe/nullability/default final pada [kontrak food_sources M03-01](#kontrak-food_sources-m03-01) | PK; CHECK nonblank, status izin, timestamp finite; metadata bukan legal clearance |
 | `foods` | `id uuid`, `canonical_name text`, `normalized_name text`, `publication_status text`, `current_published_revision_id uuid NULL` | PK; index(normalized_name), partial published; deferred FK current revision bila cycle |
 | `food_revisions` | `id uuid`, `food_id uuid`, `revision_number integer`, `source_id uuid`, `basis_quantity numeric(14,5)`, `basis_unit text` | UNIQUE(food_id,revision_number), FK food/source, CHECK positive and unit |
 | `food_revision_nutrients` | `food_revision_id uuid`, `nutrient_code text`, `value numeric(14,5) NULL` | PK(revision,nutrient); CHECK 11 allowed and nonnegative; publication validated transactionally |
@@ -66,11 +66,32 @@
 
 `onboarding_completed_at` wajib diberikan backend sebagai waktu completion tepercaya. DEFAULT acknowledgement adalah waktu pencatatan server, bukan bukti waktu tepat pengguna berinteraksi di perangkat. DEFAULT `updated_at` hanya saat INSERT; backend nanti wajib memperbaruinya eksplisit saat UPDATE, tanpa asumsi trigger otomatis. Tidak ada fungsi/trigger atau index duplikat baru yang disetujui oleh matriks ini.
 
+## Kontrak food_sources M03-01
+
+**APPROVED — pemilik proyek, task FOOD_SOURCES CONTRACT ALIGNMENT.** Kontrak dokumentasi untuk PostgreSQL 18, melengkapi ringkasan empat kolom pada matriks fisik sebelumnya dengan delapan kolom yang sudah ada di [schema logis §3.2](database-schema.md#32-katalog-nusantara-dan-provenance). Persetujuan lanjutan mengizinkan penulisan `0002_food_sources.sql`, lalu approval FOOD_SOURCES POSTGRESQL INTEGRATION mengizinkan satu kali eksekusi pada target disposable khusus. Hasil aktual pemilik proyek: **13/13 PASS, exit code 0**, termasuk constraint, rollback batch, preservasi identity dan DOWN/UP; [bukti dan kondisi akhir](../../backend/tests/integration/README.md#food-sources-m03-01). Kontrak delapan kolom di bawah tidak berubah. Hasil tidak menyatakan migration diterapkan pada database dev/test utama atau katalog siap publikasi.
+
+| Kolom | Tipe / nullability | DEFAULT | Makna dan constraint |
+|---|---|---|---|
+| `id` | `uuid NOT NULL`, PRIMARY KEY | `pg_catalog.gen_random_uuid()` | Identitas registry sumber; mengikuti konvensi UUID existing tanpa extension tambahan. |
+| `name` | `text NOT NULL` | Tidak ada | Nama sumber/provider/publikasi; harus mengandung karakter selain whitespace. |
+| `source_type` | `text NOT NULL` | Tidak ada | Keterangan jenis sumber; tidak blank. Tidak ada enum atau controlled vocabulary yang disetujui. |
+| `edition` | `text NULL` | Tidak ada | Edisi/versi sumber bila diketahui; NULL berarti tidak tersedia. Jika terisi tidak boleh blank. |
+| `reference` | `text NOT NULL` | Tidak ada | Referensi sumber yang dapat ditelusuri; tidak blank. Referensi bibliografis diperbolehkan; tidak ada CHECK URL-only. |
+| `license_status` | `text NOT NULL` | Tidak ada | CHECK hanya `UNVERIFIED`, `ALLOWED`, `RESTRICTED`, `DENIED`; status harus diberikan eksplisit. Tidak memakai tipe enum PostgreSQL baru. |
+| `permission_notes` | `text NULL` | Tidak ada | Catatan izin/pembatasan/atribusi dan rujukan bukti bila tersedia; jika terisi tidak boleh blank. NULL bukan bukti izin. |
+| `accessed_at` | `timestamptz NULL` | Tidak ada | Waktu akses sumber bila diketahui, bukan waktu INSERT otomatis; hanya timestamp finite. |
+
+- **CHECK teks:** gunakan konvensi existing `kolom ~ '[^[:space:]]'` untuk `name`, `source_type`, `reference`. Pada `edition` dan `permission_notes`, NULL diizinkan; bila terisi wajib memenuhi kondisi nonblank yang sama. String kosong, spasi saja, tab/newline saja ditolak; constraint ini tidak melakukan trim atau mengubah isi yang sah.
+- **CHECK waktu:** `accessed_at IS NULL OR pg_catalog.isfinite(accessed_at)`; NULL diizinkan, `infinity` dan `-infinity` ditolak. Tidak ada default `now()` atau waktu akses buatan.
+- **Batas struktur:** tepat delapan kolom tersebut; selain indeks implisit PRIMARY KEY, tidak ada indeks tambahan, UNIQUE nama/referensi, FK, trigger, tabel atau kolom baru yang disetujui. Relasi sumber dengan revisi makanan dan audit ditetapkan pada kontrak terkait, bukan ditebak dari registry ini.
+- **Batas D05/legal:** `license_status = ALLOWED` tidak membuktikan hak pakai dengan sendirinya. Bukti sah per sumber serta kewajiban atribusi/penyimpanan/redistribusi tetap wajib diverifikasi sebelum import/publikasi. CHECK hanya membatasi nilai status, bukan memverifikasi legalitas, menyeleksi sumber, atau mengizinkan nutrisi dipublikasikan.
+- **OPEN terpisah:** vocabulary sumber bila kelak diperlukan, provenance per nilai/revisi dan source food code, struktur `catalog_reviews` / `catalog_import_batches`, editorial authorization serta review publikasi dan hak data. [Food Database Specification](Food-Database-spec.md) tetap memuat proposal tersebut; persetujuan registry ini tidak mengesahkan seluruh proposal atau sumber tertentu.
+
 ## Migration dependency order (planning only)
 
 1. Manual prerequisites: schema/role provisioning dan ledger bootstrap terpisah, bukan domain migration 0001; tidak ada dummy foundation migration.
 2. First domain file yang disetujui: `backend/migrations/0001_identity.sql` untuk app_users, profiles, preferences, privacy acknowledgements; belum dibuat/dijalankan pada M03-01A.
-3. Catalog base: sources, categories, foods, food_revisions (handle circular published pointer in a later ALTER), nutrients, servings, aliases, joins.
+3. Catalog base: sources, categories, foods, food_revisions (handle circular published pointer in a later ALTER), nutrients, servings, aliases, joins. Registry `food_sources` sudah ditulis dan diuji pada PostgreSQL disposable (13/13 PASS); kontrak katalog lainnya tetap memerlukan perincian sebelum migration berikutnya.
 4. Simple custom foods & revisions and food favorites are MVP; recent derives from logs and copying logs uses new IDs/snapshots. User recipes/revisions/ingredients post-MVP (O-18 final); separate saved-meal scope is unchanged.
 5. Food logs, journal states, weights, versioned nutrition goals.
 6. Sync operation ledger, change feed/cursors, deletion workflow.

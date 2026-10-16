@@ -51,6 +51,19 @@ bootstrap ledger pada database target; jangan menjalankannya pada review dokumen
 termasuk dry-run. Pengujian integration destructive memakai database sementara
 `nutrasa_it_<32hex>` tersendiri, bukan kedua database domain tersebut.
 
+Migration berikutnya `migrations/0002_food_sources.sql` sudah ditulis sesuai
+[kontrak delapan kolom yang disetujui](../docs/02-architecture/postgres-physical-schema-v1.5.md#kontrak-food_sources-m03-01).
+Suite terpisah `npm run test:integration:food-sources` telah **13/13 PASS,
+0 fail, 0 skipped, exit code 0** pada PostgreSQL 18.6 testing port 5433,
+berdasarkan output terminal pemilik proyek. Constraint, upgrade, rollback batch,
+preservasi identity serta UP/DOWN/UP lulus; verifikasi read-only akhir juga PASS.
+Tabel food_sources kembali kosong, empat tabel identity masing-masing memiliki
+satu row sintetis, history 0001/0002 dan dua baseline checksum konsisten.
+Tidak ada seed sumber/makanan nyata, legal clearance, atau endpoint katalog baru.
+Target dipertahankan dan tidak boleh dipakai ulang/reset/cleanup tanpa approval;
+lihat [bukti food_sources](tests/integration/README.md#food-sources-m03-01).
+Migration food_sources siap ditutup; seluruh M03-01 belum DONE.
+
 Entrypoint hanya menerima up/down; tidak meneruskan flags atau konfigurasi bebas.
 Target tetap `nutrasa`, histori `nutrasa_migrations.pgmigrations`, tanpa pembuatan
 schema otomatis, dengan transaksi batch, order check, dan advisory lock mode fail.

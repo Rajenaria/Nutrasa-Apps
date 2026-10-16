@@ -242,6 +242,73 @@ persetujuan provisioning terpisah; jangan memakai role aplikasi dev/test utama.
 Clinical/legal approval, Firebase authorization dan crash recovery saat commit
 tidak dibuktikan oleh suite struktural ini.
 
+## Food sources M03-01
+
+Command terpisah dari `backend/`: `npm.cmd run test:integration:food-sources`.
+Script ini tidak dipanggil oleh `npm test`, suite identity atau suite engine.
+Hasil aktual pemilik proyek: **13/13 PASS, 0 fail, 0 skipped, exit code 0**
+(12 checkpoint dan satu parent test), disertai `FOOD SOURCES FINAL STATE PASS`.
+Approval gabungan provisioning dan satu kali pengujian sudah diberikan dan
+eksekusi selesai. Jangan menjalankan ulang suite pada target yang sudah dipakai.
+Keempat target bukti M03-01B.2 tetap dipertahankan; target food_sources kelima
+juga dipertahankan. Eksekusi baru memerlukan target fresh dan approval baru.
+Instance yang diuji: PostgreSQL 18.6 pada `127.0.0.1:5433`, cluster `nutrasa_it_pg18`,
+system identifier `7697229180258678980`. HBA ditambah tepat satu aturan pasangan
+baru, 11 aturan lama dipertahankan; reload tanpa restart dan verifikasi administrator
+menunjukkan 12 aturan valid, 0 parsing error, serta reload teramati.
+Identitas cluster/system identifier, ketersediaan nama, HBA pasangan target,
+ownership/marker/privilege/search_path/default privileges dan schema kosong wajib
+diverifikasi sebelum mutasi; system identifier tetap diperiksa lewat preflight
+eksternal seperti workflow sebelumnya, bukan diklaim sebagai fitur otomatis harness.
+
+Suite menyalin byte aktual `0001_identity.sql` dan `0002_food_sources.sql` ke
+workspace harness existing. Setelah bootstrap kosong, identity diterapkan dan
+empat tabelnya diisi fixture sintetis. Ini setup upgrade, bukan menjalankan ulang
+suite identity yang sudah PASS. Tidak ada food/nutrient seed atau sumber nyata;
+status ALLOWED pada fixture tidak memberi izin legal atas sumber mana pun.
+
+Dua belas checkpoint yang telah PASS:
+
+1. Bootstrap fresh, identity dan empat row storage sintetis.
+2. Setelah DDL food_sources, fixture `0003_failure.sql` memicu division by zero:
+   batch harus rollback, food_sources tidak tersisa, history/checksum tetap identity.
+3. Upgrade aktual 0002 berhasil dengan history/checksum matching.
+4. Tepat delapan kolom, tipe/nullability sesuai kontrak, hanya default UUID.
+5. Hanya PK id dan indeks pendukungnya; tanpa FK, UNIQUE tambahan atau trigger.
+6. UUID default berbeda, PK duplikat/NULL ditolak, kolom opsional tetap NULL.
+7. NULL kolom wajib dan empty/whitespace-only pada lima kolom teks ditolak.
+8. Teks tidak di-trim, source_type bebas nonblank, referensi bibliografis non-URL,
+   serta timestamp finite disimpan sebagai instant yang benar.
+9. Empat status izin diterima tepat; status lain/NULL/omitted ditolak.
+10. Kedua infinity timestamp ditolak; identity dan metadata tetap konsisten.
+11. DOWN satu langkah hanya menghapus food_sources; row, OID, kolom/default dan
+    constraint identity tetap sama; baseline checksum 0002 tetap dipertahankan.
+12. UP identik memulihkan tabel kosong; re-run tidak menggandakan history/checksum
+    dan lock dapat diperoleh koneksi observer saat koneksi runner masih terbuka.
+
+Fixture failure hanya berada di `tests/integration/fixtures/food-sources/`, tidak
+ditemukan CLI domain. Kegagalan checkpoint menghentikan suite tanpa retry/reset
+atau cleanup database otomatis. Kegagalan SQL yang sengaja diuji pada checkpoint 2
+adalah assertion rollback, bukan izin mengulang suite yang gagal.
+Kondisi akhir berdasarkan verifikasi read-only terminal pemilik proyek:
+
+- Database `nutrasa_it_1451d777bc364abf928bf93c278e3f96`, role
+  `nutrasa_it_1451d777bc364abf928bf93c278e3f96_migrator`.
+- Tepat lima tabel aplikasi: `app_users`, `food_sources`,
+  `privacy_acknowledgements`, `user_preferences`, `user_profiles`.
+- food_sources kosong setelah DOWN/UP; empat tabel identity masing-masing satu
+  row storage sintetis. Preservasi OID, definisi kolom/default, constraint serta
+  data identity diperiksa oleh suite saat upgrade, failure rollback dan DOWN/UP.
+- History `0001_identity`, `0002_food_sources`; dua baseline SHA-256 cocok dengan
+  file aktual. Tidak ada history/checksum `0003_failure` yang tertinggal.
+- Tidak ada seed makanan/nutrisi, reset, cleanup atau pengujian ulang suite lama.
+
+Constraint dan lifecycle food_sources telah terbukti pada target PostgreSQL ini;
+final review tidak menjalankan ulang SQL atau integration tests.
+Runtime app-role privileges, editorial authorization, kontrak traceability lain,
+hak data sumber, publikasi, dan crash recovery saat commit tetap OPEN.
+Ini menyelesaikan subtask migration food_sources, bukan seluruh M03-01.
+
 ## Cleanup manual dan risiko OPEN
 
 Setelah hasil/sisa kegagalan direview dan penghapusan disetujui:
@@ -259,7 +326,7 @@ review. Jangan memakai DROP OWNED/REASSIGN otomatis. Harness tidak memanggil scr
 Hasil PASS yang dikonfirmasi mencakup skenario lifecycle di atas, termasuk
 atomicity, rollback, concurrency, pelepasan lock, dan recovery melalui re-run.
 Provisioning target dilakukan manual oleh pemilik proyek. Empat target M03-01B.2
-tetap dipertahankan; tidak ada cleanup database/role pada finalisasi ini.
+dan target food_sources tetap dipertahankan; tidak ada cleanup database/role pada finalisasi ini.
 Harness tidak melakukan cleanup database otomatis. Jangan menjalankan prosedur
 cleanup atau menghentikan instance tanpa approval terpisah.
 

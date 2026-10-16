@@ -71,7 +71,7 @@ Berat profil saat ini **diturunkan** dari `weight_measurements`, bukan duplikat 
 
 | Tabel | Kolom minimum / ketentuan |
 |---|---|
-| `food_sources` | `id`, `name`, `source_type`, `edition`, `reference`, `license_status` UNVERIFIED/ALLOWED/RESTRICTED/DENIED, `permission_notes`, `accessed_at` |
+| `food_sources` | `id`, `name`, `source_type`, `reference`, `license_status` wajib; `edition`, `permission_notes`, `accessed_at` nullable. Status hanya UNVERIFIED/ALLOWED/RESTRICTED/DENIED; [kontrak fisik final M03-01](postgres-physical-schema-v1.5.md#kontrak-food_sources-m03-01). |
 | `foods` | `id`, `canonical_name`, `normalized_name`, `food_type`, `region` ?, `publication_status`, `current_published_revision_id` ?, timestamps |
 | `food_revisions` | `id`, `food_id` FK, `revision_number` UQ per food, `basis_quantity` positif (umumnya 100), `basis_unit` g/ml, `composition_definition`, `source_id`, `source_method`, `quality_status` DRAFT/REVIEWED/PUBLISHED, `published_at` |
 | `food_revision_nutrients` | `food_revision_id`, `nutrient_code` salah satu 11, `value` numeric ?, PK gabungan; nilai wajib publikasi non-NULL |
@@ -80,6 +80,10 @@ Berat profil saat ini **diturunkan** dari `weight_measurements`, bukan duplikat 
 | `food_categories` | PK `(food_id, category_id)`, `is_primary`; paling banyak satu utama |
 | `food_aliases` | `id`, `food_id`, `alias`, `normalized_alias`, `locale` ?, unik `(food_id,normalized_alias)` |
 | `catalog_reviews`, `catalog_import_batches` | audit sumber, reviewer, keputusan, hash batch, tanggal; hanya admin |
+
+**APPROVED M03-01 — food_sources contract alignment:** pemilik proyek menyetujui delapan kolom registry sumber di atas, termasuk nullability, DEFAULT UUID, CHECK teks tidak blank dan timestamp finite. Matriks tipe/default/CHECK serta arti kolom hanya dirinci pada kontrak fisik tertaut. `source_type` adalah teks tanpa enum yang ditetapkan; `reference` menerima referensi bibliografis, tidak dibatasi URL. `license_status` dan `accessed_at` tanpa default; unknown pada kolom nullable tidak diganti nilai buatan.
+
+Sesuai [D05](../04-development/decision-register-v2.md), `ALLOWED` tetap memerlukan bukti sah atas hak penggunaan/penyimpanan/redistribusi dan atribusi per sumber. Registry metadata bukan legal clearance atau audit publikasi lengkap. Approval awal hanya kontrak dokumentasi; penulisan SQL dan pengujian PostgreSQL berikutnya disetujui terpisah. `0002_food_sources.sql` kini lulus **13/13 integration tests, exit code 0**, termasuk constraint dan lifecycle pada target disposable yang disetujui; lihat [status migration](sql-migration-plan.md#food-sources-m03-01). Tidak ada izin seed/import sumber nyata, endpoint, atau publikasi. Kontrak traceability lain dan review legal/nutrisi tetap OPEN. **M03-01 belum DONE.**
 
 Revisi PUBLISHED tidak boleh diubah pada bagian komposisi, porsi, dan identitas sumber; terbitkan revisi baru. Publikasi gagal jika izin sumber belum sesuai atau 4 nilai inti tidak ditinjau. Jangan impor permanen konten API yang lisensinya melarang penyimpanan.
 
