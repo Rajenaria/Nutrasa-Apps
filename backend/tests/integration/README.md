@@ -396,6 +396,147 @@ tetap OPEN. Tidak ada endpoint/fitur publikasi, seed atau import makanan nyata.
 Source locator/riwayat izin, vocabulary operasional, normalisasi, audit editorial
 dan crash recovery saat commit juga OPEN. Ini fondasi struktural, bukan seluruh M03-01.
 
+<a id="katalog-lanjutan-m03-01--disiapkan-belum-dijalankan"></a>
+
+## Katalog lanjutan M03-01
+
+Migration `0004_food_taxonomy.sql` dan `0005_food_servings_provenance.sql` serta
+`catalog-foundation.integration.ts` telah ditulis berdasarkan
+[kontrak fisik yang disetujui](../../../docs/02-architecture/postgres-physical-schema-v1.5.md#kontrak-katalog-lanjutan-m03-01).
+**PASS — output terminal pemilik proyek pada 17 Oktober 2026:** satu invocation
+suite gabungan menghasilkan **24/24 PASS, 0 fail/cancelled/skipped/todo, exit code 0**
+dan `CATALOG FOUNDATION FINAL STATE PASS`. Terdapat satu checkpoint bootstrap,
+11 checkpoint taxonomy, 11 checkpoint servings/provenance dan satu parent test;
+bukan dua eksekusi suite mandiri. Bukti identity/engine/food_sources/0003 di atas
+tetap dipertahankan; suite lama tidak dijalankan ulang.
+
+Verifikasi non-database pada implementasi ini: backend typecheck/lint dan unit
+tests **58/58 PASS, 0 fail/skip**; mobile typecheck/lint PASS. Enam unit tests baru
+memeriksa discovery lima file, hash historis, isolasi fixture, loader publik,
+aksi UP/DOWN/checksum transaksional dan penolakan file historis berubah/hilang.
+Unit tests tersebut menguji perilaku tanpa database. Bukti constraint, rollback
+dan lifecycle PostgreSQL berasal dari output suite gabungan berikut.
+
+Command yang telah dijalankan pemilik setelah approval gabungan dan fresh preflight,
+dari backend dengan environment target disposable terverifikasi:
+
+```powershell
+npm.cmd run test:integration:catalog-foundation
+```
+
+Jangan menjalankan command ulang pada target ini. Suite telah mengeksekusi
+**23 checkpoint dan satu parent test (24 test)**, fail-fast melalui scenario
+harness existing. Setiap checkpoint gagal menghentikan urutan berikutnya; tidak
+ada retry atau recovery database otomatis.
+
+- Satu invocation memakai **satu database fresh**, migrator khusus dan bootstrap
+  ledger sekali; menerapkan SQL aktual 0001-0003 lalu data sintetis DRAFT/UNVERIFIED.
+- Tahap taxonomy: failure sesudah DDL aktual 0004, UP, metadata 6/3/5 kolom,
+  PK/UQ/empat FK RESTRICT, delapan indeks, tujuh CHECK dan tanpa user trigger;
+  NULL/whitespace, slug/self-parent, primary category, alias lintas makanan;
+  DOWN/UP identik dan re-run dengan baseline checksum dipertahankan.
+- Tahap servings/provenance meneruskan target yang sama dengan taxonomy terisi:
+  failure sesudah ALTER/DDL aktual 0005, UP, sepuluh kolom porsi dan dua kolom
+  nullable tambahan revisi, PK/dua FK RESTRICT/dua indeks/sembilan CHECK baru;
+  pasangan provenance, bukti wajib, numeric/NaN/infinity/overflow/scale coercion,
+  JOIN unit g/ml dan sumber bukti berbeda; DOWN/UP identik dan re-run.
+- Kasus perilaku DML menggunakan transaksi yang di-rollback dan savepoint untuk
+  expected errors, sehingga baseline domain terdahulu tidak berubah. Failure
+  injection DDL tetap memakai transaksi runner sebenarnya. Periksa metadata
+  array sebagai text[] dan NUMERIC sebagai decimal string, RESTRICT 23001 serta
+  child FK invalid 23503; assertion tidak dilonggarkan.
+- Fixture failure 0005/0006 hanya berada di `tests/integration/fixtures/food-taxonomy`
+  dan `food-servings`, disalin ke workspace sementara oleh harness. CLI domain
+  tidak menemukan fixture. Tidak ada salinan DDL katalog alternatif.
+
+Guard tidak dilemahkan: database nutrasa_it_<32hex>, role pasangan, password
+khusus, port 5433 eksplisit, endpoint loopback, PG18/cluster/owner/marker,
+session_user/current_user dan ownership schema; PGOPTIONS/PGREPLICATION ditolak.
+Preflight administrator sebelum provisioning/tes tetap memverifikasi system
+identifier `7697229180258678980`, data directory dan identitas target serta
+ketersediaan nama. System identifier bukan pemeriksaan yang diklaim dilakukan
+oleh migrator non-superuser. URL eksplisit mencegah fallback PGPORT; connection
+override tidak disetujui harus ditolak pada prosedur lokal.
+
+Kondisi akhir **PASS berdasarkan output final-state pemilik proyek**: 12 tabel aplikasi;
+empat tabel identity masing-masing satu row, satu sumber sintetis, dua foods,
+dua revisions, dua nutrient rows (nol dan NULL berbeda), satu category/link/alias
+yang dipertahankan, serving_definitions kosong setelah DOWN/UP. Revisi memiliki
+12 kolom dan kedua provenance kembali NULL; history tepat 0001-0005, lima baseline
+checksum cocok, tidak ada metadata fixture failure. Tahap 0005 mempertahankan
+OID/owner/metadata/data baseline kecuali dua kolom/tiga CHECK yang memang disetujui,
+serta menjaga taxonomy yang sudah terisi.
+
+Provisioning tetap melalui `provision.sql` existing, bukan harness. Hanya satu
+target baru diperlukan untuk invocation gabungan; bukan reuse target dari suite
+lain atau alasan mengulang test gagal. Tidak ada bootstrap manual tambahan,
+cleanup, perubahan pada enam target lama atau akses port 5432. Jika preflight,
+provisioning atau suite gagal, STOP dan pertahankan bukti tanpa retry/reset/DROP.
+Keputusan penghapusan memerlukan approval terpisah.
+
+Target yang telah diprovisioning sekali dan diuji dengan approval gabungan:
+
+- Run ID: `49e23e0805ba43fda3f5078a57d28a10`.
+- Database: `nutrasa_it_49e23e0805ba43fda3f5078a57d28a10`.
+- Migrator: `nutrasa_it_49e23e0805ba43fda3f5078a57d28a10_migrator`.
+- Hanya cluster testing `nutrasa_it_pg18`, PG18, endpoint `127.0.0.1:5433`,
+  data directory `D:/Rajendra/NUTRASA-Postgres-IT/data`, system identifier
+  `7697229180258678980`, administrator `nutrasa_it_admin`.
+
+Aturan HBA pasangan target yang telah ditambahkan sebelum reject umum:
+
+```text
+host nutrasa_it_49e23e0805ba43fda3f5078a57d28a10 nutrasa_it_49e23e0805ba43fda3f5078a57d28a10_migrator 127.0.0.1/32 scram-sha-256
+```
+
+Preflight administrator mengonfirmasi PostgreSQL 18.6, identitas cluster/system
+identifier dan ketersediaan nama. Tepat satu aturan ditambahkan, mempertahankan
+13 aturan lama; hanya cluster testing di-reload. Pemeriksaan setelah reload dan
+sebelum provisioning mempersyaratkan 14 aturan valid, 0 error dan reload teramati;
+blok lokal pemilik selesai hingga provisioning tanpa STOP. Provisioning melalui
+script existing selesai dengan `ALTER ROLE`, tanpa bootstrap ledger manual.
+Prosedur yang dipakai, untuk referensi (jangan jalankan ulang):
+
+```powershell
+psql -X -h 127.0.0.1 -p 5433 -U nutrasa_it_admin -d postgres -W -v ON_ERROR_STOP=1 -f tests/integration/provision.sql
+```
+
+Untuk eksekusi baru yang disetujui kelak, masukkan run ID pada prompt khusus,
+bukan melalui pipeline bersama blok PowerShell/psql. Password administrator dan
+migrator hanya melalui prompt lokal interaktif, tidak di chat/argument/file/log.
+Script membentuk role NOLOGIN tanpa privilege global/membership, database owned
+administrator, hanya CONNECT untuk migrator, tanpa CREATE/TEMP database atau
+hak PUBLIC. Migrator memiliki kedua schema untuk DDL/metadata tests; search_path
+pg_catalog,nutrasa dan default privileges PUBLIC direvoke sesuai script existing.
+LOGIN baru aktif setelah pengaturan password SCRAM dikonfirmasi.
+
+`CATALOG FOUNDATION FRESH PREFLIGHT PASS` mengonfirmasi login migrator,
+session_user/current_user, loopback:5433, read-only preflight dan runtime writable,
+search_path, CONNECT, schema privileges, pembatasan PUBLIC pada schema/database,
+default privileges, schema kosong dan ketiadaan sesi lain. Guard harness memeriksa
+marker serta ownership sebelum mutasi. Environment
+NUTRASA_IT_DATABASE_URL/NUTRASA_IT_CONFIRM_DATABASE menunjuk eksplisit target ini.
+Setelah preflight, suite dijalankan tepat sekali. Tidak ada rerun PostgreSQL pada
+final review dokumentasi, akses port 5432, reuse, reset atau cleanup.
+
+Final state merekam history `0001_identity`, `0002_food_sources`,
+`0003_food_catalog`, `0004_food_taxonomy`, `0005_food_servings_provenance` dan
+**lima checksum baseline**. `energy_kcal` tetap `0.00000`, `sugar_g` tetap NULL.
+Hash SHA-256 SQL yang diuji:
+
+- 0004: `d5386fc815162402bb57048858dc16ba2f067237b7a241df25ce0f028f8d3542`.
+- 0005: `1b5e8bb150b9102236bd98e2aa21e1625a5bb3f5de8d6942778ba3c919065218`.
+
+Target baru dan enam target lama tetap dipertahankan: **tujuh database disposable**.
+Tidak ada klaim pemeriksaan ulang isi enam target lama pada final review ini.
+
+Siklus kategori lintas baris, immutability, publication gate/review nutrisi,
+authorization/identitas reviewer, runtime app privileges, licensing evidence,
+catalog_reviews/import_batches, concurrency editorial dan crash recovery saat
+commit tetap OPEN. Pemeriksaan self-parent bukan bukti hierarki bebas siklus;
+reviewed/status/locator bukan legal clearance. Tidak ada seed makanan nyata,
+normalizer, endpoint editorial atau publikasi baru. **M03-01 belum DONE.**
+
 ## Cleanup manual dan risiko OPEN
 
 Setelah hasil/sisa kegagalan direview dan penghapusan disetujui:
@@ -413,8 +554,8 @@ review. Jangan memakai DROP OWNED/REASSIGN otomatis. Harness tidak memanggil scr
 Hasil PASS yang dikonfirmasi mencakup skenario lifecycle di atas, termasuk
 atomicity, rollback, concurrency, pelepasan lock, dan recovery melalui re-run.
 Provisioning target dilakukan manual oleh pemilik proyek. Empat target M03-01B.2,
-target food_sources dan target food catalog tetap dipertahankan; keenam target
-tidak di-cleanup pada finalisasi ini.
+target food_sources dan target food catalog tetap dipertahankan. Bersama target
+katalog lanjutan di atas, tujuh target tidak di-cleanup pada finalisasi ini.
 Harness tidak melakukan cleanup database otomatis. Jangan menjalankan prosedur
 cleanup atau menghentikan instance tanpa approval terpisah.
 

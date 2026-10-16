@@ -172,3 +172,13 @@ Integration tidak dijalankan ulang pada finalisasi dokumentasi ini. Eksekusi
 berikutnya memerlukan target fresh dan approval baru. Lihat
 [hasil dan prosedur integration](tests/integration/README.md) untuk identitas target,
 kondisi terakhir dan batas pengujian; crash recovery saat commit tetap OPEN.
+
+Fondasi katalog lanjutan M03-01 menambah migration domain `0004_food_taxonomy.sql`
+dan `0005_food_servings_provenance.sql`. Output terminal pemilik proyek mengonfirmasi
+**24/24 integration PASS, 0 fail/skip, exit code 0**, termasuk final state PASS. Script `npm run test:integration:catalog-foundation`
+menjalankan satu suite gabungan pada satu database disposable fresh, dengan
+bootstrap sekali, lifecycle 0004 lalu lifecycle 0005; bukan dua suite mandiri
+yang memakai ulang target. Jangan menjalankannya pada nutrasa_dev/nutrasa_test
+atau tujuh target yang kini sudah dipakai. Lihat [bukti dan batas pengujian](tests/integration/README.md#katalog-lanjutan-m03-01).
+Eksekusi berikutnya memerlukan target fresh dan approval baru; seluruh gate editorial
+tetap OPEN. Hasil ini tidak menandai keseluruhan M03-01 DONE.

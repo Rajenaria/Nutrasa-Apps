@@ -10,7 +10,9 @@ import { createVerifiedLoader } from '../src/migrations/loader.ts';
 
 test('catalog discovery preserves both historical migrations and isolates the batch failure fixture', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
-  assert.deepEqual(files.map(file => file.name), ['0001_identity', '0002_food_sources', '0003_food_catalog']);
+  assert.deepEqual(files.map(file => file.name), [
+    '0001_identity', '0002_food_sources', '0003_food_catalog', '0004_food_taxonomy', '0005_food_servings_provenance',
+  ]);
   assert.equal(files[0]?.sha256, 'a86a276c6d99080cd123a57647b0c51c53ad1fbce3951e13ddaddfbd113be5af');
   assert.equal(files[1]?.sha256, '9485a3b5e9d7f26afde5cf94454fac5d76fd384489574a4a960583cad19528b6');
   const path = fileURLToPath(new URL('./integration/fixtures/food-catalog/0004_failure.sql', import.meta.url));
@@ -64,7 +66,7 @@ test('applied catalog baseline rejects changed or missing SQL and a reordered hi
     history: files.map(file => file.name), ledger: files.map(file => ({ name: file.name, sha256: file.sha256 })) };
   assert.doesNotThrow(() => assertIntegrity(files, state));
   const modified = snapshotSql(catalog.path, new TextEncoder().encode(`${catalog.content}\n`));
-  assert.throws(() => assertIntegrity([...files.slice(0, 2), modified], state), /Historical migration missing, changed/);
-  assert.throws(() => assertIntegrity(files.slice(0, 2), state), /Historical migration missing, changed/);
+  assert.throws(() => assertIntegrity(files.map(file => file === catalog ? modified : file), state), /Historical migration missing, changed/);
+  assert.throws(() => assertIntegrity(files.filter(file => file !== catalog), state), /Historical migration missing, changed/);
   assert.throws(() => assertIntegrity(files, { ...state, history: [...state.history].reverse() }), /history and checksum ledger disagree/);
 });
