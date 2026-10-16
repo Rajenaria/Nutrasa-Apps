@@ -32,7 +32,7 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 |---|---|---|
 | PR-001 | Nama/username opsional setelah pendaftaran | Agreed |
 | PR-002 | Target dihitung otomatis dari profil yang memenuhi syarat | Agreed (parameter engine belum tervalidasi) |
-| PR-003 | Pengguna dapat menyesuaikan target dengan validasi | Agreed |
+| PR-003 | MVP hanya mengubah input profil/tujuan lalu reevaluasi AUTO; edit angka target manual post-MVP | RESOLVED D02; menggantikan usulan manual lama |
 | PR-004 | Berat baru memicu hitung ulang otomatis | Agreed (cara aktivasi bergantung safety gate) |
 | PR-005 | Body type bersifat opsional dan tidak memengaruhi rumus | Agreed |
 | PR-006 | MVP hanya dewasa 18+ eligible; tidak ada LOG_ONLY atau target numerik bagi profil tidak didukung | Agreed D04; detail eligibility/review tetap OPEN |
@@ -67,7 +67,9 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 - Simpan optimistik hanya jika recovery dan sync state jelas; kegagalan server tidak boleh dianggap sukses tersinkron.
 
 ### P-03 Body data & activity
-- Edit tanggal lahir/usia (berdasarkan kebijakan onboarding), tinggi, kategori fisiologis rumus, aktivitas, body type visual opsional.
+- Tanggal lahir lengkap disimpan sebagai DATE dengan privasi ketat; usia dihitung backend. Edit tinggi, calculation_parameter, activity_level, goal_type dan body_type_visual opsional mengikuti kontrak identity. Transport edit DOB/calculation_parameter belum tersedia di ProfilePatch OpenAPI: **OPEN**, jangan mengarang field request.
+- Goal codes: maintenance/cutting/bulking/muscle_gain; activity codes: very_low/light/moderate/high/very_high. Ini vocabulary struktural, bukan approval faktor/rumus klinis. Calculation parameter wajib kode tidak kosong; nilai klinis dan kompatibilitas tetap OPEN, tanpa fallback buatan. Target berat wajib cutting/bulking dan selalu valid bila diberikan.
+- Tinggi memakai numeric(8,2), berat numeric(10,3) dan decimal-string API; backend menolak presisi berlebih sebelum pembulatan PostgreSQL, overflow serta nilai nonpositif/non-finite. Body type tidak memengaruhi engine.
 - Berat baru harus dicatat sebagai **weight measurement**, bukan sekadar menimpa satu field tanpa histori.
 - Jika data yang memengaruhi engine berubah, invalidasi kalkulasi lama dan jalankan evaluasi baru.
 - Jika data mengubah eligibility, jelaskan status tidak eligible/NEEDS_REVIEW tanpa target numerik baru; tidak ada jalur LOG_ONLY aktif MVP. Perlakuan target sebelumnya mengikuti review keamanan dan histori.
@@ -93,6 +95,7 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 - Tanggal jurnal disimpan sebagai *local calendar date* yang konsisten; simpan timezone relevant untuk timestamp.
 - Izin notifikasi diminta saat fitur notifikasi benar-benar dipakai, bukan saat membuka Profil.
 - Ubah zona waktu jangan otomatis menggeser food logs ke tanggal berbeda tanpa kebijakan migrasi.
+- Persisted user_preferences dibuat atomik dengan profil lengkap setelah onboarding server valid; bukan row default sebelum onboarding. language_code, time_zone IANA, preferred_weight_unit kg/lb dan updated_at wajib. Locale tampilan awal bukan otomatis language_code tersimpan; mapping bahasa/locale dan transport completion tetap OPEN. Jangan mengasumsikan Asia/Jakarta dari negara pengguna.
 
 ### P-07 Account & security
 - Email login dan status verified dari auth provider tepercaya, bukan field yang pengguna bisa ubah sendiri tanpa verifikasi ulang.
@@ -107,6 +110,7 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 - Penghapusan akun harus mencakup reauthentication yang wajar, konfirmasi, proses request, status, pemutusan sesi, dan mekanisme penghapusan data termasuk backup sesuai kebijakan yang disetujui.
 - Jelaskan dampak pending sync dan perangkat offline. Data yang dihapus tidak boleh muncul lagi akibat sync tertunda (gunakan tombstone/version rule).
 - Persetujuan/notice kesehatan perlu legal review UU PDP dan aturan platform distribusi. Tidak boleh menganggap satu checkbox umum pasti cukup.
+- M03-01A menyetujui satu tindakan approval UX registrasi/onboarding dengan notice penjelas tanpa approval berulang untuk tujuan sama; validitas legal gabungan tetap OPEN. Bukti user/notice/type/timestamp server berversi, retry identik tidak menggandakan atau menimpa record. ONBOARDING_PRIVACY hanya PROPOSED. Saat final deletion, bukti direncanakan ikut dihapus kecuali ada retensi sah; withdrawal/backups/legal retention tetap OPEN. FK struktural sudah final pada [kontrak identity](../02-architecture/postgres-physical-schema-v1.5.md#kontrak-identity-m03-01a); RESTRICT mengharuskan acknowledgement diselesaikan sebelum akun dihapus. Retensi setelah penghapusan akun memerlukan review arsitektur terlebih dahulu. PENDING_DELETION adalah status logis yang memblokir mutasi/sync yang tidak diizinkan; CASCADE hanya berlaku pada penghapusan fisik dan bukan workflow lengkap.
 
 ### P-09 Help, support, about
 - FAQ untuk target, kualitas nutrisi parsial, offline sync, data food source.
@@ -117,7 +121,7 @@ Halaman Profil adalah pusat pengelolaan identitas, data tubuh, tujuan nutrisi, p
 ## 5. Domain model konseptual (bukan SQL final)
 
 - `UserAccount`: id, authProviderLinks, emailVerified, timestamps.
-- `UserProfile`: userId, displayName?, username?, dateOfBirth?, heightCm?, activityLevel?, visualBodyType?, eligibilityFlags/status.
+- `UserProfile`: user_id PK/FK, date_of_birth DATE, height_cm, calculation_parameter, activity_level, goal_type, onboarding_completed_at dan profile_revision positif semuanya wajib; target_weight_kg kondisional dan body_type_visual opsional. Profil hanya dibuat lengkap bersama preferensi; tidak ada onboarding_status/current_weight atau eligibilityFlags spekulatif. Display name/username konseptual bukan izin menambah kolom identity.
 - `WeightMeasurement`: id, userId, measuredAt, weightKg, createdAt, modifiedAt, deletedAt?, syncVersion.
 - `NutritionGoal`: id, userId, goalType, targetWeightKg?, mode(AUTO only MVP), effectiveFrom, effectiveTo?, engineVersion, inputSnapshot, kcalTarget?, proteinG?, carbsG?, fatG?, status, provenance; manual post-MVP.
 - `UserPreference`: userId, units, locale, diaryTimezone, notificationSettings.
@@ -172,7 +176,7 @@ Sensitive body data should be minimized and access-controlled; final schema will
 | PF-10 | Update body height | Recalculate or flag review with versioning |
 | PF-11 | Age becomes unsupported | Disable default auto calculation; preserve logs |
 | PF-12 | Unsupported profile | Ineligible for MVP; no numeric target or LOG_ONLY fallback |
-| PF-13 | User edits target beyond safety policy | Block unsafe target; explain why |
+| PF-13 | User changes goal/target weight beyond reviewed safety policy | Reject unsafe input; no manual calorie/macro target control MVP |
 | PF-14 | Weight change in MVP | Automatic reevaluation from latest valid measurement; historical versions preserved; manual post-MVP |
 | PF-15 | Two devices edit weight/profile offline | Server-ordered LWW for edits; latest valid measured_at for weight source; serialized target versions |
 | PF-16 | Change units kg→lb→kg | Canonical value stable without cumulative rounding |

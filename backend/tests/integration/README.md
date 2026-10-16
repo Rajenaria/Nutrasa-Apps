@@ -84,7 +84,10 @@ Jangan membaca pg_authid/rolpassword.
 
 ## Menjalankan tests setelah persetujuan
 
-`npm test` tetap unit-only. Integration suite hanya masuk `npm run test:integration`.
+`npm test` tetap unit-only. Suite engine memakai `npm run test:integration`;
+suite identity memakai `npm run test:integration:identity`. Keduanya memakai
+guard dan setup harness yang sama, tetapi **wajib target database baru terpisah**:
+baseline immutable `0001_probe` dan `0001_identity` tidak dapat dipertukarkan.
 Set environment pada sesi lokal, tanpa credential literal pada history:
 
 ```powershell
@@ -137,6 +140,34 @@ marker run ID. Runner normal tidak menemukan fixture. Workspace dibersihkan sete
 verifikasi path. Database/role/schema/ledger tidak dibersihkan otomatis. Eksekusi ulang
 memerlukan target baru karena baseline immutable tersisa. Jika proses dihentikan
 paksa, workspace OS temporary mungkin perlu dibersihkan manual setelah review.
+
+## Identity suite M03-01B.1 — disiapkan, belum dijalankan
+
+Setelah persetujuan M03-01B.2, gunakan prosedur provisioning dan environment di atas
+pada target baru, lalu ganti command suite dengan `npm run test:integration:identity`.
+Jangan bootstrap ledger manual atau memakai kembali target suite engine.
+
+Suite memakai byte `backend/migrations/0001_identity.sql` melalui core yang sama.
+Empat belas checkpoint memeriksa struktur/tipe/nullability/default/key/index,
+UID case-sensitive dan nonblank, enum, FK, nilai numerik/date khusus, target berat
+kondisional, revision, preferensi, acknowledgement, CASCADE/RESTRICT serta UP/DOWN/UP.
+Test NUMERIC secara eksplisit menunjukkan coercion skala; penolakan presisi input
+asli tetap pekerjaan backend berikutnya. Data hanya sintetis, tanpa aktivasi target.
+DOWN juga harus mempertahankan sentinel non-domain dan metadata/history/checksum
+sesuai lifecycle engine. Test tidak mengubah metadata secara manual.
+
+Setup/bootstrap dan pemeriksaan lock yang sebelumnya inline pada suite engine
+dipakai bersama melalui `harness.ts`; guard produksi/integration tidak diperluas.
+Regresi PostgreSQL atas ekstraksi harness ini juga belum diuji ulang.
+
+Scope mutasi pada target sementara: bootstrap ledger, tabel histori engine,
+empat tabel identity, satu sentinel pengujian, data sintetis dan lifecycle UP/DOWN/UP.
+Target/role tidak dibuat atau dihapus oleh harness; cleanup tetap manual setelah review.
+Pengujian runtime app-role belum disiapkan: provisioning saat ini hanya memiliki
+migrator khusus. Role integration aplikasi dan privilege minimumnya memerlukan
+persetujuan provisioning terpisah; jangan memakai role aplikasi dev/test utama.
+Clinical/legal approval, Firebase authorization dan crash recovery saat commit
+tidak dibuktikan oleh suite struktural ini.
 
 ## Cleanup manual dan risiko OPEN
 

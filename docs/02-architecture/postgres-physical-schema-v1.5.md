@@ -14,10 +14,10 @@
 
 | Tabel | Kolom inti dan jenis | Constraint dan indeks |
 |---|---|---|
-| `app_users` | `id uuid`, `firebase_uid text`, `account_status text`, `created_at timestamptz` | PK(id), UNIQUE(firebase_uid), CHECK status; index(status) untuk deletion workflow |
-| `user_profiles` | `user_id uuid`, `date_of_birth date`, `height_cm numeric(8,2)`, `activity_level text`, `goal_type text`, `target_weight_kg numeric(10,3) NULL`, `onboarding_status text`, `profile_revision integer` | PK(user_id), FK user CASCADE; CHECK height > 0 dan domain enum, goal target sesuai jenis |
-| `user_preferences` | `user_id uuid`, `language_code text`, `time_zone text`, `updated_at timestamptz` | PK/FK user; zona waktu IANA diperiksa aplikasi/server |
-| `privacy_acknowledgements` | `id uuid`, `user_id uuid`, `notice_version text`, `ack_type text`, `acknowledged_at timestamptz` | FK user; UNIQUE(user_id,notice_version,ack_type) |
+| `app_users` | `id uuid` PK NN; `firebase_uid text` NN; `email_display text NULL`, `email_verified_cache boolean NULL`; `account_status text`, `created_at timestamptz`, `updated_at timestamptz` NN | UNIQUE(firebase_uid) case-sensitive, tanpa case-folding; CHECK UID tidak kosong; CHECK ACTIVE/PENDING_DELETION/DELETED; index(account_status) direncanakan untuk deletion workflow |
+| `user_profiles` | `user_id uuid`, `date_of_birth date`, `height_cm numeric(8,2)`, `calculation_parameter text`, `activity_level text`, `goal_type text`, `onboarding_completed_at timestamptz`, `profile_revision integer`, `created_at timestamptz`, `updated_at timestamptz` NN; `target_weight_kg numeric(10,3) NULL`, `body_type_visual text NULL`; tanpa onboarding_status | PK(user_id), FK user_id ke app_users.id ON DELETE CASCADE; CHECK positif finite, revision > 0, kode tidak kosong, enum goal/activity, target wajib cut/bulk |
+| `user_preferences` | `user_id uuid`, `language_code text`, `time_zone text`, `preferred_weight_unit text`, `updated_at timestamptz` semuanya NN | PK(user_id), FK user_id ke user_profiles.user_id ON DELETE CASCADE; tanpa FK langsung ke app_users; CHECK unit kg/lb, language/time_zone tidak kosong; IANA divalidasi server |
+| `privacy_acknowledgements` | `id uuid`, `user_id uuid`, `notice_version text`, `ack_type text`, `acknowledged_at timestamptz` semuanya NN | PK(id), FK user_id ke app_users.id ON DELETE RESTRICT; UNIQUE(user_id,notice_version,ack_type); CHECK versi/type tidak kosong |
 | `food_sources` | `id uuid`, `name text`, `license_status text`, `reference text` | PK; CHECK license; sumber harus ALLOWED sebelum publish |
 | `foods` | `id uuid`, `canonical_name text`, `normalized_name text`, `publication_status text`, `current_published_revision_id uuid NULL` | PK; index(normalized_name), partial published; deferred FK current revision bila cycle |
 | `food_revisions` | `id uuid`, `food_id uuid`, `revision_number integer`, `source_id uuid`, `basis_quantity numeric(14,5)`, `basis_unit text` | UNIQUE(food_id,revision_number), FK food/source, CHECK positive and unit |
@@ -43,10 +43,33 @@
 | `user_sync_heads` | `owner_user_id uuid PRIMARY KEY`, `last_cursor bigint NOT NULL DEFAULT 0` | FK app_users; cursor >= 0; serializes feed writers for each owner until commit |
 | `account_deletion_requests` | `id uuid`, `user_id uuid`, `status text`, `requested_at timestamptz`, `completed_at timestamptz NULL` | UNIQUE active request per user; workflow retries and audit minimization |
 
+## Kontrak identity M03-01A
+
+- **APPROVED:** empat tabel identity di atas mengikuti [kontrak logis §3.1](database-schema.md#31-identitas-profil-persetujuan). Tidak ada row profil parsial, kolom status onboarding, current_weight, atau password/token Firebase. Profil dan preferensi dibuat atomik setelah validasi backend. Status API diturunkan, bukan persistensi draft server.
+- **PostgreSQL:** PK/UNIQUE/FK/NOT NULL dan CHECK mengunci struktur. Goal CHECK `maintenance|cutting|bulking|muscle_gain`; activity CHECK `very_low|light|moderate|high|very_high`; calculation parameter hanya kode terstruktur tidak kosong pada tingkat schema, bukan enum klinis buatan. Target berat wajib non-NULL untuk cutting/bulking; bila terisi selalu positif finite. CHECK tinggi/berat harus menolak NaN secara eksplisit; `> 0` saja tidak cukup. Jangan memakai CHECK usia dengan CURRENT_DATE.
+- **Fastify:** verifikasi Firebase token lalu UID ke UUID; ownership bukan owner ID klien. Validasi DOB/usia 18+/eligibility, IANA timezone, parameter klinis yang disetujui, presisi desimal sebelum coercion (tinggi maksimal 2, berat maksimal 3 digit pecahan), overflow dan non-finite. CHECK pada NUMERIC yang sudah dibulatkan tidak dapat mendeteksi presisi input asli yang berlebih. Jangan membulatkan input otoritatif atau mengaktifkan parameter/target yang belum direview. Body-type tidak masuk engine.
+- **APPROVED DEFAULT:** kebijakan final ada pada matriks di bawah; tidak ada default status akun, input klinis, completion, bahasa, timezone atau unit. UUID mengikuti konvensi existing `gen_random_uuid()` (PostgreSQL 18, tanpa extension UUID tambahan). Cache email NULL tidak dipaksa menjadi false.
+- **Index:** PK/UQ sudah mengindeks UID, owner profil/preferensi dan prefix user acknowledgement. Jangan menambah index duplikat; index account_status untuk workflow deletion tetap perlu konfirmasi kebutuhan query.
+- **APPROVED FK:** profiles → app_users CASCADE; preferences → user_profiles CASCADE tanpa FK langsung duplikat ke akun; acknowledgement → app_users RESTRICT. FK preferensi mencegah orphan preferences, tetapi tidak memaksa row preferensi untuk setiap profil: pembuatan keduanya wajib atomik di backend.
+- **APPROVED deletion boundary:** PENDING_DELETION adalah status logis; ON DELETE hanya berlaku pada DELETE fisik. Workflow harus menyelesaikan acknowledgement secara eksplisit sebelum app_users dihapus. Jika bukti wajib dipertahankan setelah penghapusan akun, review arsitektur retensi dahulu; jangan menyimpan data pribadi tanpa dasar hukum. Retensi/withdrawal/backups tetap OPEN; CASCADE bukan pengganti workflow lintas Firebase/PostgreSQL/perangkat.
+- **READY struktural M03-01B:** FK/default telah disetujui; `0001_identity.sql` siap ditulis dan diuji pada database disposable setelah review pemilik. Ini bukan bukti SQL sudah dibuat/lulus atau onboarding operasional. Initial weight/goal, transport completion, review klinis/legal serta Firebase/Fastify tetap OPEN untuk fitur nyata. Jangan membuat profil produksi dengan parameter belum disetujui atau target/berat palsu untuk mengatasi urutan migration.
+- Privilege app role atas tabel baru harus diuji; jangan menganggap default privileges provisioning sudah terbukti untuk DDL baru. Role aplikasi tidak mendapat DDL atau akses metadata `nutrasa_migrations`. Ownership pengguna tetap ditegakkan backend walaupun FK valid.
+
+### DEFAULT identity final (APPROVED)
+
+| Tabel | DEFAULT teknis | Tanpa DEFAULT / nullability |
+|---|---|---|
+| `app_users` | `id = gen_random_uuid()`; `created_at`, `updated_at = now()` pada INSERT | `firebase_uid`, `account_status` NN tanpa default; status diisi backend berotorisasi. `email_display`, `email_verified_cache` nullable, tanpa nilai pengganti untuk unknown. |
+| `user_profiles` | `profile_revision = 1` dengan CHECK > 0; `created_at`, `updated_at = now()` pada INSERT | `user_id`, `date_of_birth`, `height_cm`, `calculation_parameter`, `activity_level`, `goal_type`, `onboarding_completed_at` NN tanpa default. Target berat nullable kecuali cutting/bulking; body_type_visual nullable; keduanya tanpa default nilai. Tidak ada onboarding_status. |
+| `user_preferences` | `updated_at = now()` pada INSERT | `user_id`, `language_code`, `time_zone`, `preferred_weight_unit` NN tanpa default; unit hanya kg/lb. |
+| `privacy_acknowledgements` | `id = gen_random_uuid()`; `acknowledged_at = now()` | `user_id`, `notice_version`, `ack_type` NN tanpa default; seluruh kolom tabel NN. |
+
+`onboarding_completed_at` wajib diberikan backend sebagai waktu completion tepercaya. DEFAULT acknowledgement adalah waktu pencatatan server, bukan bukti waktu tepat pengguna berinteraksi di perangkat. DEFAULT `updated_at` hanya saat INSERT; backend nanti wajib memperbaruinya eksplisit saat UPDATE, tanpa asumsi trigger otomatis. Tidak ada fungsi/trigger atau index duplikat baru yang disetujui oleh matriks ini.
+
 ## Migration dependency order (planning only)
 
-1. Enable required database capabilities in local dev, seed controlled enums/check rules.
-2. Identity: `app_users`, profiles, preferences, privacy acknowledgements.
+1. Manual prerequisites: schema/role provisioning dan ledger bootstrap terpisah, bukan domain migration 0001; tidak ada dummy foundation migration.
+2. First domain file yang disetujui: `backend/migrations/0001_identity.sql` untuk app_users, profiles, preferences, privacy acknowledgements; belum dibuat/dijalankan pada M03-01A.
 3. Catalog base: sources, categories, foods, food_revisions (handle circular published pointer in a later ALTER), nutrients, servings, aliases, joins.
 4. Simple custom foods & revisions and food favorites are MVP; recent derives from logs and copying logs uses new IDs/snapshots. User recipes/revisions/ingredients post-MVP (O-18 final); separate saved-meal scope is unchanged.
 5. Food logs, journal states, weights, versioned nutrition goals.

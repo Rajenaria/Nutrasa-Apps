@@ -29,10 +29,10 @@
 | OB-004 | One overall activity-level question; do not double-count exercise | APPROVED |
 | OB-005 | Interactive visual onboarding, back navigation, progress shown | APPROVED principle |
 | OB-006 | Body-type illustrations optional after body measurements and cannot affect calculations | APPROVED |
-| OB-007 | Goal weight required for cutting and bulking; not mandatory for maintenance/general tracking | APPROVED |
+| OB-007 | Goal weight required for cutting and bulking; optional for maintenance/muscle_gain, but valid whenever supplied | APPROVED M03-01A |
 | OB-008 | Name/display name/username optional later in Profile | APPROVED |
-| OB-009 | Draft saved locally during onboarding; sync/send to server only after completion | APPROVED |
-| OB-010 | Consent information at registration with additional data-use notice before body measurements | APPROVED product timing; LEGAL REVIEW for valid consent mechanism |
+| OB-009 | Draft encrypted locally per authenticated account; no partial profile in PostgreSQL; complete profile and preferences created together after server validation | APPROVED M03-01A; storage/security tests OPEN |
+| OB-010 | One privacy approval action in registration/onboarding; additional explanatory body-data notices do not repeat approval of the same purpose | APPROVED UX M03-01A; legal basis/validity of combined approval OPEN |
 | OB-011 | Eligible nutrition target activates automatically once fully validated, no mandatory plan-confirmation screen | APPROVED; CLINICAL REVIEW of thresholds |
 | OB-012 | MVP only for eligible adults 18+; unsupported profiles cannot complete onboarding or enter LOG_ONLY | APPROVED D04; no numeric target for ineligible profiles |
 | OB-013 | MVP accepts eligible adults 18+ only; detailed special-condition screening remains subject to clinical/legal review | APPROVED scope; review gates remain OPEN |
@@ -72,6 +72,8 @@ Goal → Age/eligibility → Body metrics → Optional visual body type
 
 **Critical clarification:** Server must know account onboarding completion before a second device can enter Home. A draft exists **only locally** until completion. Therefore, an authenticated session without a completed server profile should return to onboarding, even if the device has no local draft. Do not mark complete remotely while offline and silently assume it synced.
 
+**APPROVED M03-01A persistence:** no `user_profiles.onboarding_status` column. Server derives `NOT_STARTED` when no completed profile exists and `COMPLETED` from a validated completed profile; `IN_PROGRESS` is local draft state. Create profile and preferences in one backend transaction only after complete validation. A completed profile alone is not proof of an active nutrition recommendation: initial weight, goal persistence and reviewed engine dependencies must also be satisfied. Their exact completion transaction boundary is **OPEN / BLOCKED for completion implementation**; do not bypass it with placeholder targets.
+
 ### 3.1 Route map (conceptual, Expo Router)
 
 - `(auth)/welcome`, `(auth)/sign-in`, `(auth)/register`, `(auth)/email-verification`.
@@ -86,9 +88,9 @@ Goal → Age/eligibility → Body metrics → Optional visual body type
 |---|---|---|---|---|
 | S00 | Splash & session gate | Brand splash, brief loading only while restoring state | Automatic | Login / Resume / Home |
 | S01 | Welcome/auth | Sign in, register, password recovery, provider errors | Authentication required | Account created / session loaded |
-| S02 | Notice of data use | Concise purposes, privacy policy link, additional notice before body metrics | Required acknowledgement/consent mechanism TBD LEGAL | Goal |
-| S03 | Primary goal | Cutting / maintenance / bulking / muscle gain / general tracking; define mapping to engine | Yes | Age |
-| S04 | Age | Date of birth or age; age policy, timezone and precision | Required for MVP eligibility | Under 18 → ineligible; no numeric target or LOG_ONLY |
+| S02 | Notice of data use | One privacy approval action; concise purposes, policy link and additional explanatory body-data notice | UX APPROVED; legal validity and transport OPEN | Goal |
+| S03 | Primary goal | maintenance / cutting / bulking / muscle_gain | Yes; structural codes approved, clinical preset mapping OPEN | Age |
+| S04 | Age | Full date of birth; persisted as DATE with privacy protections; server calculates age | Required for MVP eligibility | Under 18 → ineligible; no numeric target or LOG_ONLY |
 | S05 | Body measurements | Current weight kg, height cm, and required formula parameter with transparent explanation | Required only for automatic plan | Body type |
 | S06 | Visual body type | Illustrated options and “Lewati”; no engine effect | Optional | Activity |
 | S07 | Overall activity | One overall activity level, plain descriptions with work/exercise examples | Required for automatic plan | Goal weight |
@@ -109,23 +111,23 @@ Goal → Age/eligibility → Body metrics → Optional visual body type
 |---|---|---|---|
 | `user_id` | opaque account ID | Scope local draft | Required after authentication |
 | `flow_version` | string | Resume/migrate draft | Required |
-| `primary_goal` | enum | Preset selection | Required |
-| `date_of_birth` or `age` | validated date/int | Adult eligibility and calculation | Required for auto |
-| `height_cm` | decimal | RMR estimate | Auto only |
-| `weight_kg` | decimal | RMR + goal tracking | Auto only |
-| `formula_parameter` | explicit enum / supported alternative | RMR suitability | Auto only; not inferred from gender identity |
-| `visual_body_type` | nullable enum | Cosmetic preference | Optional |
-| `activity_level` | enum | One factor class | Auto only |
+| `goal_type` | maintenance/cutting/bulking/muscle_gain | Preset selection | Required; clinical mapping OPEN |
+| `date_of_birth` | full date, PostgreSQL DATE | Adult eligibility and calculation | Required; backend validates age 18+ |
+| `height_cm` | decimal string, numeric(8,2) | RMR estimate | Required; positive finite, at most 2 fractional digits |
+| `weight_kg` | decimal string, numeric(10,3) | RMR + weight-measurement domain | Required; positive finite, at most 3 fractional digits; not a profile column |
+| `calculation_parameter` | nonempty structured code | RMR suitability | Required; clinical code set/compatibility OPEN, reject unapproved values |
+| `body_type_visual` | nullable visual code | Cosmetic preference | Optional; no engine effect |
+| `activity_level` | very_low/light/moderate/high/very_high | One factor class | Required; structural codes only, factors OPEN |
 | `target_weight_kg` | nullable decimal | Cutting/bulking goal | Conditionally required |
 | `eligibility_answers` | minimal flags | Unsupported routing | Minimize collection; LEGAL review |
-| `notice_version` / `consent_record` | version, timestamp, evidence | Compliance audit | LEGAL REVIEW |
+| `notice_version` / `consent_record` | conceptual evidence, not a finalized request shape | Versioned acknowledgement with trusted server timestamp | Transport/vocabulary/legal review OPEN; identical retry preserves first record |
 | `draft_updated_at` | timestamp | Resume ordering | Local required |
 | `calculation_version` | string | Calculation reproducibility | Upon auto plan |
 | `plan_status` | enum | READY / NEEDS_REVIEW / etc | Upon calculation |
 | `onboarding_mode` | `AUTO_PLAN` only in MVP | Home configuration | Eligible completion |
 | `onboarding_completed_at` | timestamp | Authoritative completion | On server ack |
 
-Avoid embedding credentials, access tokens, or comprehensive medical information in a draft. Birth date vs age-only and retention must be minimized in legal review. Each numeric entry retains typed value in the input component but normalizes to canonical units prior to evaluation.
+Avoid embedding credentials, access tokens, or comprehensive medical information in a draft. Full DOB storage is APPROVED; privacy protections, lawful basis and retention still require review. Each numeric entry normalizes to canonical units without silent rounding of authoritative input. The field list includes local/conceptual fields: it is not permission to add fields to the OpenAPI request. Preferences, eligibility and acknowledgement transport at completion remain OPEN. Persisted preferences require language, validated IANA timezone and kg/lb; never infer Asia/Jakarta from country or confuse initial display settings with saved preferences.
 
 ## 6. State machines (do not merge into one boolean)
 
@@ -141,6 +143,8 @@ Do not infer verified email from local cache; source is the trusted auth provide
 
 `UNSUPPORTED` explains ineligibility without an MVP completion path or numeric target. `COMPLETION_PENDING_SYNC` is **not** completed. Persist draft after meaningful changes and on app lifecycle transitions as feasible, without assuming lifecycle hooks always fire.
 
+These are UI orchestration states, not database columns. Server-derived completion and independent nutrition-result state follow §3; a local `IN_PROGRESS` must not become a server fact.
+
 ### 6.3 Nutrition result states
 
 `READY`, `NEEDS_INPUT`, `NEEDS_REVIEW`, `UNSUPPORTED`, `INVALID_INPUT`, `MACRO_ALLOCATION_CONFLICT`.
@@ -152,10 +156,11 @@ Only `READY` (from a clinically approved engine configuration) can activate an a
 ### 7.1 Technical validation (implementation-ready principles)
 
 - Numeric fields parse Indonesian-style decimal input if supported, with clear standardized decimal handling. Empty, NaN, Infinity, zero/negative for anthropometrics are invalid.
+- Reject excess precision before PostgreSQL coerces/rounds the value: height 2 fractional digits, weight/target weight 3. API values use precise decimal strings; server also rejects overflow. Age/eligibility uses server evaluation, not a CURRENT_DATE-based database CHECK.
 - Show inline, accessible error message; preserve prior valid values on back/forward.
 - A malformed DOB, future date, impossible age, and broken goal-direction relations block auto calculation.
 - Do not infer an RMR constant from cosmetic body type or gender identity; explain what parameter is needed.
-- Goal weight for cut/bulk cannot be skipped; for maintenance or general tracking it can be omitted.
+- Goal weight for cutting/bulking cannot be skipped; for maintenance/muscle_gain it may be omitted, but any supplied value must be valid.
 - For strongly implausible anthropometric values, ask re-entry or flag `NEEDS_REVIEW`; do not label clinically unsafe solely from a guessed threshold.
 - Formula results must be finite, positive, consistent, reproducible and versioned; no arbitrary fallback target.
 - User can edit earlier answer; invalidate stale calculated result and recompute before completion.
@@ -169,10 +174,11 @@ Only `READY` (from a clinically approved engine configuration) can activate an a
 
 ### 7.3 Legal gate (LEGAL REVIEW / BLOCKED UNTIL COMPLIANT)
 
-- Registration includes appropriate privacy disclosure and lawful processing basis; the owner elected registration-time consent/notice with specific additional notice before body measurements. **UI timing is not proof of legally valid consent**.
+- One user-facing privacy approval action in registration/onboarding is the approved UX. Additional explanatory notices may appear without repetitive approval of the same purpose. **One action is not proof of legally valid combined consent or unrestricted permission**; processing basis and body-data scope require legal review.
 - Determine whether express, specific, separate consent is necessary for health-related body data; record version, timestamp, withdrawal process and retention policy, subject to Indonesian PDP law review.
 - MVP does not admit under-18 profiles. Age screening, notices, data minimization and legal handling remain OPEN; any future child access/guardian consent is outside current MVP and requires separate legal/product review.
 - Define deletion/export/access rights, security incidents, hosting/data transfer and privacy policy before release.
+- Store versioned acknowledgement by user/notice/type with trusted server recording time (DEFAULT now()) and UNIQUE(user_id, notice_version, ack_type); identical retries preserve the original evidence. This is not proof of precise device interaction time. `ONBOARDING_PRIVACY` is only PROPOSED. Intended final account deletion removes this evidence unless legal review establishes justified retention. Withdrawal/backups/legal retention remain OPEN; structural deletion FKs are approved in the [identity contract](../02-architecture/postgres-physical-schema-v1.5.md#kontrak-identity-m03-01a). PENDING_DELETION is logical; physical account deletion must explicitly resolve acknowledgements under RESTRICT. Retaining evidence after account removal requires prior architecture/legal review; CASCADE alone is not a deletion workflow.
 
 ## 8. Optional email verification and sensitive actions (D01)
 
@@ -191,14 +197,14 @@ Only `READY` (from a clinically approved engine configuration) can activate an a
 
 ## 9. Local draft & completion protocol
 
-1. After auth, obtain stable `user_id`; create namespace `onboarding:<user_id>:<flow_version>` in protected on-device storage suitable for sensitive data. Avoid plain, unprotected caches for body metrics. Exact secure storage design requires TECH REVIEW.
+1. After auth, obtain stable `user_id`; create namespace `onboarding:<user_id>:<flow_version>` in encrypted account-scoped on-device storage suitable for sensitive data. Avoid plain, unprotected caches for body metrics. Exact secure storage design and tests remain TECH REVIEW.
 2. Store draft locally on step completion/change; persist only minimum information; no draft synced during onboarding.
 3. On relaunch, resolve authenticated identity first, then access **only** that user's draft. If account differs, do not show the previous draft.
 4. Before completion, rerun validation + eligibility + engine using latest inputs; do not trust previously cached READY output.
 5. Show a provisional automatic candidate only when status `READY`; activate only after server validation/acknowledgement. Ineligible profiles receive no numeric target or completed onboarding.
-6. Send a single idempotent completion operation with stable `completion_request_id`, flow schema version, accepted notice/consent metadata, profile, and reviewed target data.
+6. Completion must be idempotent. OpenAPI currently uses `Idempotency-Key`; the older conceptual `completion_request_id` and flow/notice/consent payload are not a finalized transport. Preference/acknowledgement/eligibility fields and server-owned target handling remain **OPEN**; do not invent request fields or send client targets as authority.
 7. Backend validates session, consent/legal predicates, eligibility and numerical rules, and recomputes or verifies the authoritative engine result. Email verification is not a completion prerequisite; client calculation is not security authority.
-8. Server confirms eligible automatic-plan completion, target version, and account/profile revision. Only then route to Home.
+8. Create completed profile and preferences together in one transaction after validation; no partial profile row. The API contract also plans atomic initial weight and active AUTO goal, whose tables arrive later: exact persistence dependencies are **OPEN/BLOCKED**. Do not equate profile existence with active recommendation or route to an allegedly ready target before dependencies succeed.
 9. On timeout, retry with same request ID; fetch remote status to avoid duplicate profile/plan creation.
 10. Once acknowledged, delete local sensitive draft (or retain only minimal state by approved retention policy). Any remaining local caches must be user scoped.
 
@@ -221,7 +227,7 @@ Only `READY` (from a clinically approved engine configuration) can activate an a
 | State | Example copy (Indonesia) | Action |
 |---|---|---|
 | Draft resumed | `Lanjutkan pengaturan dari langkah terakhir.` | Lanjut / Ubah |
-| Unsupported | `Kami belum dapat menghitung rekomendasi otomatis untuk profil ini. Kamu tetap bisa mencatat makanan.` | Gunakan mode catatan |
+| Unsupported | `Profil ini belum didukung untuk onboarding NUTRASA. Periksa kembali jawabanmu atau lihat informasi cakupan MVP.` | Tinjau jawaban / Informasi; tidak ada mode catatan |
 | Invalid weight | `Masukkan berat badan dalam kilogram dengan angka lebih dari nol.` | Perbaiki input |
 | Missing goal weight | `Isi target berat untuk tujuan ini.` | Isi target |
 | Eligibility unknown | `Kami belum bisa memastikan kelayakan profil ini untuk MVP.` | Tinjau / Ubah jawaban |
@@ -300,12 +306,12 @@ Visual guidance: progress bar measured by applicable steps, avoid flickering ste
 | ID | Decision still pending | Responsible | Priority |
 |---|---|---|---|
 | OD-01 | D01 RESOLVED: email optional, including Home/final save/sync; Firebase sensitive-action implementation still OPEN | Product/Auth | SDK/security verification |
-| OD-02 | Minimum supported age, treatment of minors' accounts | Legal/Product | HIGH |
+| OD-02 | RESOLVED age minimum 18+; treatment/minimization for minors' accounts remains OPEN | Legal/Product | HIGH |
 | OD-03 | Clinical exclusions and intake guardrails / approved engine version | Nutrition professional | BLOCKING |
-| OD-04 | Specific notice/consent language and recordkeeping | Legal | BLOCKING |
-| OD-05 | DOB vs age-only, storage retention | Privacy/Product | HIGH |
-| OD-06 | Choice/mapping of goal types to clinically reviewed engine presets | Product/Clinical | HIGH |
-| OD-07 | Exact activity-level descriptions and validated factors | Clinical/Product | HIGH |
+| OD-04 | One approval action UX APPROVED; legal validity, vocabulary/transport, withdrawal and retention OPEN | Legal/Engineering | BLOCKING |
+| OD-05 | RESOLVED full DOB DATE; privacy protections and storage/backup retention OPEN | Privacy/Product | HIGH |
+| OD-06 | RESOLVED four goal_type codes (§5); mapping to clinically reviewed presets OPEN | Product/Clinical | HIGH |
+| OD-07 | RESOLVED five activity_level codes (§5); descriptions and validated factors OPEN | Clinical/Product | HIGH |
 | OD-08 | Formula input for physiology outside binary coefficients | Clinical/Product | HIGH |
 | OD-09 | Auth backend/provider and Apple sign-in configuration | Engineering | HIGH |
 | OD-10 | Encrypted local draft storage design and threat model | Engineering/Security | HIGH |

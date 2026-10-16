@@ -4,7 +4,7 @@
 
 ## 1. Prinsip eksekusi nanti
 
-- Gunakan satu mekanisme migration berurutan dengan tabel riwayat versi (dipilih saat implementasi backend). **Jangan menjalankan schema sync otomatis** yang bisa menghapus kolom produksi.
+- Gunakan engine yang sudah tersedia: `node-pg-migrate` 9.0.0 dengan histori `nutrasa_migrations.pgmigrations`, ledger SHA-256 immutable dan advisory lock melalui wrapper proyek. **Jangan menjalankan schema sync otomatis** yang bisa menghapus kolom produksi.
 - Setiap migration memiliki nomor urut, nama jelas, checksum, petunjuk rollback/roll-forward, dan tes terhadap database kosong serta database berisi data.
 - Mulai dengan seed **dummy nonlisensi** untuk pengujian. Jangan mengimpor 100 makanan sebelum sumber dan hak penggunaan dinyatakan boleh.
 - Jangan masukkan rahasia Firebase Admin ke SQL/commit. Database URL dan kredensial hanya melalui environment server lokal yang diabaikan Git.
@@ -13,10 +13,13 @@
 
 ## 2. Urutan migration yang direncanakan
 
+**APPROVED M03-01A:** domain pertama `backend/migrations/0001_identity.sql`, belum dibuat atau dijalankan. Runner menerima `NNNN_nama.sql` dengan empat digit 0001–9999, UTF-8 tanpa BOM dan LF, marker up/down resmi library. Bootstrap ledger manual dan provisioning schema/role terpisah dari nomor domain; tidak ada dummy foundation atau extension UUID hanya untuk mengisi 0001. Lihat [konvensi runner](../../backend/README.md#fondasi-migration-m03-02d-step-b).
+
+ID 003–013 di bawah adalah label kelompok rencana historis, **bukan nomor filename final**; tidak mengubah task board M03-01/M03-02/M03-03. Nomor file sesudah 0001 ditetapkan saat scope migration disetujui.
+
 | ID | Kelompok | Tabel/objek | Kriteria penerimaan |
 |---|---|---|---|
-| 001 | Foundation | Extensions UUID sesuai kebutuhan, enum/check domains, migration metadata | Tidak bergantung ekstensi yang tidak tersedia tanpa fallback |
-| 002 | Identity | `app_users`, `user_profiles`, `user_preferences`, `privacy_acknowledgements` | Firebase UID unik; eligibility; ownership FK |
+| 0001_identity.sql | Identity (menggantikan rencana lama 001 Foundation / 002 Identity) | `app_users`, `user_profiles`, `user_preferences`, `privacy_acknowledgements` | Kontrak struktural M03-01A final; PK/FK/UQ/NN/CHECK/default dan privilege diuji pada database disposable; fitur onboarding/clinical/legal tetap mempunyai gate terpisah |
 | 003 | Catalog provenance | `food_sources`, `categories`, `foods`, `food_aliases`, `food_categories` | Status izin eksplisit; alias unik; parent category valid |
 | 004 | Catalog composition | `food_revisions`, `food_revision_nutrients`, `serving_definitions`, `catalog_reviews`, `catalog_import_batches` | Revisi published immutable; empat nutrisi wajib & nonnegatif; nilai lain NULL |
 | 005 | Private food | `custom_foods`, `custom_food_revisions` | Revisi immutable; ownership dan soft-delete |
@@ -48,7 +51,7 @@
 
 ## 4. Rencana pengujian migration
 
-- **Fresh install:** semua migration diterapkan dari database kosong tanpa intervensi.
+- **Fresh install:** domain migration dimulai pada database terisolasi tanpa tabel domain setelah provisioning schema/role dan bootstrap ledger yang disetujui. Runner tidak membuat schema atau melakukan baseline histori lama otomatis. Bootstrap yang sudah berhasil tidak diulang.
 - **Re-run:** migration runner tidak mengulang script yang sudah sukses; checksum menolak perubahan migration historis.
 - **Upgrade:** dari versi sebelumnya dengan fixtures dummy, semua tabel dan foreign key tetap valid.
 - **Rollback/roll-forward:** sediakan backup `pg_dump` sebelum migrasi berisiko. Pada perubahan destruktif, gunakan expand-migrate-contract, hindari DROP mendadak.
@@ -56,15 +59,27 @@
 - **Security tests:** SQL injection dihalangi prepared parameter, pemisahan akun, non-disclosure ID, dan batas akses database role.
 - **Failure injection:** transaksi putus tengah sync, retry deletion Firebase gagal, perubahan berat bersamaan, kehilangan koneksi mobile.
 
+### Identity M03-01A → M03-01B
+
+- **PROPOSED urutan DDL:** UP app_users → user_profiles → user_preferences → privacy_acknowledgements; DOWN urutan terbalik, tanpa DROP CASCADE luas atau menghapus schema/ledger/history engine; baseline checksum tetap setelah DOWN. **APPROVED lifecycle:** profil lengkap dan preferensi dibuat dalam satu transaksi backend saat onboarding valid; migration DDL tidak membuat draft/profil dummy. Runtime grants mengikuti keputusan privilege yang direview.
+- Wrapper memegang advisory lock, check order dan batch transaction; file domain tidak membungkus transaksi sendiri atau menyentuh metadata. Ikuti batas parser pada README (termasuk larangan BEGIN/END); jangan menambahkan trigger/prosedur atau engine kedua. Rollback DDL saat runtime berbeda dari workflow penghapusan akun.
+- **READY penulisan/pengujian DDL identity:** [FK dan DEFAULT final](postgres-physical-schema-v1.5.md#kontrak-identity-m03-01a) telah disetujui. Profiles → app_users CASCADE, preferences → profiles CASCADE tanpa FK langsung tambahan ke akun, acknowledgement → app_users RESTRICT. Default status akun tidak ada; backend wajib mengisinya. Completion timestamp tidak mempunyai default; acknowledgement memakai now() sebagai waktu rekam server. FK preferensi tidak menjamin keberadaan preferensi untuk setiap profil; transaksi pembuatan keduanya tetap tanggung jawab backend.
+- Domain identity boleh dibentuk sebelum weight_measurements, nutrition_goal_versions dan implementasi backend onboarding tersedia. Initial weight/AUTO goal dan batas transaksi completion tetap **OPEN untuk implementasi fitur**, bukan blocker struktur identity. Jangan membuat profil produksi dengan parameter klinis belum disetujui, fake weight/target AUTO, atau kolom identity tambahan; keberadaan profil tidak berarti target aktif. Bootstrap ledger bukan domain migration 0001.
+- PENDING_DELETION bukan DELETE fisik. RESTRICT mewajibkan acknowledgement diselesaikan eksplisit sebelum app_users dihapus; CASCADE/RESTRICT bukan workflow deletion lengkap. Jika legal mewajibkan bukti tetap ada setelah akun dihapus, arsitektur retensi harus direview sebelum implementasi, tanpa retensi personal diam-diam.
+- **OPEN API/security:** request preference/acknowledgement/eligibility, bahasa vs locale dan update field profil; Firebase token verification pada Fastify; app-role grants/default privileges untuk tabel baru. Parameter klinis, faktor aktivitas, safety thresholds, legal basis, withdrawal/retensi/backups tetap OPEN; tidak ada izin data nyata/rekomendasi produksi.
+- Test berikutnya memakai target sementara `nutrasa_it_<32hex>` dan harness existing setelah persetujuan provisioning/pengujian terpisah: UP struktur/default/constraint, kasus invalid/NaN/precision, FK dan akses role, failure rollback, DOWN/UP identik dan immutable checksum. Jangan memakai suite destructive pada nutrasa_dev/nutrasa_test. Belum ada test identity yang dijalankan pada task dokumentasi ini.
+
 ## 5. Strategi database lokal → cloud
 
 Pengembangan awal menjalankan PostgreSQL pada komputer developer dan Fastify lokal. Ketika beta eksternal siap, gunakan managed PostgreSQL dan tempat deployment Fastify yang sesuai; pindahkan via backup/restore/migration yang teruji. **Jangan mengandalkan akses ponsel ke localhost komputer tanpa konfigurasi alamat LAN/emulator.** Simpan semua konfigurasi koneksi di server, tidak pada aplikasi mobile.
 
 ## 6. Hal yang masih diblokir sebelum menulis migration eksekusi
 
+Untuk `0001_identity.sql`, keputusan struktural identity/FK/default sudah final dan siap untuk penulisan/pengujian terisolasi pada M03-01B. Daftar lintas-domain di bawah tetap gate bagi migration/fitur terkait, bukan kewajiban menyelesaikan seluruh domain sebelum menulis identity. Belum ada SQL identity yang dibuat atau dijalankan pada task dokumentasi ini.
+
 - Definisi schema fisik field per tabel dan constraints yang belum disebut rinci di v1.2.
 - Strategi typed foreign key referensi katalog/custom/resep.
-- Pemilihan migration runner dan connection role untuk production.
+- Runner lokal sudah dipilih; deployment/connection role produksi tetap OPEN dan tidak ditetapkan oleh task identity.
 - Kebijakan retensi tombstone/change_feed, expiry cursor serta strategi full resync saat purge.
 - Struktur job penghapusan akun yang durable tanpa layanan berbayar.
 - Review periode target, unit fisik, cakupan nilai, timezone DST, dan batas numerik.

@@ -6,7 +6,16 @@ info:
     Offline conflict rule: server-ordered LWW, NOT actual physical action time.
 
     Contract review draft, NOT approved for client generation or production. Domain, security and request bodies
-    require full semantic lint and integration review.'
+    require full semantic lint and integration review.
+
+    M03-01A identity structure is owner-approved, not implemented. Completion transport for preferences,
+    eligibility and versioned privacy acknowledgement is OPEN; no fields or endpoints are inferred here.
+    Clinical calculation-parameter values, factors and safety thresholds, combined-approval legal validity,
+    retention/withdrawal/backups and initial weight/goal persistence dependencies remain OPEN for features.
+    Structural identity FKs/defaults are finalized in postgres-physical-schema-v1.5.md; this permits writing/testing
+    migration 0001_identity.sql before completion features exist, without claiming operational onboarding.
+    Identity profile/preferences are created atomically only after complete server validation; no partial
+    profiles or database onboarding_status column. Profile existence alone does not establish an active target.'
 servers:
 - url: http://localhost:3000
   description: Trusted local development only
@@ -215,13 +224,11 @@ paths:
                     type: object
                     additionalProperties: false
                     properties:
-                      status: &id009
-                        type: string
-                        description: Opaque stable per-user commit-ordered cursor.
+                      status:
+                        $ref: '#/components/schemas/OnboardingStatus'
                       draft:
-                        oneOf:
-                        - $ref: '#/components/schemas/OnboardingInput'
-                        - type: 'null'
+                        type: 'null'
+                        description: Reserved existing response field; no server-side partial draft. Encrypted drafts belong only to the authenticated account on the device.
                   meta:
                     $ref: '#/components/schemas/Meta'
                 required:
@@ -482,7 +489,9 @@ paths:
       - name: q
         in: query
         required: false
-        schema: *id009
+        schema: &id009
+          type: string
+          description: Opaque stable per-user commit-ordered cursor.
       - name: category_id
         in: query
         required: false
@@ -2484,6 +2493,7 @@ components:
           $ref: '#/components/schemas/AccountStatus'
         email_verified:
           type: boolean
+          description: Authoritative Firebase verification state obtained through trusted backend verification; nullable email_verified_cache in PostgreSQL is not false by default. Verification is optional for onboarding/main features/sync. Firebase–Fastify integration is still OPEN.
         onboarding_status:
           $ref: '#/components/schemas/OnboardingStatus'
       required:
@@ -2494,20 +2504,30 @@ components:
     OnboardingInput:
       type: object
       additionalProperties: false
+      description: Complete onboarding input, never a server draft. Backend validates adult eligibility and approved calculation parameters before creating profile/preferences atomically. Acknowledgement, preferences and eligibility transport plus initial weight/AUTO goal persistence remain OPEN; this schema alone does not finalize completion.
       properties:
-        date_of_birth: *id011
-        height_cm: *id012
-        weight_kg: *id012
-        calculation_parameter: *id009
-        activity_level: *id009
-        goal_type: *id009
+        date_of_birth:
+          type: string
+          format: date
+          description: Full birth date persisted as PostgreSQL DATE with privacy controls; backend evaluates age 18+ and eligibility, not a CURRENT_DATE-based CHECK.
+        height_cm:
+          $ref: '#/components/schemas/IdentityHeightCm'
+        weight_kg:
+          $ref: '#/components/schemas/IdentityWeightKg'
+        calculation_parameter:
+          $ref: '#/components/schemas/CalculationParameter'
+        activity_level:
+          $ref: '#/components/schemas/ActivityLevel'
+        goal_type:
+          $ref: '#/components/schemas/GoalType'
         target_weight_kg:
           oneOf:
-          - *id012
+          - $ref: '#/components/schemas/IdentityWeightKg'
           - type: 'null'
         body_type_visual:
+          description: Optional cosmetic choice; never a nutrition-engine input.
           oneOf:
-          - *id009
+          - type: string
           - type: 'null'
       required:
       - date_of_birth
@@ -2516,27 +2536,52 @@ components:
       - calculation_parameter
       - activity_level
       - goal_type
+      allOf:
+      - if:
+          properties:
+            goal_type:
+              enum:
+              - cutting
+              - bulking
+          required:
+          - goal_type
+        then:
+          required:
+          - target_weight_kg
+          properties:
+            target_weight_kg:
+              $ref: '#/components/schemas/IdentityWeightKg'
     ProfilePatch:
       type: object
       additionalProperties: false
+      description: Validate the merged persisted profile, including required target weight for cutting/bulking. Transport for DOB/calculation_parameter edits is OPEN; do not infer missing request fields. Existing profile does not prove an active AUTO target.
       properties:
-        height_cm: *id012
-        activity_level: *id009
-        goal_type: *id009
+        height_cm:
+          $ref: '#/components/schemas/IdentityHeightCm'
+        activity_level:
+          $ref: '#/components/schemas/ActivityLevel'
+        goal_type:
+          $ref: '#/components/schemas/GoalType'
         target_weight_kg:
           oneOf:
-          - *id012
+          - $ref: '#/components/schemas/IdentityWeightKg'
           - type: 'null'
         body_type_visual:
           oneOf:
-          - *id009
+          - type: string
           - type: 'null'
     PreferencesPatch:
       type: object
       additionalProperties: false
+      description: Persisted preferences are created with a completed profile, not from initial display defaults. Completion transport and language_code versus display-locale mapping remain OPEN.
       properties:
-        language_code: *id009
-        time_zone: *id009
+        language_code:
+          type: string
+          minLength: 1
+        time_zone:
+          type: string
+          minLength: 1
+          description: Backend-validated IANA timezone; never assume Asia/Jakarta from country. No default timezone is approved.
         preferred_weight_unit:
           type: string
           enum:
@@ -3129,11 +3174,44 @@ components:
       - DELETED
     OnboardingStatus:
       type: string
+      description: Derived server state, not a user_profiles column. No completed validated profile means NOT_STARTED; completed validated profile means COMPLETED. IN_PROGRESS is local draft state; ineligible input does not create a completed profile or target. Completion is not proof of an active nutrition recommendation.
       enum:
       - NOT_STARTED
-      - IN_PROGRESS
       - COMPLETED
-      - INELIGIBLE
+    GoalType:
+      type: string
+      description: Approved structural vocabulary only; clinical preset policies remain OPEN. Target weight is required for cutting/bulking and must be valid whenever supplied.
+      enum:
+      - maintenance
+      - cutting
+      - bulking
+      - muscle_gain
+    ActivityLevel:
+      type: string
+      description: Approved structural codes for one overall activity level; factors and clinical descriptions remain OPEN.
+      enum:
+      - very_low
+      - light
+      - moderate
+      - high
+      - very_high
+    CalculationParameter:
+      type: string
+      minLength: 1
+      pattern: '\S'
+      description: Nonempty structured code, not inferred from body-type or gender identity. Clinical value set, syntax details and compatibility are OPEN. Backend must reject unapproved values; no enum or fallback is fabricated here.
+    IdentityHeightCm:
+      type: string
+      pattern: '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
+      not:
+        pattern: '^0(\.0+)?$'
+      description: Positive finite decimal-string cm for numeric(8,2). Backend rejects overflow and excess precision before PostgreSQL coercion; no silent rounding or NaN/infinity.
+    IdentityWeightKg:
+      type: string
+      pattern: '^(0|[1-9][0-9]*)(\.[0-9]{1,3})?$'
+      not:
+        pattern: '^0(\.0+)?$'
+      description: Positive finite decimal-string kg for numeric(10,3), including target weight. Backend rejects overflow and excess precision before PostgreSQL coercion; no silent rounding or NaN/infinity. Current weight belongs to weight measurements, not a profile column.
     SyncOperationStatus:
       type: string
       enum:

@@ -19,10 +19,10 @@ Menyediakan identitas akun dan akses aman untuk data personal NUTRASA (profil tu
 - Verifikasi email opsional; akun terautentikasi dapat onboarding, mengakses fitur utama dan sinkronisasi tanpa syarat email verified. Reautentikasi Firebase tetap berlaku pada tindakan sensitif.
 - Nama tampilan/username **opsional**, diatur kemudian melalui Profil; username tidak menjadi metode login MVP.
 - Draft onboarding disimpan lokal dan dikirim setelah selesai; server memvalidasi token, ownership dan eligibility, bukan mewajibkan email verification.
-- Pemberitahuan pemrosesan data saat pendaftaran dan pemberitahuan lebih spesifik sebelum pengisian data tubuh.
+- Satu tindakan persetujuan privasi pada registrasi/onboarding; notice penjelas data tubuh boleh ditampilkan tanpa approval berulang untuk tujuan yang sama. Validitas legal persetujuan gabungan tetap OPEN.
 - Target awal otomatis hanya untuk dewasa 18+ eligible dan hasil valid; tidak ada LOG_ONLY aktif atau target numerik untuk profil tidak eligible pada MVP.
 - Pengguna lama dengan sesi aktif dan onboarding lengkap masuk langsung ke Home.
-- Pengguna dengan profil tidak didukung kalkulator tetap boleh menggunakan mode pencatatan tanpa rekomendasi otomatis.
+- Profil tidak eligible tidak dapat menyelesaikan onboarding MVP, tanpa fallback mode pencatatan atau target AUTO semu (D04).
 - Mode offline-tolerant; perubahan lokal harus terlindungi dan tidak bocor saat akun berganti.
 
 ## 3. Batasan dan bukan cakupan MVP
@@ -33,7 +33,7 @@ Tidak mengembangkan sistem password atau OAuth dari nol, tidak menjadikan userna
 
 **Stack terpilih:** Firebase Authentication sebagai identity provider; Fastify lokal memverifikasi token dan mengelola API aplikasi, PostgreSQL lokal menyimpan data domain, dan Expo SQLite mendukung cache/outbox. Lihat [architecture-decisions.md](../02-architecture/architecture-decisions.md). Pilihan SDK Firebase JS/native, integrasi email/Google/Apple, sesi mobile, linking, reset, verification, deletion, platform/build dan biaya layanan sesuai batas plan masih memerlukan review. Pemilihan vendor tidak berarti SDK sudah dipasang atau alur login sudah berjalan.
 
-Backend menyimpan data pengguna dengan `user_id` internal stabil; simpan mapping `provider + provider_subject_id` bila perlu. Jangan jadikan alamat email sebagai primary key karena dapat berubah atau disembunyikan (Apple relay).
+Backend memetakan Firebase UID unik dan tidak kosong ke `app_users.id` UUID internal; Firebase mengelola identitas provider. Jangan menambah mapping provider/tabel identity spekulatif atau menjadikan email primary key. Ownership berasal dari token Firebase yang diverifikasi backend, bukan owner ID klien. Password, token dan service-account secret tidak disimpan dalam tabel domain. Integrasi verifikasi Firebase–Fastify masih OPEN, bukan fitur yang sudah berjalan.
 
 ## 5. Status akun, session, dan onboarding — dipisahkan
 
@@ -57,11 +57,11 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 
 ### 5.3 Onboarding state
 
-`NOT_STARTED`, `IN_PROGRESS`, `CALCULATING`, `NEEDS_REVIEW`, `INELIGIBLE`, `COMPLETED` — mengikuti kontrak onboarding/schema; tidak ada LOG_ONLY aktif MVP.
+Status server diturunkan: tanpa profil selesai `NOT_STARTED`, profil lengkap tervalidasi `COMPLETED`. `IN_PROGRESS` adalah draft lokal terenkripsi per akun; CALCULATING/NEEDS_REVIEW/INELIGIBLE adalah state UX/hasil validasi, bukan kolom `user_profiles.onboarding_status`. Tidak ada profil parsial PostgreSQL atau LOG_ONLY aktif. Profil dan preferensi dibuat atomik setelah validasi lengkap; profil selesai tidak otomatis membuktikan rekomendasi aktif. Lihat [kontrak identity](../02-architecture/database-schema.md#31-identitas-profil-persetujuan).
 
 ### 5.4 Akun operasional
 
-`ACTIVE`, `RESTRICTED`, `SUSPENDED`, `DELETION_PENDING`, `DELETED` (status final masih perlu review legal/backend).
+`ACTIVE`, `PENDING_DELETION`, `DELETED` adalah vocabulary akun kanonis. RESTRICTED/SUSPENDED/DELETION_PENDING pada draft lama tidak menjadi nilai persistence MVP. PENDING_DELETION memblokir mutasi dan sync yang tidak diizinkan; legal retention dan rincian workflow tetap OPEN.
 
 ## 6. Routing / akses
 
@@ -74,7 +74,7 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 | Email/password belum verified | Status/aksi opsional di Profil > Pengaturan > Data Diri | Onboarding, fitur utama dan sync tersedia; reauth tindakan sensitif |
 | Offline dan sesi sebelumnya dikenal | Data lokal milik user tersebut | Jangan klaim server session valid |
 | Sesi revoked | Login ulang | Hindari menampilkan data user lain |
-| Akun suspended/deleting | Status akun + support | Jangan lanjut sync normal |
+| Akun PENDING_DELETION/DELETED | Status akun + informasi penghapusan | Jangan lanjut mutasi/sync yang tidak diizinkan |
 
 **RESOLVED D01:** Usulan historis menahan profil final sampai email verified tidak berlaku. Onboarding, penyimpanan profil final, Home dan sync tetap tersedia bagi akun valid/eligible. Status, verifikasi dan kirim ulang ada di Profil > Pengaturan > Data Diri. Integrasi SDK/persistensi serta reautentikasi sensitif tetap perlu diuji.
 
@@ -138,6 +138,7 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 - Jelaskan dampak dan kebijakan retensi; cek sync queue, file lokal, data backend, data provider dan akun tertaut.
 - Backend mengoordinasikan penghapusan PostgreSQL/Firebase dan cleanup lokal melalui workflow idempotent/retry untuk kegagalan parsial, dengan audit minimal. Jangan menganggap transaksi lintas layanan atomik.
 - Kebijakan penghapusan, masa tenggang, ekspor, dan mekanisme pembatalan: **legal review required**.
+- Arah kebijakan M03-01A: acknowledgement privasi ikut dihapus saat final deletion kecuali review legal menetapkan kewajiban retensi yang sah. Withdrawal/backup-deletion/legal retention tetap OPEN; FK struktural sudah final pada [kontrak identity](../02-architecture/postgres-physical-schema-v1.5.md#kontrak-identity-m03-01a). PENDING_DELETION bukan DELETE fisik; RESTRICT mewajibkan workflow menyelesaikan acknowledgement sebelum app_users dihapus. Retensi bukti setelah penghapusan akun memerlukan review arsitektur dahulu, bukan penyimpanan personal tanpa dasar hukum. ON DELETE CASCADE bukan workflow lintas layanan.
 
 ## 8. Account linking dan duplicate identity — usulan
 
@@ -192,18 +193,18 @@ Jangan menyimpulkan semua identitas sosial memiliki alamat email yang selalu ter
 | Rate limited | Retry setelah cooldown tanpa mengungkap detail sensitif |
 | Session refresh failed | Reauthenticate, jangan hapus queue sembarangan |
 | Account conflict | Alur linking/recovery, tidak auto-merge |
-| Account deleted/suspended | Halaman status, hentikan data sync |
+| Account PENDING_DELETION/DELETED | Halaman status, hentikan mutasi/sync yang tidak diizinkan |
 | Server error | Pesan generik + retry; log aman tanpa PII/token |
 
 ## 12. Data contracts konseptual (belum skema SQL)
 
-**Auth identity**: `user_id`, `provider`, `provider_subject_id`, `email?`, `email_verified`, `linked_at`, `last_used_at`.
+**Auth identity**: Firebase UID terverifikasi → `app_users.id` UUID; provider linking dikelola Firebase, bukan persetujuan tabel/kolom identity baru.
 
-**User account**: `user_id`, `account_status`, `created_at`, `updated_at`, `deleted_at?`.
+**User account**: UUID internal, firebase_uid unik, email_display/email_verified_cache nullable, account_status kanonis, created_at/updated_at wajib. Cache NULL bukan false; `email_verified` API bersumber otoritas Firebase tepercaya. Jangan menambah deleted_at berdasarkan model konseptual lama.
 
 **Profile**: menggunakan user ID stabil untuk data tubuh; jangan menaruh data kesehatan dalam payload token kecuali perlu dan aman.
 
-**Onboarding**: `user_id`, `status`, `completed_at?`, `profile_version`, `nutrition_plan_id?`; completion hanya profil eligible, bukan LOG_ONLY.
+**Onboarding**: status API derived, bukan status fisik profil; full DOB DATE dan profil lengkap mengikuti schema identity. Initial weight berasal dari domain pengukuran; goal/engine dan completion persistence masih mempunyai dependensi OPEN. Tidak ada LOG_ONLY.
 
 **Client session**: token hanya lewat SDK/provider secure store; status bootstrap lokal, bukan penyimpanan manual password.
 
@@ -292,7 +293,7 @@ Folder contoh, **jangan membuat semuanya kosong** saat implementasi. Route group
 | ADR-A06 | Username unik atau hanya display name | Display name opsional, unik nanti | Product |
 | ADR-A07 | Alur delete, ekspor, dan retensi | Ditinjau berdasarkan kewajiban yang berlaku | Legal |
 | ADR-A08 | Verifikasi email saat transfer draft | RESOLVED D01: finalisasi server tidak mensyaratkan email verified; token/eligibility tetap divalidasi | Auth tests OPEN |
-| ADR-A09 | Login ulang setelah akun dihapus/suspended | Block token dan queue sesuai kebijakan | Technical |
+| ADR-A09 | Login ulang setelah akun PENDING_DELETION/DELETED | Block token dan queue sesuai kebijakan | Technical |
 | ADR-A10 | Penanganan email yang tidak tersedia dari Apple | Gunakan provider subject ID | Technical |
 | ADR-A11 | Tautan/deep link, domain, redirect | Whitelist dan verifikasi sesuai SDK provider | Technical |
 | ADR-A12 | Akun yang berganti identitas/login method | Linking eksplisit setelah reauth | Security |

@@ -13,7 +13,8 @@
     "lint": "eslint --config ../eslint.config.js src tests --max-warnings=0",
     "test": "node --test tests/*.test.ts",
     "migrate": "node src/migrations/cli.ts",
-    "test:integration": "node --test --test-concurrency=1 tests/integration/migrations.integration.ts"
+    "test:integration": "node --test --test-concurrency=1 tests/integration/migrations.integration.ts",
+    "test:integration:identity": "node --test --test-concurrency=1 tests/integration/identity.integration.ts"
   },
   "dependencies": {
     "fastify": "5.12.5",

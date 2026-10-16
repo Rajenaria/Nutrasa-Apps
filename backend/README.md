@@ -42,7 +42,9 @@ atau konfigurasi deployment. PostgreSQL readiness ditunda sampai integrasi nyata
 Engine tetap `node-pg-migrate` 9.0.0. Command migration domain adalah
 `npm run migrate -- up` dan `npm run migrate -- down [jumlah]` dari `backend/`,
 hanya untuk `nutrasa_dev` atau `nutrasa_test` dengan role migrator masing-masing.
-Belum ada migration domain. Eksekusinya memerlukan persetujuan terpisah dan
+Migration domain pertama `migrations/0001_identity.sql` sudah ditulis pada
+M03-01B.1, tetapi belum dijalankan atau divalidasi melalui PostgreSQL.
+Eksekusinya memerlukan persetujuan terpisah dan
 bootstrap ledger pada database target; jangan menjalankannya pada review dokumentasi,
 termasuk dry-run. Pengujian integration destructive memakai database sementara
 `nutrasa_it_<32hex>` tersendiri, bukan kedua database domain tersebut.
@@ -58,8 +60,8 @@ nomor urut empat digit `0001`–`9999`, unik; nama diawali huruf kecil ASCII,
 kemudian hanya huruf kecil ASCII, angka, atau underscore. Maksimum nama tanpa
 `.sql` adalah 251 karakter (filename maksimum 255 karakter pada Windows/Linux).
 Contoh: `0001_identity.sql`. Hyphen, timestamp, format UTC, versi nol, dan bentuk
-lain yang didukung library sengaja ditolak. Belum ada domain migration, sehingga
-tidak ada file lama yang perlu diganti nama. Parser, filter loader, dan constraint
+lain yang didukung library sengaja ditolak. Domain pertama memakai `0001_identity.sql`;
+migration yang sudah diterapkan tidak boleh diedit atau diganti nama. Parser, filter loader, dan constraint
 SQL menggunakan batas yang sama. File harus UTF-8 tanpa BOM, LF, dan newline akhir.
 Regex CHECK menggunakan collation `C` agar rentang ASCII tidak mengikuti locale database.
 Gunakan tepat satu marker
@@ -119,6 +121,13 @@ script `npm run test:integration` terpisah dan melakukan DDL, rollback,
 serta injeksi korupsi metadata hanya pada target sementara yang terisolasi.
 Jangan menargetkan `nutrasa_dev` atau `nutrasa_test` untuk suite destructive ini.
 Fixture tidak masuk folder domain; harness tidak membuat/menghapus database atau role.
+
+Suite identity M03-01B.1 terpisah melalui `npm run test:integration:identity` dan
+memakai setup harness serta guard yang sama dengan suite engine. Ia menyalin byte
+SQL domain ke workspace sementara, bukan membuat salinan DDL fixture yang berbeda.
+Setiap suite memerlukan database integration baru karena baseline checksum immutable;
+jangan menjalankan suite engine dan identity pada target yang sama. Suite identity
+belum dijalankan; pengujian nyata memerlukan persetujuan M03-01B.2.
 
 Bukti yang dikonfirmasi pemilik proyek pada finalisasi M03-02D:
 

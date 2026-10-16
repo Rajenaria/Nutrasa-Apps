@@ -18,6 +18,7 @@
 
 - ID domain: UUID. UTC timestamps: PostgreSQL `timestamptz`, dikirim sebagai RFC3339. Tanggal jurnal: `date` literal `YYYY-MM-DD` + `journal_time_zone` IANA, jangan dipaksa dari UTC perangkat.
 - Nutrisi otoritatif memakai `numeric(14,5)` bila cocok dengan data sumber; nilai negatif ditolak, kecuali aturan domain secara eksplisit mengizinkan nilai khusus. Berat `numeric(10,3)` kg; kuantitas `numeric(14,5)` dalam g/ml. Jumlah pada JSON API dikirim sebagai **string desimal** untuk menjaga presisi; adapter UI boleh memformat angka.
+- Identity M03-01A APPROVED: tinggi `numeric(8,2)` cm dan berat `numeric(10,3)` kg. Backend menolak presisi input berlebih sebelum coercion PostgreSQL, overflow, nilai non-finite (`NaN`/infinity), serta antropometri nonpositif; jangan membulatkan input otoritatif diam-diam. Validasi usia dinamis dilakukan server, bukan CHECK dengan `CURRENT_DATE`.
 - Hitung komposisi dari data sumber tanpa pembulatan antara; pembulatan hanya saat presentasi. Uji presisi dan batas nilai sebelum mengunci migration.
 - Nutrient object persis **11 field**, nilai `decimal string | null`, masing-masing unit tetap:
 
@@ -39,16 +40,30 @@
 
 ## 3. Entitas PostgreSQL — kontrak logis
 
-`PK`, `FK`, `UQ`, `NN`, `?` = nullable; `revision` adalah bilangan naik setiap operasi sukses. Seluruh tabel owner-bound mempunyai FK ke `app_users.id`; publik hanya dapat dibaca melalui API sesuai akses.
+`PK`, `FK`, `UQ`, `NN`, `?` = nullable; `revision` adalah bilangan naik setiap operasi sukses. Kepemilikan tabel owner-bound mengacu ke `app_users.id` langsung atau melalui relasi yang ditetapkan; `user_preferences` hanya melalui `user_profiles`, tanpa FK langsung duplikat ke akun. Publik hanya dapat dibaca melalui API sesuai akses.
 
 ### 3.1 Identitas, profil, persetujuan
 
 | Tabel | Kolom minimum / ketentuan |
 |---|---|
-| `app_users` | `id` PK UUID, `firebase_uid` UQ NN, `email_display` ?, `email_verified_cache` ?, `account_status` ACTIVE/PENDING_DELETION/DELETED, timestamps; **tidak mengunci email unverified** |
-| `user_profiles` | `user_id` PK/FK, `date_of_birth` atau minimum age-proof sesuai review privasi, `height_cm`, `calculation_parameter`, `activity_level`, `goal_type`, `target_weight_kg` untuk cutting/bulking, `body_type_visual` ? **bukan input engine**, `onboarding_status` NOT_STARTED/IN_PROGRESS/COMPLETED/INELIGIBLE, `onboarding_completed_at`, `profile_revision`, timestamps |
-| `privacy_acknowledgements` | `id`, `user_id`, `notice_version`, `ack_type`, `acknowledged_at`; teks dan dasar hukum perlu review |
-| `user_preferences` | `user_id` PK/FK, `language_code`, `time_zone` IANA, `preferred_weight_unit`, `updated_at` |
+| `app_users` | `id uuid` PK NN; `firebase_uid text` UQ NN, tidak kosong dan case-sensitive; `email_display text` ?, `email_verified_cache boolean` ?; `account_status text` NN CHECK ACTIVE/PENDING_DELETION/DELETED; `created_at`, `updated_at timestamptz` NN; **tidak mengunci email unverified** |
+| `user_profiles` | `user_id uuid` PK/FK NN ke `app_users.id` ON DELETE CASCADE; `date_of_birth date`, `height_cm numeric(8,2)`, `calculation_parameter text`, `activity_level text`, `goal_type text`, `onboarding_completed_at timestamptz`, `profile_revision integer`, `created_at`, `updated_at timestamptz` semuanya NN; `target_weight_kg numeric(10,3)` ? wajib untuk cutting/bulking; `body_type_visual text` ? **bukan input engine**; **tanpa kolom `onboarding_status`** |
+| `privacy_acknowledgements` | `id uuid` PK NN; `user_id uuid` FK NN ke `app_users.id` ON DELETE RESTRICT; `notice_version text`, `ack_type text`, `acknowledged_at timestamptz` NN; versi/type tidak kosong; UQ `(user_id, notice_version, ack_type)`; timestamp server tepercaya, retry identik mempertahankan record awal |
+| `user_preferences` | `user_id uuid` PK/FK NN ke `user_profiles.user_id` ON DELETE CASCADE, tanpa FK langsung ke `app_users`; `language_code text`, `time_zone text`, `preferred_weight_unit text`, `updated_at timestamptz` NN; unit CHECK kg/lb; zona waktu IANA divalidasi backend |
+
+**APPROVED M03-01A — lifecycle identity:** draft onboarding hanya lokal, terenkripsi dan scoped ke akun terautentikasi. Backend tidak menyimpan profil parsial. Buat `user_profiles` dan `user_preferences` bersama dalam transaksi setelah onboarding lengkap dan valid. API menurunkan `NOT_STARTED` bila belum ada profil selesai, dan `COMPLETED` bila ada profil tervalidasi; `IN_PROGRESS` milik draft lokal. Input tidak eligible tidak menghasilkan profil selesai atau target AUTO. Status API bukan kolom database; keberadaan profil tidak otomatis membuktikan rekomendasi nutrisi aktif.
+
+**APPROVED — vocabulary struktural:** `goal_type` = `maintenance|cutting|bulking|muscle_gain`; `activity_level` = `very_low|light|moderate|high|very_high`. `calculation_parameter` adalah kode terstruktur tidak kosong; enum klinis/kompatibilitasnya **OPEN**, bukan konstanta fallback. Backend wajib menolak kode yang belum disetujui. Nilai antropometri terisi harus positif dan finite; `profile_revision > 0`. Target berat yang diberikan untuk goal lain tetap harus valid; target berat bukan target kalori manual.
+
+**APPROVED UX / OPEN legal:** satu tindakan persetujuan privasi dalam alur registrasi/onboarding; notice penjelas boleh muncul tanpa meminta persetujuan berulang untuk tujuan yang sama. Ini tidak memberi izin hukum tanpa batas. Simpan bukti berversi, jangan menimpa timestamp atau menggandakan record saat retry identik. `ONBOARDING_PRIVACY` hanya nama kode **PROPOSED**; vocabulary final, dasar hukum, withdrawal, retensi dan backup-deletion **OPEN**. Arah kebijakan: bukti ikut dihapus saat penghapusan akun selesai kecuali review legal menetapkan kewajiban retensi yang sah. CASCADE saja bukan workflow penghapusan akun.
+
+**APPROVED final DDL M03-01A:** FK dan default teknis telah ditetapkan pada [schema fisik](postgres-physical-schema-v1.5.md#kontrak-identity-m03-01a). FK preferensi mencegah preferensi tanpa profil, tetapi tidak menjamin setiap profil mempunyai preferensi; pembuatan keduanya tetap wajib atomik di backend. `account_status` tidak mempunyai default; backend berotorisasi harus mengisinya eksplisit. Cache email tetap nullable. Waktu completion diisi backend tanpa default; waktu acknowledgement DEFAULT now() mencatat penerimaan server, bukan bukti waktu interaksi perangkat. `updated_at` default INSERT tidak otomatis memperbarui row lama.
+
+**APPROVED deletion FK / OPEN legal:** PENDING_DELETION adalah status logis, bukan DELETE fisik. Aksi ON DELETE hanya berlaku saat penghapusan fisik. RESTRICT mewajibkan workflow menyelesaikan record acknowledgement secara eksplisit sebelum menghapus app_users. Bila legal mengharuskan bukti dipertahankan setelah akun dihapus, arsitektur retensi harus direview sebelum implementasi; jangan menyimpan data pribadi diam-diam tanpa dasar hukum. Legal retention/withdrawal/backups tetap OPEN, tetapi FK struktural di atas bukan lagi keputusan OPEN.
+
+**READY untuk penulisan/pengujian struktural M03-01B:** `backend/migrations/0001_identity.sql` boleh dirancang sebelum domain berat/goal dan backend onboarding lengkap tersedia; file belum dibuat pada task ini. Kontrak completion preferensi/acknowledgement/eligibility serta batas transaksi dengan initial weight dan AUTO goal tetap **OPEN untuk implementasi completion**, bukan blocker struktur empat tabel identity. Jangan membuat profil produksi dengan parameter klinis belum disetujui, berat/target palsu, kolom identity tambahan, atau menandai rekomendasi aktif sebelum engine dan persistence siap. Bootstrap ledger tetap terpisah dari domain 0001.
+
+**OPEN referensi di luar penyelarasan ini:** [API Contract §5.2](api-contract.md#52-onboarding) masih memuat alternatif age-proof; keputusan M03-01A di sini dan OpenAPI menetapkan full DOB DATE, bukan membuka ulang pilihan usia. [Nutrition Engine §3](nutrition-engine-spec.md#3-data-input-kontrak-konseptual-bukan-skema-sql) masih memakai alias konseptual formula_sex_parameter/primary_goal/daily_activity_level; nama public/database tetap calculation_parameter/goal_type/activity_level. Mapping adapter dan review klinis tetap OPEN; alias tersebut bukan izin menambah field identity atau enum klinis.
 
 Berat profil saat ini **diturunkan** dari `weight_measurements`, bukan duplikat kolom berat yang tak sinkron. Nama pengguna opsional; Firebase mengelola provider login.
 
