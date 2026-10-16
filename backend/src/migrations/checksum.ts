@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 
 import { migrationVersion } from './config.ts';
+import { assertMigrationSqlPolicy } from './sql-policy.ts';
 
 export interface SqlSnapshot {
   readonly path: string;
@@ -37,11 +38,7 @@ export function snapshotSql(path: string, bytes: Uint8Array): SqlSnapshot {
   if (markers.length !== 2 || markers[0] !== '-- Up Migration' || markers[1] !== '-- Down Migration') {
     throw new Error('SQL requires exactly one Up Migration followed by one Down Migration.');
   }
-  // Conservative fail-closed policy, including literals/comments; not a SQL sandbox/parser.
-  if (/\b(begin|commit|rollback|abort|end|start|savepoint|release|prepare|discard)\b/i.test(content) ||
-      /\b(nutrasa_migrations|pgmigrations|migration_checksums|pg_advisory_unlock\w*)\b/i.test(content)) {
-    throw new Error('SQL transaction/session control or migration metadata access is prohibited.');
-  }
+  assertMigrationSqlPolicy(content);
   return Object.freeze({ path, name, sha256: sha256(bytes), content });
 }
 

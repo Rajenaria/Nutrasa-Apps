@@ -182,3 +182,44 @@ yang memakai ulang target. Jangan menjalankannya pada nutrasa_dev/nutrasa_test
 atau tujuh target yang kini sudah dipakai. Lihat [bukti dan batas pengujian](tests/integration/README.md#katalog-lanjutan-m03-01).
 Eksekusi berikutnya memerlukan target fresh dan approval baru; seluruh gate editorial
 tetap OPEN. Hasil ini tidak menandai keseluruhan M03-01 DONE.
+
+## Catalog audit foundation M03-01 — PostgreSQL integration PASS
+
+Migration `0006_catalog_audit.sql` contains the approved 21/13/3 audit-table columns
+and nullable revision batch link: nine RESTRICT/non-deferrable FKs, 37 CHECKs and
+thirteen B-tree indexes including PK/UNIQUE indexes. It does not implement
+append-only privileges, actor verification, canonical review digest calculation,
+publication or editorial workflow.
+
+The lexical policy distinguishes comments, quoted data and executable code.
+Initial supported function syntax: CREATE FUNCTION nutrasa.name([name type,...])
+RETURNS type LANGUAGE plpgsql AS a tagged or untagged dollar-quoted body.
+Static statements/nested BEGIN-END blocks are supported. DECLARE, IF/loops,
+LANGUAGE SQL, SECURITY DEFINER/SET clauses, OR REPLACE and unsupported forms fail
+closed and require later compatibility review before governance functions.
+No function is installed by 0006. The scanner is not PostgreSQL semantic validation
+or an SQL sandbox; migrations remain trusted, reviewed code.
+
+DOWN takes ACCESS EXCLUSIVE table locks before its data guard and refuses with
+22012 if audit or a revision batch link is populated. Empty DOWN retains prior
+domains and immutable checksums; populated audit is not deleted by routine DOWN.
+DOWN also refuses isolation other than READ COMMITTED so an older transaction
+snapshot cannot hide committed inserts after waiting for the table locks.
+Owner-provided PostgreSQL 18.6 output confirms 16/16 integration PASS, 0 fail/skip,
+exit code 0: upgrade, failure rollback, empty DOWN/UP/re-run and atomic populated
+DOWN refusal passed. Concurrent DOWN writers and crash recovery at commit remain
+untested; no governance function or runtime security is established.
+
+Local verification: scanner-focused tests 9/9 PASS, full backend unit tests 70/70
+PASS, backend typecheck/lint PASS and mobile typecheck/lint PASS. These checks do
+not execute the PostgreSQL integration suite or establish SQL/security correctness.
+
+The approved invocation completed once on a fresh disposable target at
+127.0.0.1:5433. Any future execution requires a new isolated target and separate
+approval. Never use permanent or previously used databases.
+
+```powershell
+npm.cmd run test:integration:catalog-audit
+```
+
+See [audit integration evidence and safety boundaries](tests/integration/README.md#catalog-audit-foundation-m03-01).

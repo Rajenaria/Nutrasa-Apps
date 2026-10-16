@@ -85,7 +85,7 @@
 - **CHECK waktu:** `accessed_at IS NULL OR pg_catalog.isfinite(accessed_at)`; NULL diizinkan, `infinity` dan `-infinity` ditolak. Tidak ada default `now()` atau waktu akses buatan.
 - **Batas struktur:** tepat delapan kolom tersebut; selain indeks implisit PRIMARY KEY, tidak ada indeks tambahan, UNIQUE nama/referensi, FK, trigger, tabel atau kolom baru yang disetujui. Relasi sumber dengan revisi makanan dan audit ditetapkan pada kontrak terkait, bukan ditebak dari registry ini.
 - **Batas D05/legal:** `license_status = ALLOWED` tidak membuktikan hak pakai dengan sendirinya. Bukti sah per sumber serta kewajiban atribusi/penyimpanan/redistribusi tetap wajib diverifikasi sebelum import/publikasi. CHECK hanya membatasi nilai status, bukan memverifikasi legalitas, menyeleksi sumber, atau mengizinkan nutrisi dipublikasikan.
-- **OPEN terpisah pada approval registry:** vocabulary sumber, provenance per nilai/revisi dan source food code, struktur `catalog_reviews` / `catalog_import_batches`, editorial authorization serta review publikasi dan hak data. Approval dokumentasi berikutnya menetapkan locator/snapshot revisi dan porsi pada [kontrak lanjutan](#kontrak-katalog-lanjutan-m03-01), SQL telah diuji pada target disposable melalui suite gabungan 24/24 PASS, exit 0; provenance campuran per nutrien dan audit tetap OPEN. [Food Database Specification](Food-Database-spec.md) tetap memuat proposal lainnya; persetujuan registry ini tidak mengesahkan seluruh proposal atau sumber tertentu.
+- **OPEN terpisah pada approval registry:** vocabulary sumber, provenance per nilai/revisi dan source food code, struktur `catalog_reviews` / `catalog_import_batches`, editorial authorization serta review publikasi dan hak data. Approval dokumentasi berikutnya menetapkan locator/snapshot revisi dan porsi pada [kontrak lanjutan](#kontrak-katalog-lanjutan-m03-01), SQL telah diuji pada target disposable melalui suite gabungan 24/24 PASS, exit 0; provenance campuran per nutrien dan implementasi audit tetap OPEN. Kontrak fisik audit kini APPROVED pada [governance](#kontrak-governance-katalog-m03-01), tanpa mengesahkan keputusan legal/editorial. [Food Database Specification](Food-Database-spec.md) tetap memuat proposal lainnya; persetujuan registry ini tidak mengesahkan seluruh proposal atau sumber tertentu.
 
 ## Kontrak katalog struktural M03-01
 
@@ -137,8 +137,8 @@ Matriks berikut mempertahankan baseline 0003 (9/10/3 kolom) yang telah diuji. Du
 - Draft dapat memiliki 0-11 baris nutrisi. Aturan sebelum publikasi: tepat 11 kode, empat inti diketahui dan ditinjau, tujuh lainnya boleh NULL. PK/CHECK hanya membatasi baris yang ada, tidak memaksa jumlah 11 atau membuktikan review. API publik tetap proyeksi foods + revisi terpilih + 11 nilai decimal-string/null, bukan komposisi duplikat di foods.
 - Revisi PUBLISHED harus immutable pada komposisi, porsi dan identitas sumber; perubahan membutuhkan revisi baru. published_at dipertahankan dan revisi tidak dikembalikan ke DRAFT untuk membuka edit. Pengarsipan makanan menghentikan visibilitas tanpa menghapus versi historis. Ini invariant yang disetujui, **enforcement masih OPEN**: RESTRICT tidak melarang perubahan/hapus langsung pada baris nutrisi atau menjamin append-only.
 - Traceability struktural minimum food_sources -> food_revisions -> food_revision_nutrients. Satu source_id wajib berlaku untuk seluruh komposisi revisi; tidak ada dukungan provenance campuran per nutrien atau rantai derivasi bahan/yield yang diklaim. Baseline 0003 belum menyimpan source record locator; desain tambahannya kini disetujui pada kontrak lanjutan. Riwayat bukti izin tetap OPEN.
-- **Publikasi/import tetap diblokir:** enforcement immutable, target pointer PUBLISHED, kelengkapan/review 11 nutrien, bukti hak sumber/atribusi, identitas reviewer/editorial authorization dan runtime privileges tetap OPEN. food_sources.license_status = ALLOWED tetap membutuhkan bukti sah per sumber sesuai D05, bukan legal clearance dari CHECK. Vocabulary food_type/source_method, catalog_reviews dan catalog_import_batches tetap OPEN. Normalisasi konseptual disetujui di bawah, belum diimplementasikan; tidak ada perubahan data atau aktivasi editorial.
-- Tidak ada trigger/stored procedure yang disetujui. Runner existing menolak token BEGIN/END termasuk dalam komentar/literal; enforcement berikutnya memerlukan review kompatibilitas terpisah. Struktur kosong tidak memberi izin endpoint publikasi, seed/import, data nyata atau klaim kesiapan editorial produksi.
+- **Publikasi/import tetap diblokir:** enforcement immutable, target pointer PUBLISHED, kelengkapan/review 11 nutrien, bukti hak sumber/atribusi, identitas reviewer/editorial authorization dan runtime privileges tetap OPEN. food_sources.license_status = ALLOWED tetap membutuhkan bukti sah per sumber sesuai D05, bukan legal clearance dari CHECK. Vocabulary food_type/source_method tetap OPEN; kontrak catalog_reviews/catalog_import_batches kini APPROVED pada governance, implementasi dan pengujiannya tetap OPEN. Normalisasi konseptual disetujui di bawah, belum diimplementasikan; tidak ada perubahan data atau aktivasi editorial.
+- Pada approval struktural 0003 belum ada trigger/stored procedure yang disetujui. Desain restricted functions kini APPROVED untuk dokumentasi pada [kontrak governance](#kontrak-governance-katalog-m03-01); implementasi belum diizinkan. Runner existing masih menolak token BEGIN/END termasuk dalam komentar/literal; rencana kompatibilitas harus diverifikasi sebelum coding DDL fungsi. Struktur kosong tidak memberi izin endpoint publikasi, seed/import, data nyata atau klaim kesiapan editorial produksi.
 - **UP yang disetujui secara desain:** foods tanpa FK pointer -> food_revisions dengan UNIQUE pendukung -> food_revision_nutrients -> ADD FK pointer setelah kedua tabel ada. Constraint diperiksa langsung; INSERT kelak dapat membuat foods dengan pointer NULL, lalu revisi/nutrisi, validasi dan pemasangan pointer secara transaksional.
 - **DOWN disetujui dan teruji:** DROP FK pointer eksplisit -> DROP food_revision_nutrients -> DROP food_revisions -> DROP foods, tanpa CASCADE. Tidak menyentuh identity, food_sources, schema atau metadata engine secara langsung; preservasi OID, owner, definisi dan data kedua domain terdahulu lulus pada suite disposable. Dependensi dari migration lebih baru harus dilepas melalui DOWN terbalik, bukan dihapus paksa. Eksekusi berikutnya memerlukan approval baru; [status implementasi dan tests](sql-migration-plan.md#katalog-struktural-m03-01).
 
@@ -216,20 +216,139 @@ UNIQUE(food_id,normalized_alias) berlaku tanpa memasukkan locale; satu alias ter
 | `source_record_reference` | `text NULL` | Tidak ada | Nonblank jika terisi; locator kode/halaman/tabel/record komposisi dari source_id utama yang sudah ada. |
 | `source_reference_snapshot` | `text NULL` | Tidak ada | Nonblank jika terisi; salinan referensi bibliografis nyata pada revisi, mempertahankan referensi saat registry sumber berubah. |
 
-CHECK pasangan: `(source_record_reference IS NULL) = (source_reference_snapshot IS NULL)`. Keduanya boleh NULL pada draft, atau keduanya terisi dan nonblank; tidak ada backfill/bukti buatan. CHECK pasangan tidak mewajibkan keduanya terisi ketika quality_status = PUBLISHED. Kelengkapan provenance tetap syarat sebelum publikasi; enforcement gate publikasi tetap OPEN. Tidak ada source_id baru, PK/FK/UQ/indeks tambahan atau tabel provenance baru. Setelah 0005 UP pada target disposable yang diuji, food_revisions mempunyai 12 kolom; baseline SQL 0003 tetap sepuluh kolom dan tidak diedit. Dua kolom bukan histori izin lengkap atau pengganti catalog_reviews/import_batches.
+CHECK pasangan: `(source_record_reference IS NULL) = (source_reference_snapshot IS NULL)`. Keduanya boleh NULL pada draft, atau keduanya terisi dan nonblank; tidak ada backfill/bukti buatan. CHECK pasangan tidak mewajibkan keduanya terisi ketika quality_status = PUBLISHED. Kelengkapan provenance tetap syarat sebelum publikasi; enforcement gate publikasi tetap OPEN. Paket 0005 tidak menambah source_id, PK/FK/UQ/indeks atau tabel provenance baru; relasi batch pada approval governance berikutnya dirinci terpisah. Setelah 0005 UP pada target disposable yang diuji, food_revisions mempunyai 12 kolom; baseline SQL 0003 tetap sepuluh kolom dan tidak diedit. Dua kolom bukan histori izin lengkap atau pengganti catalog_reviews/import_batches.
 
 ### Normalisasi, API dan batas aktivasi katalog lanjutan
 
 - **Algoritme konseptual APPROVED:** Unicode NFC -> trim/collapse whitespace -> lowercase -> NFC. Satu implementasi reusable backend kelak digunakan untuk canonical_name -> foods.normalized_name, alias -> food_aliases.normalized_alias, dan query pencarian. Nama tampilan asli, diakritik, tanda baca dan kata pembeda olahan dipertahankan. Tidak membuat implementasi atau mengubah data pada task dokumentasi; CHECK nonblank tidak menjamin normalisasi. Tidak ada normalizer/slug vocabulary tambahan.
 - [OpenAPI](openapi.yaml) Category tetap id/name/slug/parent_id; kolom internal sort_order/is_active tidak otomatis menambah DTO. ServingDefinition tetap lima field public existing; bukti sumber tidak otomatis menjadi field public baru. Tidak mengubah endpoint atau OpenAPI.
 - **OPEN:** pencegahan siklus kategori lintas baris; immutable published revisions/nutrients/servings/provenance; pointer ke revisi PUBLISHED dan kelengkapan/review nutrisi; bukti legal penggunaan sumber/atribusi; identitas reviewer dan authorization; runtime privileges teruji; audit import lengkap; concurrency editorial. Status PUBLISHED, reviewed = true atau license_status = ALLOWED bukan bukti gate ini terpenuhi.
-- Endpoint publikasi, import, editorial dan modifikasi hierarki tetap dilarang aktif sebelum mekanisme terkait disetujui. Tidak ada data kategori, nutrient value, seed, konversi atau sumber/izin baru. catalog_reviews/catalog_import_batches ditunda dari dua migration berikutnya tetapi tetap pekerjaan M03-01 sebelum import/publikasi. Provenance campuran per nutrien belum didukung; crash recovery saat commit tetap OPEN. **M03-01 belum DONE.**
+- Endpoint publikasi, import, editorial dan modifikasi hierarki tetap dilarang aktif sebelum mekanisme terkait disetujui. Tidak ada data kategori, nutrient value, seed, konversi atau sumber/izin baru. Pada approval 0004/0005 catalog_reviews/catalog_import_batches ditunda dari kedua migration tersebut; kontrak governance kini APPROVED, implementasi tetap pekerjaan M03-01 sebelum import/publikasi. Provenance campuran per nutrien belum didukung; crash recovery saat commit tetap OPEN. **M03-01 belum DONE.**
+
+## Kontrak governance katalog M03-01
+
+**APPROVED CONTRACT — pemilik proyek, GOVERNANCE CONTRACT DOCUMENTATION ALIGNMENT, sesudah checkpoint `75e43c7`.** Persetujuan ini memfinalisasi dokumentasi proposal governance, bukan izin coding, SQL, perubahan scanner, role/privilege atau PostgreSQL. Matriks ini adalah sumber kontrak fisik audit; [schema logis](database-schema.md#governance-katalog-m03-01), [batas keamanan](system-architecture.md#catalog-governance-m03-01) dan [rencana implementasi/tests](sql-migration-plan.md#governance-katalog-m03-01) merujuk ke sini. Migration 0001-0005 tetap immutable; hasil integration sebelumnya tidak membuktikan governance berikut sudah bekerja. **M03-01 belum DONE.**
+
+**Status coding setelah approval berikutnya:** SQL struktur 0006_catalog_audit.sql telah diuji pada disposable PostgreSQL 18.6: [16/16 integration PASS, 0 fail/skip, exit 0](../../backend/tests/integration/README.md#catalog-audit-foundation-m03-01). Metadata 21/13/3 kolom, link revisi nullable, 9 FK, 37 CHECK dan 13 indeks sesuai kontrak; rollback serta empty/populated DOWN teruji. Scanner leksikal subset awal tersedia; functions/governance grants, actor verification dan canonical review digest belum diimplementasikan. [Scope aktual dan batas scanner](../../backend/README.md#catalog-audit-foundation-m03-01--postgresql-integration-pass). Struktur tidak dianggap menjamin append-only.
+
+### Konvensi audit
+
+- NN = NOT NULL. Semua kolom tanpa DEFAULT kecuali UUID, timestamp teknis dan identity yang disebut eksplisit. Teks NN nonblank; teks nullable harus nonblank jika terisi, mengikuti pola existing `[^[:space:]]`. Teks tidak di-trim diam-diam.
+- Hash bertipe text: tepat 64 karakter hex lowercase, bukan char(64). Timestamp terisi harus finite; tidak menerima infinity. Tidak ada nilai bisnis fallback.
+- Seluruh FK baru ON DELETE RESTRICT, ON UPDATE RESTRICT, NOT DEFERRABLE. Relasi lintas jenis/target yang tak dibuktikan FK harus diperiksa restricted entrypoint, bukan diklaim sebagai CHECK lintas tabel.
+- Audit append-only untuk role operasional; UUID, event_number, aktor, waktu, keputusan, bukti dan link tidak diubah setelah transaksi selesai. Koreksi menambah event. Append-only bukan kebijakan retensi permanen; owner/legal retention dan penghapusan sah tetap OPEN.
+- `event_number` merupakan urutan audit di bawah protokol satu transaction-level advisory lock editorial. Nilainya positif dan boleh bergap; bukan sync cursor/per-owner counter. Semua jalur penulisan audit, termasuk REJECTED setelah rollback, harus mengambil lock yang sama sebelum DML.
+- Capability/role adalah desain; belum ada nama role baru, provisioning atau grant operasional yang disetujui.
+
+### catalog_reviews (21 kolom)
+
+| Kolom | Tipe / nullability | DEFAULT | Constraint dan makna |
+|---|---|---|---|
+| `id` | `uuid NN` | `pg_catalog.gen_random_uuid()` | PRIMARY KEY event keputusan. |
+| `event_number` | `bigint NN` | GENERATED ALWAYS AS IDENTITY | UNIQUE, CHECK positif; bukan otoritas concurrency sendiri. |
+| `review_kind` | `text NN` | Tidak ada | CHECK SOURCE_PERMISSION, NUTRITION, PUBLICATION, WITHDRAWAL. |
+| `decision` | `text NN` | Tidak ada | CHECK ACCEPTED, REJECTED, REVOKED; kombinasi dibatasi di bawah. |
+| `source_id` | `uuid NULL` | Tidak ada | FK food_sources.id; target SOURCE_PERMISSION saja. |
+| `food_revision_id` | `uuid NULL` | Tidak ada | FK food_revisions.id; target ketiga jenis lainnya. |
+| `actor_subject` | `text NN` | Tidak ada | Subject minimum dari konteks autentikasi yang disetujui; bukan parameter bebas. |
+| `recorded_at` | `timestamptz NN` | `pg_catalog.clock_timestamp()` | Finite; dicatat entrypoint, tidak menerima waktu otoritatif caller. |
+| `reason` | `text NN` | Tidak ada | Alasan aman tanpa token, credential atau payload pribadi/sumber terlarang. |
+| `evidence_reference` | `text NULL` | Tidak ada | Locator bukti nonblank; wajib untuk SOURCE_PERMISSION dan NUTRITION. |
+| `evidence_sha256` | `text NULL` | Tidak ada | Hash artefak bukti jika tersedia dan boleh diproses; bukan bukti izin legal. |
+| `canonical_version` | `smallint NN` | Tidak ada | Awalnya CHECK = 1; perubahan format memerlukan revisi kontrak. |
+| `content_digest` | `text NN` | Tidak ada | SHA-256 representasi konten/snapshot yang diperiksa. |
+| `approval_review_id` | `uuid NULL` | Tidak ada | Self-FK catalog_reviews.id; link keputusan sebelumnya untuk PUBLICATION/WITHDRAWAL. |
+| `source_snapshot` | `jsonb NULL` | Tidak ada | Object snapshot metadata sumber, wajib untuk SOURCE_PERMISSION. |
+| `license_status` | `text NULL` | Tidak ada | CHECK UNVERIFIED, ALLOWED, RESTRICTED, DENIED; wajib hanya untuk SOURCE_PERMISSION. |
+| `permission_scope` | `jsonb NULL` | Tidak ada | Object berisi tepat store, redistribute, offline_cache, masing-masing JSON boolean; bukan string atau JSON null. |
+| `attribution_required` | `boolean NULL` | Tidak ada | Wajib eksplisit pada keputusan sumber ACCEPTED. |
+| `attribution_text` | `text NULL` | Tidak ada | Wajib nonblank bila attribution_required=true. |
+| `valid_from` | `timestamptz NULL` | Tidak ada | Finite; wajib untuk keputusan sumber ACCEPTED. |
+| `valid_until` | `timestamptz NULL` | Tidak ada | Finite jika terisi, valid_from harus terisi dan valid_until > valid_from. |
+
+CHECK lokal dan batas fungsi:
+
+- SOURCE_PERMISSION mewajibkan source_id terisi dan food_revision_id NULL; NUTRITION/PUBLICATION/WITHDRAWAL mewajibkan kebalikannya. Tepat satu target melalui FK nyata, bukan UUID polimorfik.
+- PUBLICATION hanya ACCEPTED; WITHDRAWAL hanya REVOKED. SOURCE_PERMISSION/NUTRITION memakai vocabulary decision di atas; efektivitas keputusan sumber tetap memerlukan ALLOWED dan semua gate, bukan label decision saja.
+- SOURCE_PERMISSION mewajibkan source_snapshot object, license_status dan evidence_reference terisi. Saat ACCEPTED, license_status harus ALLOWED dan permission_scope, attribution_required serta valid_from wajib terisi. Penolakan/pencabutan tidak perlu mengarang scope atau tanggal izin yang tak diketahui; scope jika terisi tetap memenuhi bentuk object tersebut.
+- source_snapshot, license_status, permission_scope, attribution_required, attribution_text, valid_from dan valid_until wajib SQL NULL untuk jenis non-sumber. JSON null tidak menggantikan SQL NULL pada kolom yang wajib object.
+- attribution_required=true mewajibkan attribution_text nonblank; NULL attribution_text tidak berarti tidak ada kewajiban atribusi. valid_until NULL tidak otomatis membuktikan izin permanen.
+- NUTRITION mewajibkan evidence_reference; PUBLICATION/WITHDRAWAL wajib approval_review_id. SOURCE_PERMISSION/NUTRITION tidak memakai approval_review_id. Self-reference langsung ditolak CHECK; fungsi memastikan link menunjuk event lebih awal dan target sesuai, sehingga tidak membentuk siklus.
+- PUBLICATION menunjuk keputusan NUTRITION/ACCEPTED pada revisi yang sama; WITHDRAWAL menunjuk event PUBLICATION yang ditarik. Tipe/decision/target hubungan ini adalah validasi fungsi yang harus diuji.
+- CHECK kondisional wajib menolak field wajib yang NULL secara eksplisit, bukan bergantung pada ekspresi UNKNOWN yang dianggap lolos CHECK.
+- Snapshot sumber mempertahankan metadata bibliografis yang benar-benar diperiksa dan diizinkan disimpan. Struktur canonical dijelaskan di bawah; tidak memasukkan dokumen lisensi penuh atau payload nutrisi mentah secara otomatis.
+
+Indeks minimum: PK(id); UNIQUE(event_number); UNIQUE(id,source_id) sebagai target FK gabungan; B-tree(source_id,event_number); B-tree(food_revision_id,review_kind,event_number); B-tree(approval_review_id). Tidak ada UNIQUE digest: keputusan berbeda atas konten identik tetap tercatat. Pemilihan keputusan efektif menggunakan event terbaru yang relevan di bawah lock, tidak mencari approval lama sambil mengabaikan REJECTED/REVOKED terbaru.
+
+### catalog_review_sources (tiga kolom)
+
+| Kolom | Tipe / nullability | DEFAULT | Constraint dan makna |
+|---|---|---|---|
+| `review_id` | `uuid NN` | Tidak ada | FK catalog_reviews.id, untuk review NUTRITION. |
+| `source_id` | `uuid NN` | Tidak ada | FK food_sources.id. |
+| `permission_review_id` | `uuid NN` | Tidak ada | FK gabungan bersama source_id ke catalog_reviews(id,source_id). |
+
+PRIMARY KEY(review_id,source_id); indeks tambahan B-tree(permission_review_id,source_id). FK gabungan memastikan event izin berasal dari sumber yang sama; fungsi memastikan review_id NUTRITION dan permission_review_id SOURCE_PERMISSION yang efektif. Kumpulan sumber harus tepat sumber komposisi ditambah semua sumber servings, tanpa sumber hilang atau tambahan yang tidak diperiksa. Review dan link ditulis atomik lalu append-only. Sumber porsi yang berbeda tetap didukung tanpa mengklaim provenance campuran per nutrien.
+
+### catalog_import_batches (13 kolom)
+
+| Kolom | Tipe / nullability | DEFAULT | Constraint dan makna |
+|---|---|---|---|
+| `id` | `uuid NN` | `pg_catalog.gen_random_uuid()` | PRIMARY KEY satu hasil terminal percobaan impor. |
+| `source_id` | `uuid NN` | Tidak ada | FK food_sources.id; satu sumber komposisi utama per batch. |
+| `permission_review_id` | `uuid NN` | Tidak ada | FK gabungan bersama source_id ke catalog_reviews(id,source_id). |
+| `artifact_reference` | `text NN` | Tidak ada | Locator aman; bukan payload atau URL berkredensial. |
+| `artifact_sha256` | `text NN` | Tidak ada | SHA-256 byte artefak input asli yang sah untuk diproses. |
+| `parser_version` | `text NN` | Tidak ada | Versi parser yang sebenarnya. |
+| `mapping_version` | `text NN` | Tidak ada | Versi pemetaan identitas, field/unit dan konversi. |
+| `actor_subject` | `text NN` | Tidak ada | Operator terverifikasi. |
+| `recorded_at` | `timestamptz NN` | `pg_catalog.clock_timestamp()` | Finite; waktu server entrypoint. |
+| `outcome` | `text NN` | Tidak ada | CHECK IMPORTED atau REJECTED; tidak ada status RUNNING mutable. |
+| `accepted_revision_count` | `integer NN` | Tidak ada | CHECK >= 0; REJECTED mewajibkan 0. |
+| `rejected_record_count` | `integer NN` | Tidak ada | CHECK >= 0; tidak mengarang jumlah bila parser belum mengidentifikasi record. |
+| `result_reference` | `text NN` | Tidak ada | Ringkasan/locator laporan validasi aman; bukan seluruh baris sumber. |
+
+Indeks minimum: PK(id); UNIQUE(id,source_id) untuk FK revisi; B-tree(permission_review_id,source_id); B-tree(source_id,artifact_sha256) nonunique. Tidak ada UNIQUE global artefak: input yang semula ditolak boleh memiliki percobaan baru setelah prasyarat dibenahi. Ini bukan izin retry otomatis atau deduplikasi makanan berdasarkan nama.
+
+Entrypoint memeriksa jenis/target/efektivitas permission_review_id, hak memproses artefak dan kecocokan count dengan revisi hasil batch. Batch IMPORTED dan revisinya commit bersama. Bila transaksi impor gagal, rollback membatalkan batch/domain terkait; pencatatan hasil REJECTED berasal dari transaksi baru setelah rollback, memegang lock editorial yang sama dan memverifikasi kembali izin. Jangan mengklaim audit bertahan dalam transaksi gagal. Bila pencatatan kegagalan juga tidak dapat diotorisasi, laporkan kegagalan tanpa bukti sukses palsu.
+
+### Tambahan import_batch_id pada food_revisions
+
+| Kolom tambahan | Tipe / nullability | DEFAULT | Constraint dan makna |
+|---|---|---|---|
+| `import_batch_id` | `uuid NULL` | Tidak ada | FK gabungan (import_batch_id,source_id) -> catalog_import_batches(id,source_id), MATCH SIMPLE. |
+
+Indeks B-tree(import_batch_id,source_id). NULL mempertahankan revisi manual/historis; tidak ada backfill batch buatan. source_id existing tetap NOT NULL dan FK sumber tetap utuh. Saat import_batch_id terisi, sumber revisi harus sama dengan sumber batch. Fungsi hanya menghubungkan revisi ke batch IMPORTED dan tidak mengubah asal revisi terbit. Setelah migration ini kelak diterapkan, revisi menjadi 13 kolom; **keadaan teruji 0005 tetap 12 kolom**, tidak ada migration baru saat dokumentasi ini.
+
+### Digest konten dan canonicalization v1
+
+**APPROVED DESIGN; implementasi/golden vectors OPEN.** Database PostgreSQL 18 adalah satu otoritas serializer dan digest review; backend tidak membuat implementasi hashing konten kedua dan tidak mengotorisasi digest kiriman caller.
+
+- Representasi berupa JSONB berskema tetap dengan penanda canonical_version=1 serta jenis payload SOURCE_PERMISSION atau REVISION_CONTENT. Byte yang di-hash adalah UTF-8 dari representasi jsonb::text PostgreSQL 18, tanpa pretty-print. Ini kontrak internal berversi, bukan klaim RFC 8785, urutan key JSON client atau portabilitas lintas versi database.
+- Payload SOURCE_PERMISSION memuat source_snapshot, license_status, permission_scope, attribution_required, attribution_text, valid_from, valid_until, evidence_reference dan evidence_sha256. source_snapshot memuat metadata registry yang diperiksa (id, name, source_type, edition, reference, license_status, permission_notes, accessed_at), hanya sejauh sah disimpan; tidak menyalin artefak sumber penuh. Bukti yang tidak boleh disimpan tetap melalui locator aman dan keputusan legal, bukan diisi data buatan.
+- Payload REVISION_CONTENT memuat id/food_id/revision_number, basis_quantity/basis_unit, composition_definition/source_method, source_id, source_record_reference/source_reference_snapshot dan import_batch_id bila ada. Nutrients adalah daftar kode/nilai menurut urutan 11 kode pada [schema logis §2](database-schema.md#2-tipe-satuan-dan-presisi); draft boleh kurang lengkap dan harus dibedakan dari baris bernilai NULL. Servings memuat sepuluh kolom bermakna sesuai matriks, diurutkan UUID deterministik, bukan urutan query kebetulan.
+- Payload revisi juga memuat daftar sumber terurut UUID: source_id, permission_review_id dan content_digest event izin yang telah ada. Isi daftar sesuai catalog_review_sources. ID keputusan sumber yang sudah ada boleh digunakan; **id/event_number dari review yang sedang dibuat dan review_id penghubung tidak boleh masuk payload**, sehingga tidak ada dependensi melingkar.
+- Untuk PUBLICATION gunakan representasi revisi yang sama dengan NUTRITION yang dirujuk; approval_review_id adalah link audit, bukan input yang mengubah digest revisi. WITHDRAWAL mempertahankan referensi publikasi/bukti historis yang ditarik, tidak menulis ulang digest keputusan lama.
+- Semua key yang didefinisikan format hadir; NULL eksplisit, bukan dihilangkan atau diganti nol. Decimal berupa string skala lima, tidak melalui float/Number. UUID lowercase; boolean tetap boolean. Timestamp konten UTC dengan presisi mikrodetik yang ditetapkan. Array memiliki urutan eksplisit; object mengikuti representasi JSONB PostgreSQL 18.
+- Teks mengikuti nilai tersimpan; tidak di-trim/NFC diam-diam ketika hashing. Normalizer pencarian tetap satu implementasi backend NFC -> trim/collapse whitespace -> lowercase -> NFC, bukan serializer kedua.
+- quality_status, published_at, created_at/updated_at, actor_subject, reason, recorded_at, event_number dan ID review baru tidak menjadi bagian payload revisi. Status review/publikasi dan metadata waktu tidak boleh membuat siklus invalidasi saat review/publikasi sendiri. Identitas/nama tampilan foods berada di workflow identitas terpisah; komposisi tetap revision-bound.
+- Review menghitung digest di bawah lock atas konten yang benar-benar diperiksa. Operator membawa expected digest/versi untuk mendeteksi perubahan sejak pembacaan; nilai caller bukan otoritas. Perubahan draft atau keputusan izin efektif membuat keputusan lama tidak lagi cukup untuk gate, walaupun audit lama tetap tersedia.
+- PostgreSQL 18 menyediakan sha256(bytea); encode hex menghasilkan format hash di atas tanpa pgcrypto. Golden vectors harus mengunci hasil untuk NULL/nol, decimal, Unicode, urutan input, timestamp/timezone dan sumber porsi berbeda. Upgrade yang mengubah representasi memerlukan versi kontrak baru dan review kompatibilitas.
+- Hash membuktikan kesamaan representasi, bukan akurasi nutrisi, identitas manusia, kebenaran dokumen atau legalitas hak sumber.
+
+### Efektivitas keputusan dan batas aktivasi governance
+
+Gate memakai keputusan relevan terbaru menurut event_number di bawah lock; audit REJECTED/REVOKED tidak boleh dilewati dengan memilih ACCEPTED lama. Izin harus cocok dengan sumber/scope penggunaan, bukti, valid_from, valid_until dan kondisi distribusi. Rentang berlaku dimulai pada valid_from dan berakhir sebelum valid_until bila ada; NULL expiry tidak menggantikan bukti hak yang sah. Pemeriksaan saat publikasi tidak menjamin izin berlaku selamanya: distribusi/read/cache harus mengevaluasi kondisi izin terkini dan tidak otomatis menghidupkan kembali distribusi setelah pencabutan.
+
+State machine, matriks role dan publication transaction dijelaskan pada [system architecture](system-architecture.md#catalog-governance-m03-01). Tidak ada grant, entrypoint atau API baru yang sudah diimplementasikan. Struktur ini tidak menjamin immutability atau append-only tanpa enforcement yang diuji.
+
+**OPEN owner/legal/clinical:** pihak berwenang, self-review, jumlah reviewer wajib, kualifikasi nutrisi, kontrak identitas lokal/Firebase, bukti/scope/atribusi per sumber, expiry/revocation/retention dan privasi reviewer. Hak menyimpan locator/hash pun mengikuti kebijakan yang sah; tidak otomatis menyimpan dokumen mentah, token atau data pribadi reviewer. Kebijakan histori saat izin dicabut tetap membutuhkan keputusan legal; tidak ada janji penghapusan otomatis atau retensi tanpa batas. **DEFERRED:** implementasi sampai approval coding, provisioning/tests sampai approval database, aktivasi sampai gate owner/legal/clinical ditutup. Restricted functions disetujui sebagai desain, tetapi tidak ada fungsi SQL/trigger yang dibuat atau diizinkan untuk dieksekusi; nama file migration baru belum ditetapkan.
 
 ## Migration dependency order (planning only)
 
 1. Manual prerequisites: schema/role provisioning dan ledger bootstrap terpisah, bukan domain migration 0001; tidak ada dummy foundation migration.
 2. First domain file yang disetujui: `backend/migrations/0001_identity.sql` untuk app_users, profiles, preferences, privacy acknowledgements; belum dibuat/dijalankan pada M03-01A.
-3. Catalog base: food_sources sudah diuji (13/13 PASS); foods, food_revisions dan food_revision_nutrients telah diimplementasikan pada 0003 dan diuji (18/18 PASS). FK pointer ditambahkan setelah kedua tabel ada dalam migration yang sama, tanpa deferral. Kontrak categories/food_categories/food_aliases dan servings/provenance disetujui di atas; [dua migration terpisah](sql-migration-plan.md#katalog-lanjutan-m03-01) sudah diuji pada satu target disposable: suite gabungan 24/24 PASS, exit 0; failure rollback, DOWN/UP/re-run dan preservasi baseline terverifikasi. Audit/editorial tetap OPEN dan urutan milestone M03-01/M03-02/M03-03 tidak berubah.
+3. Catalog base: food_sources sudah diuji (13/13 PASS); foods, food_revisions dan food_revision_nutrients telah diimplementasikan pada 0003 dan diuji (18/18 PASS). FK pointer ditambahkan setelah kedua tabel ada dalam migration yang sama, tanpa deferral. Kontrak categories/food_categories/food_aliases dan servings/provenance disetujui di atas; [dua migration terpisah](sql-migration-plan.md#katalog-lanjutan-m03-01) sudah diuji pada satu target disposable: suite gabungan 24/24 PASS, exit 0; failure rollback, DOWN/UP/re-run dan preservasi baseline terverifikasi. Kontrak audit/governance kini APPROVED pada bagian governance; implementasi/pengujian dan keputusan owner/legal/clinical tetap OPEN. Urutan milestone M03-01/M03-02/M03-03 tidak berubah.
 4. Simple custom foods & revisions and food favorites are MVP; recent derives from logs and copying logs uses new IDs/snapshots. User recipes/revisions/ingredients post-MVP (O-18 final); separate saved-meal scope is unchanged.
 5. Food logs, journal states, weights, versioned nutrition goals.
 6. Sync operation ledger, change feed/cursors, deletion workflow.

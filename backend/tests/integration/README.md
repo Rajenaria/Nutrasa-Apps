@@ -537,6 +537,88 @@ commit tetap OPEN. Pemeriksaan self-parent bukan bukti hierarki bebas siklus;
 reviewed/status/locator bukan legal clearance. Tidak ada seed makanan nyata,
 normalizer, endpoint editorial atau publikasi baru. **M03-01 belum DONE.**
 
+## Catalog audit foundation M03-01
+
+**POSTGRESQL INTEGRATION PASS - 2026-10-17.** Owner-provided terminal output
+confirms **16/16 PASS, 0 fail, 0 skipped, exit code 0**, including final state PASS.
+This is the one approved invocation for 0006, not a rerun of an older suite. The suite uses the existing harness, guard, core, public loader,
+transaction/checksum and advisory lock; fixture
+`fixtures/catalog-audit/0007_failure.sql` stays outside domain discovery.
+
+One fresh-target invocation passed 15 fail-fast checkpoints plus a parent:
+actual 0001-0005 baseline with protected synthetic rows; failure after audit DDL;
+UP; exact 21/13/3 columns plus revision link; PK/UQ/nine RESTRICT FKs; thirteen
+B-tree indexes/37 CHECKs/no user triggers or governance functions; target/decision/
+evidence/scope/hash/date validation; identity sequence; matching review-source,
+batch-source and revision-batch FKs; batch outcomes; empty DOWN; identical UP/re-run;
+populated DOWN refusal retaining evidence. Migrator UPDATE is demonstrated inside
+a rolled-back scenario: DDL does not implement operational append-only/authorization.
+The suite finishes with one synthetic REJECTED source audit, not legal clearance.
+
+Guarded DOWN locks tables before checking data and refuses with division-by-zero
+(22012) on populated audit. Concurrent DOWN writers and crash recovery at commit
+are not claimed tested; runtime-role security remains OPEN.
+DOWN requires READ COMMITTED and refuses other isolation levels; authenticated
+preflight for a future run must confirm the configured default as well.
+
+Approved target provisioned once and verified fresh before execution:
+
+- Run ID: `283df900c3dc4107b5e0c9aeaacbf2c4`.
+- Database: `nutrasa_it_283df900c3dc4107b5e0c9aeaacbf2c4`.
+- Migrator: `nutrasa_it_283df900c3dc4107b5e0c9aeaacbf2c4_migrator`.
+- PostgreSQL 18 testing only, `127.0.0.1:5433`, cluster `nutrasa_it_pg18`,
+  system identifier `7697229180258678980`,
+  data directory `D:/Rajendra/NUTRASA-Postgres-IT/data`.
+
+Combined approval was fulfilled: authenticated preflight confirmed cluster identity,
+unused names and all seven older targets present. One HBA SCRAM rule was added,
+preserving the 14 old rules; reload verification returned 15 valid rules, zero
+errors and reload_observed=true. Provisioning returned exit 0. Fresh migrator
+verification passed marker/ownership/privileges, empty schemas, READ COMMITTED
+and no other sessions before the one approved invocation. Any future execution
+requires fresh-target approval. On failure STOP without reuse/retry/reset/DROP.
+
+Applied HBA rule before general reject; preserve all prior rules:
+
+```text
+host nutrasa_it_283df900c3dc4107b5e0c9aeaacbf2c4 nutrasa_it_283df900c3dc4107b5e0c9aeaacbf2c4_migrator 127.0.0.1/32 scram-sha-256
+```
+
+For future separately approved targets only: existing provision.sql with local administrator on postgres,
+port 5433, one execution. Passwords use local interactive prompts, never command
+arguments/chat/files/logs. Reject PGOPTIONS, PGREPLICATION, PGHOSTADDR,
+PGSERVICE/PGSERVICEFILE or other unapproved inherited overrides before connecting.
+Do not read real .env files. Fresh preflight verifies marker, database/schema owner,
+session_user/current_user, server identity, search_path, CONNECT/minimum privileges,
+PUBLIC restrictions, defaults, empty schemas/no ledger and no other sessions.
+Close psql before tests. The suite bootstraps once; no manual ledger bootstrap.
+
+```powershell
+npm.cmd run test:integration:catalog-audit
+```
+
+Use explicit NUTRASA_IT_DATABASE_URL/NUTRASA_IT_CONFIRM_DATABASE for this pair only,
+credentials entered locally and temporary process environment cleared afterwards.
+Administrator preflight proves system identifier; the non-superuser harness does
+not claim that check itself. No CLI allowlist bypass, primary port 5432 access,
+old-suite rerun or automatic cleanup. Seven existing disposable targets remain
+untouched. All eight disposable databases are retained, without cleanup or extra
+SQL inspection of the seven older targets during final review.
+
+Final read-only verification reported 15 application tables and preserved synthetic
+rows, including one serving and two sources. catalog_reviews contains one synthetic
+SOURCE_PERMISSION / REJECTED record, license_status=UNVERIFIED, permission_scope=NULL;
+catalog_import_batches and catalog_review_sources are empty. food_revisions has
+13 columns and no non-NULL import_batch_id. History contains 0001_identity through
+0006_catalog_audit with six matching immutable SHA-256 baselines. energy_kcal=0.00000
+remains distinct from sugar_g=NULL. This record is not legal clearance.
+
+Tested 0006 SHA-256:
+`c682c41851dd2932e79b66846b696f6ad5d4f8ed8906c77e355f37350ed89961`.
+The actual migration passed the scanner; future governance function compatibility,
+append-only enforcement, actor/digest runtime, publication, legal/clinical gates,
+editorial concurrency and crash recovery at commit remain OPEN. M03-01 not DONE.
+
 ## Cleanup manual dan risiko OPEN
 
 Setelah hasil/sisa kegagalan direview dan penghapusan disetujui:
@@ -555,7 +637,7 @@ Hasil PASS yang dikonfirmasi mencakup skenario lifecycle di atas, termasuk
 atomicity, rollback, concurrency, pelepasan lock, dan recovery melalui re-run.
 Provisioning target dilakukan manual oleh pemilik proyek. Empat target M03-01B.2,
 target food_sources dan target food catalog tetap dipertahankan. Bersama target
-katalog lanjutan di atas, tujuh target tidak di-cleanup pada finalisasi ini.
+katalog lanjutan dan catalog-audit di atas, delapan target tidak di-cleanup pada finalisasi ini.
 Harness tidak melakukan cleanup database otomatis. Jangan menjalankan prosedur
 cleanup atau menghentikan instance tanpa approval terpisah.
 

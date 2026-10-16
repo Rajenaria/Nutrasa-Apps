@@ -3,7 +3,7 @@
 **Version:** 0.8 (developer-ready design draft)  
 **Date:** 13 October 2026  
 **Target repository path:** [docs/02-architecture/food-database-spec.md](food-database-spec.md)\
-**Status:** PRODUCT AGREEMENTS + IMPLEMENTATION PROPOSALS; NOT APPROVED FOR DATA IMPORT OR PRODUCTION
+**Status:** PRODUCT AGREEMENTS + IMPLEMENTATION PROPOSALS; scoped governance contract approved in section 9.4; NOT APPROVED FOR DATA IMPORT OR PRODUCTION
 
 > **Purpose:** Define an Indonesian-first nutrition food catalog from 100 quality-controlled food entries, scalable to 500 and beyond; make food search, portions, food logs, recipes, offline caching, and progress calculations reliable. This is a product/data specification, not a populated database. No nutrition values are invented.
 
@@ -26,7 +26,7 @@
 ### Architectural proposals awaiting explicit approval
 - Ingredient/food/recipe distinctions, versioned nutrient snapshots and provenance at nutrient-field level.
 - Public curated foods versus account-private custom foods and recipes.
-- Admin import/review/publish flow and moderation policy.
+- Historical proposal: admin import/review/publish flow. Governance structure/security design is now APPROVED in [section 9.4](#94-approved-governance-contract-m03-01--not-implemented); implementation, operator/clinical/legal policies and moderation remain OPEN.
 - User-facing source and incomplete-data labels.
 - Search ranking, category taxonomy, and initial 100-food category quotas.
 - Offline catalog packaging, sync conflict rules, and deletion behavior.
@@ -79,7 +79,7 @@
 - **Recipe** / **RecipeIngredient** / **RecipeRevision**: user recipe models are post-MVP; curated catalog recipe calculations require reviewed ingredient/yield assumptions and provenance.
 - **FoodLog** / **FoodLogItem**: local and server IDs, account, meal type, journal local date and time zone, chosen food revision/recipe revision, amount, immutable nutrition snapshot, sync metadata.
 - **FavoriteFood**, **RecentFood**, **SavedMeal**: user-specific convenience records; favorites reference food identity, while saved/copy meals generate new log IDs and snapshots.
-- **CatalogImportBatch** / **CatalogReview**: reviewer, import source, validation failures, approval and publication audit.
+- **CatalogImportBatch** / **CatalogReview** / **CatalogReviewSource**: approved documentation contract for terminal import results, source/revision decisions and permission links; see section 9.4. No implementation or operational authorization is implied.
 
 ### 3.2 Scope and status
 
@@ -212,7 +212,7 @@ Store *food-specific* conversions. Example: for a particular food entry `1 poton
 
 `SOURCE REVIEW → STAGING IMPORT → NORMALIZE → VALIDATE → NUTRITION REVIEW → APPROVE → PUBLISH REVISION → DISTRIBUTE CATALOG VERSION`
 
-**CSV/import schema must be documented** and reject unexpected columns/units, duplicate IDs, ambiguous raw/cooked entries, missing core nutrients, missing provenance, invalid units, and unsupported serving conversions. An approved batch is immutable or tracked by revision. Use deterministic migration and rollback capability.
+**CSV/import schema must be documented** and reject unexpected columns/units, duplicate IDs, ambiguous raw/cooked entries, missing core nutrients, missing provenance, invalid units, and unsupported serving conversions. The approved governance contract records one append-only terminal batch outcome with explicit revision links; it does not approve ingestion or a mutable approval flag. Use deterministic migrations and transactional failure handling; populated audit is not deleted by routine DOWN.
 
 ### 9.2 Candidate first-100 distribution (proposed, not finalized names)
 
@@ -241,6 +241,19 @@ Use regional breadth and actual search demand to refine quotas. The list should 
 - Implausible energy/macro mismatches investigated, not blindly corrected.
 - Additional 7 nutrients may be null and correctly labeled.
 - Reviewer, timestamp, revision and traceable approval present.
+
+### 9.4 Approved governance contract M03-01 — not implemented
+
+**APPROVED CONTRACT — owner after checkpoint 75e43c7.** This supersedes earlier unapproved structural alternatives only for the governance package: [logical contract](database-schema.md#governance-katalog-m03-01), [single physical matrix](postgres-physical-schema-v1.5.md#kontrak-governance-katalog-m03-01), [security/permission boundary](system-architecture.md#catalog-governance-m03-01) and [migration/testing plan](sql-migration-plan.md#governance-katalog-m03-01). It does not approve every proposal in this draft, any source license, reviewer, import or production release.
+
+- catalog_reviews records append-only SOURCE_PERMISSION, NUTRITION, PUBLICATION and WITHDRAWAL decisions with real source/revision FKs. catalog_review_sources pins each nutrition review to source permission decisions, including independently sourced servings. catalog_import_batches records one immutable terminal IMPORTED/REJECTED attempt, artifact hash, parser/mapping and operator; food_revisions.import_batch_id is nullable with a same-source composite FK.
+- A content review is bound to a versioned PostgreSQL 18 canonical digest of meaningful revision/nutrients/servings/provenance and prior permission evidence; no dependency on the new review's own ID. NULL stays different from zero and decimal values do not pass through floating-point conversion. Old decisions remain auditable but cease to qualify when content, effective permission or review conditions change.
+- All catalog/audit writes use the same transaction-level editorial advisory-lock protocol. event_number alone is not concurrency protection. A REJECTED import audit after rollback must be written in a new authorized transaction, never described as surviving the failed transaction.
+- Runtime has no direct catalog DML. Restricted database entrypoints enforce immutable published content, the publication gate and category ancestor checks. No trigger, function, grant, normalizer or endpoint has been implemented by this approval. Normalization remains the approved shared backend NFC -> trim/collapse whitespace -> lowercase -> NFC design.
+- Publication requires all eleven canonical nutrient rows, four reviewed non-null core nutrients, a current content-matching review, complete provenance and effective source permissions for the intended storage/distribution/offline use. Re-evaluate latest decisions, validity dates, evidence, attribution and distribution conditions; neither ALLOWED, ACCEPTED, reviewed nor a hash proves legal/nutritional correctness.
+- Artifact/evidence references and hashes are separate from the underlying documents/data. Never automatically retain provider payloads, license documents, signed URLs, credentials or reviewer personal information. Storing evidence and identity subjects also requires the applicable policy.
+- Owner/legal/clinical gates remain OPEN: authorized people, self-review, reviewer count/qualification, local versus verified Firebase identity, per-source licensing scope/evidence/attribution/expiry/revocation/retention and reviewer privacy. Append-only does not authorize permanent retention. Effects of permission withdrawal on cache/history require approved policy.
+- catalog_reviews/import_batches were deferred from migrations 0004/0005; their documentation contract is now approved, while implementation and tests remain OPEN. M03-01 is not DONE. No real ingestion, publication, new migration, database action or cleanup is authorized here.
 
 ## 10. Permissions and data ownership
 

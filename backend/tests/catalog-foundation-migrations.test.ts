@@ -8,10 +8,10 @@ import { executeAfterIntegrityCheck, readSqlSnapshots, snapshotSql } from '../sr
 import { migrationsDirectory } from '../src/migrations/config.ts';
 import { createVerifiedLoader } from '../src/migrations/loader.ts';
 
-test('five domain migrations preserve historical bytes and exclude both new failure fixtures', async () => {
+test('six domain migrations preserve historical bytes and exclude both new failure fixtures', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
   assert.deepEqual(files.map(file => file.name), [
-    '0001_identity', '0002_food_sources', '0003_food_catalog', '0004_food_taxonomy', '0005_food_servings_provenance',
+    '0001_identity', '0002_food_sources', '0003_food_catalog', '0004_food_taxonomy', '0005_food_servings_provenance', '0006_catalog_audit',
   ]);
   assert.deepEqual(files.slice(0, 3).map(file => file.sha256), [
     'a86a276c6d99080cd123a57647b0c51c53ad1fbce3951e13ddaddfbd113be5af',
@@ -75,7 +75,7 @@ for (const name of ['0004_food_taxonomy', '0005_food_servings_provenance']) {
   });
 }
 
-test('the five-migration loader rejects a fixture substitution before constructing any actions', async () => {
+test('the six-migration loader rejects a fixture substitution before constructing any actions', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
   let inspections = 0;
   const loader = createVerifiedLoader(files, async () => {

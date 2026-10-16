@@ -147,6 +147,50 @@ Estimate cost before deciding: daily active users; logs/user/day; screen opens/d
 - Consent and privacy notices for body/health-related data; confirm retention and erase/export semantics under applicable regulations.
 - Security tests: cross-user access, replay/retry, account switching, offline queue, revoked accounts, unverified email, deletion race.
 
+### Catalog governance M03-01
+
+**APPROVED DESIGN — pemilik proyek setelah checkpoint 75e43c7; belum diimplementasikan/diuji.** [Kontrak fisik audit dan digest](postgres-physical-schema-v1.5.md#kontrak-governance-katalog-m03-01) serta [migration plan](sql-migration-plan.md#governance-katalog-m03-01) melengkapi batas curation di atas. APPROVED di sini bukan legal clearance, reviewer authorization, grant operasional atau izin publikasi. Keputusan owner/legal/clinical pada kontrak fisik tetap OPEN.
+
+| Capability konseptual | Izin yang dirancang | Batas wajib |
+|---|---|---|
+| Application runtime | SELECT lewat proyeksi katalog publik yang aman | Tanpa DML/TRUNCATE katalog/audit, tanpa EXECUTE fungsi editorial dan tanpa akses metadata migrasi; DTO publik tidak membocorkan audit/actor/bukti privat. |
+| Editorial operator | EXECUTE entrypoint draft, batch, categories/aliases yang diizinkan | Tanpa DML langsung; tidak otomatis menjadi reviewer/publisher. |
+| Nutrition reviewer | EXECUTE pencatatan review nutrisi | Subject terverifikasi; tidak otomatis menentukan hak sumber. |
+| Rights reviewer | EXECUTE pencatatan keputusan izin | Bukti/scope aktual, bukan label ALLOWED saja. |
+| Publisher | EXECUTE publikasi/withdrawal | Hanya setelah gate; tidak otomatis boleh menyetujui nutrisi atau izin. |
+| Function executor | NOLOGIN; privilege tabel minimum untuk fungsi | Tidak memiliki schema/tabel, DDL/CREATE, privilege global atau metadata migrasi; audit hanya SELECT/INSERT, bukan UPDATE/DELETE/TRUNCATE. |
+| Migrator | Ownership dan DDL schema/tabel sesuai runner existing | Tidak dipakai runtime atau operator; migration credential tidak dibagikan. |
+| Administrator | Provisioning/maintenance yang disetujui | Batas kepercayaan administratif, bukan jaminan immutable terhadap superuser. |
+
+Nama login/role dan membership belum dipilih atau diprovisioning. Tidak ada keputusan bahwa self-review boleh/dilarang atau harus berapa orang; role/capability berbeda tidak membuktikan pemisahan manusia.
+
+Ownership schema nutrasa/nutrasa_migrations dan tabel baru tetap migrator terkait agar cocok dengan pemeriksaan runner. Fungsi privileged dirancang dimiliki executor NOLOGIN terpisah. Prosedur pembentukan/ownership fungsi dan privilege/membership migrator perlu review/approval provisioning terpisah; jangan memberikan CREATE atau hak SET ROLE executor/migrator kepada caller operasional untuk memudahkan instalasi.
+
+SECURITY DEFINER: fixed safe search_path (pg_catalog, pg_temp), seluruh referensi aplikasi schema-qualified nutrasa.*, tanpa dynamic SQL/DDL/role change dari input, tanpa akses metadata migrasi. REVOKE EXECUTE FROM PUBLIC dan GRANT EXECUTE sesuai signature/capability dalam transaksi pembuatan yang sama; helper internal tidak ikut terbuka. Batasi privilege tabel executor pada kebutuhan fungsi. Tidak ada default grant untuk semua fungsi/tabel masa depan kepada runtime.
+
+**Actor boundary OPEN:** actor_subject tidak diterima sebagai identitas bebas yang dipercaya. Rekomendasi login editorial lokal individual masih PROPOSED sampai owner menetapkan mapping operator/authorization. Pada SECURITY DEFINER, current_user menjadi owner fungsi; caller lokal memerlukan konteks login terverifikasi, bukan current_user yang keliru dicatat sebagai reviewer. Jika melalui Firebase/pool backend, session_user DB hanya mengidentifikasi service; kontrak actor harus mengikat subject token terverifikasi dan capability server. GUC, argument atau label role dari client saja tidak membuktikan manusia. Tidak ada password/token/email/profil reviewer dalam audit; retensi subject dan keamanan pemetaan tetap OPEN.
+
+#### Transaction dan publication gate
+
+1. Semua entrypoint penulisan katalog/audit mengambil satu transaction-level advisory lock khusus katalog sebelum DML/row lock; key tetap perlu dipilih/diverifikasi tidak berbenturan dengan lock migration/sync. Fungsi penulisan memakai volatilitas yang sesuai (VOLATILE, bukan atribut SQL IMMUTABLE); tidak melakukan COMMIT/ROLLBACK sendiri. Caller tidak boleh menahan transaksi idle sesudah fungsi; batas waktu/penanganan konflik harus direview saat implementasi.
+2. Di bawah lock, validasi capability, expected digest/versi dan baca ulang state. Untuk baseline READ COMMITTED, pembacaan validasi dilakukan setelah perolehan lock dalam langkah terpisah; jangan memakai snapshot state sebelum menunggu lock. Dukungan isolation level lain perlu bukti terpisah, bukan asumsi.
+3. Publikasi memastikan revisi milik makanan yang sama dan belum pernah diterbitkan; tepat 11 kode kanonis, energy_kcal/protein_g/carbohydrate_g/fat_g diketahui dan ditinjau, tujuh tambahan boleh NULL; basis/numerik/teks valid tanpa nilai buatan.
+4. Pilih review nutrisi efektif terbaru yang ACCEPTED, subject/capability sah dan digest sama dengan konten yang diperiksa. Keberadaan satu ACCEPTED bukan keputusan bahwa satu reviewer cukup atau self-review diperbolehkan; policy jumlah/identitas/kualifikasi harus ditutup sebelum aktivasi. catalog_review_sources harus tepat mencakup sumber komposisi dan seluruh sumber servings, dengan keputusan izin sumber yang efektif, bukti/scope/tanggal/atribusi sesuai penggunaan. Locator/snapshot komposisi lengkap, serving yang ditawarkan reviewed serta memiliki bukti/konversi sah; jika tidak ada, hanya basis g/ml yang didukung.
+5. Dalam transaksi sama: catat PUBLICATION yang menunjuk review, atur quality_status/published_at, pasang pointer dan publication_status makanan. Pelanggaran gate atau kegagalan sesudah DML membatalkan seluruh domain dan audit transaksi; error tidak ditelan menjadi sukses.
+6. Saat distribusi/read/cache, ulangi pemeriksaan visibilitas dan izin sesuai kondisi kini; gate publikasi bukan hak distribusi abadi. Penarikan memakai WITHDRAWAL yang merujuk publikasi lama dan menghentikan visibilitas tanpa membuka komposisi untuk edit. Dampak cache/histori/retensi saat hak dicabut tetap owner/legal gate.
+
+event_number bukan pengganti lock. Semua writer, termasuk pencatatan izin, review, batch REJECTED, perubahan metadata sumber dan taxonomy harus mengikuti protokol yang sama. Role operasional tidak memiliki bypass DML; arbitrary SQL oleh migrator/superuser tetap batas kepercayaan administratif.
+
+**Immutable published content:** jangan downgrade revisi PUBLISHED untuk membuka edit; tolak UPDATE/DELETE revisi, INSERT/UPDATE/DELETE nutrients/servings serta pemindahan child dari/ke revisi terbit. Basis, komposisi, source_id, locator/snapshot dan import_batch_id terkunci. Koreksi membuat revisi baru. Bibliografi sumber yang telah dipakai revisi terbit tidak ditimpa; gunakan source record baru. Perubahan hak sumber menambah audit dan memperbarui state izin lewat entrypoint, bukan menimpa bukti lama. Archiving/withdrawal mengubah visibilitas, bukan menghapus versi atau menghitung ulang food log historis (D09). Desain fungsi + privilege membatasi jalur operasional; belum ada trigger yang diizinkan/diimplementasikan.
+
+**Draft/review:** perubahan konten atau izin relevan tidak menghapus audit lama, tetapi membuatnya tidak efektif untuk gate. Digest harus dihitung dari snapshot konten yang disetujui operator, dengan expected digest untuk mencegah review konten berbeda setelah race. Riwayat review tidak otomatis menjadikan latest revision sebagai versi yang telah disetujui.
+
+**Category cycles:** di bawah lock yang sama, periksa leluhur calon parent sebelum perubahan; FK dan self-parent CHECK existing tetap dipakai. Serialisasi mencakup perubahan hierarchy lain, bukan recursive query tanpa concurrency control.
+
+**Normalizer:** satu implementasi reusable backend NFC -> trim/collapse whitespace -> lowercase -> NFC untuk canonical_name/alias/query. Belum ada implementasi; CHECK nonblank dan digest tidak menggantikan normalizer.
+
+**Error/concurrency:** konflik expected digest, review stale, izin berubah dan timeout/deadlock menghasilkan kegagalan terkontrol dan rollback; jangan retry keputusan editorial secara otomatis. Error tidak mengekspos SQL/detail internal. Kode domain/API baru masih PROPOSED/OPEN sampai penyelarasan kontrak API tersendiri; tidak menambah enum OpenAPI dalam task dokumentasi ini.
+
 ## 10. Sequence for developers
 
 1. Use the selected local Fastify/PostgreSQL stack; defer cloud provider, budget and region selection until beta/cloud planning.
