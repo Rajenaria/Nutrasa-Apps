@@ -15,7 +15,8 @@
     "migrate": "node src/migrations/cli.ts",
     "test:integration": "node --test --test-concurrency=1 tests/integration/migrations.integration.ts",
     "test:integration:identity": "node --test --test-concurrency=1 tests/integration/identity.integration.ts",
-    "test:integration:food-sources": "node --test --test-concurrency=1 tests/integration/food-sources.integration.ts"
+    "test:integration:food-sources": "node --test --test-concurrency=1 tests/integration/food-sources.integration.ts",
+    "test:integration:food-catalog": "node --test --test-concurrency=1 tests/integration/food-catalog.integration.ts"
   },
   "dependencies": {
     "fastify": "5.12.5",

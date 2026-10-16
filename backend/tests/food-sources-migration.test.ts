@@ -11,7 +11,8 @@ import { createVerifiedLoader } from '../src/migrations/loader.ts';
 
 test('domain discovery orders the actual food sources migration after immutable identity and excludes failure fixtures', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
-  assert.deepEqual(files.map(file => file.name), ['0001_identity', '0002_food_sources']);
+  assert.deepEqual(files.map(file => file.name), ['0001_identity', '0002_food_sources', '0003_food_catalog']);
+  assert.equal(files[1]?.sha256, '9485a3b5e9d7f26afde5cf94454fac5d76fd384489574a4a960583cad19528b6');
   assert.equal(files[0]?.sha256, 'a86a276c6d99080cd123a57647b0c51c53ad1fbce3951e13ddaddfbd113be5af');
   const fixturePath = fileURLToPath(new URL('./integration/fixtures/food-sources/0003_failure.sql', import.meta.url));
   const fixture = snapshotSql(fixturePath, await readFile(fixturePath));

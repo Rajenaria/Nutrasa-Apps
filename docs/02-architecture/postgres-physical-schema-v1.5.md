@@ -19,9 +19,9 @@
 | `user_preferences` | `user_id uuid`, `language_code text`, `time_zone text`, `preferred_weight_unit text`, `updated_at timestamptz` semuanya NN | PK(user_id), FK user_id ke user_profiles.user_id ON DELETE CASCADE; tanpa FK langsung ke app_users; CHECK unit kg/lb, language/time_zone tidak kosong; IANA divalidasi server |
 | `privacy_acknowledgements` | `id uuid`, `user_id uuid`, `notice_version text`, `ack_type text`, `acknowledged_at timestamptz` semuanya NN | PK(id), FK user_id ke app_users.id ON DELETE RESTRICT; UNIQUE(user_id,notice_version,ack_type); CHECK versi/type tidak kosong |
 | `food_sources` | Delapan kolom, tipe/nullability/default final pada [kontrak food_sources M03-01](#kontrak-food_sources-m03-01) | PK; CHECK nonblank, status izin, timestamp finite; metadata bukan legal clearance |
-| `foods` | `id uuid`, `canonical_name text`, `normalized_name text`, `publication_status text`, `current_published_revision_id uuid NULL` | PK; index(normalized_name), partial published; deferred FK current revision bila cycle |
-| `food_revisions` | `id uuid`, `food_id uuid`, `revision_number integer`, `source_id uuid`, `basis_quantity numeric(14,5)`, `basis_unit text` | UNIQUE(food_id,revision_number), FK food/source, CHECK positive and unit |
-| `food_revision_nutrients` | `food_revision_id uuid`, `nutrient_code text`, `value numeric(14,5) NULL` | PK(revision,nutrient); CHECK 11 allowed and nonnegative; publication validated transactionally |
+| `foods` | Sembilan kolom pada [kontrak katalog struktural M03-01](#kontrak-katalog-struktural-m03-01) | PK; index(normalized_name); FK gabungan pointer MATCH SIMPLE, NOT DEFERRABLE; tanpa UNIQUE nama atau partial index tambahan |
+| `food_revisions` | Sepuluh kolom pada kontrak katalog struktural; source_id wajib | PK; UNIQUE(food_id,revision_number), UNIQUE(food_id,id); FK food/source RESTRICT; CHECK basis, teks dan status/waktu |
+| `food_revision_nutrients` | Tiga kolom pada kontrak katalog struktural; value numeric(14,5) NULL | PK(food_revision_id,nutrient_code), FK revisi RESTRICT; CHECK 11 kode, nonnegatif dan finite; enforcement publikasi OPEN |
 | `serving_definitions` | `id uuid`, `food_revision_id uuid`, `label text`, `base_quantity numeric(14,5)`, `base_unit text` | FK revision; CHECK positive; index(food_revision_id) |
 | `categories` | `id uuid`, `parent_id uuid NULL`, `slug text`, `name text` | UNIQUE(slug), FK parent; prevent hierarchy cycles via service/recursive check |
 | `food_categories` | `food_id uuid`, `category_id uuid`, `is_primary bool` | PK(food,category); partial UNIQUE(food_id) WHERE is_primary |
@@ -87,15 +87,68 @@
 - **Batas D05/legal:** `license_status = ALLOWED` tidak membuktikan hak pakai dengan sendirinya. Bukti sah per sumber serta kewajiban atribusi/penyimpanan/redistribusi tetap wajib diverifikasi sebelum import/publikasi. CHECK hanya membatasi nilai status, bukan memverifikasi legalitas, menyeleksi sumber, atau mengizinkan nutrisi dipublikasikan.
 - **OPEN terpisah:** vocabulary sumber bila kelak diperlukan, provenance per nilai/revisi dan source food code, struktur `catalog_reviews` / `catalog_import_batches`, editorial authorization serta review publikasi dan hak data. [Food Database Specification](Food-Database-spec.md) tetap memuat proposal tersebut; persetujuan registry ini tidak mengesahkan seluruh proposal atau sumber tertentu.
 
+## Kontrak katalog struktural M03-01
+
+**APPROVED — pemilik proyek, task FOOD CATALOG STRUCTURAL CONTRACT.** Kontrak PostgreSQL 18 untuk tepat tiga tabel di bawah, melengkapi [schema logis §3.2](database-schema.md#32-katalog-nusantara-dan-provenance). Riwayat proposal pada matriks ringkas sebelumnya mencantumkan partial published index dan kemungkinan deferred pointer; keputusan final memakai indeks minimum dan FK langsung seperti di bawah. Approval lanjutan mengizinkan penulisan `0003_food_catalog.sql`, lalu HBA/provisioning satu target disposable dan satu kali integration suite. Hasil terminal pemilik proyek pada 17 Oktober 2026: **18/18 PASS, 0 fail/skip, exit code 0**, termasuk rollback batch, constraint dan DOWN/UP/re-run; [bukti dan kondisi akhir](../../backend/tests/integration/README.md#food-catalog-m03-01). Matriks final tidak berubah. Registry delapan kolom food_sources dan migration 0001/0002 tetap utuh; hasil bukan bukti penerapan pada database dev/test utama atau kesiapan publikasi. **M03-01 belum DONE.**
+
+NN = NOT NULL. "Tidak ada" berarti tanpa klausa DEFAULT; pada kolom nullable nilai yang tidak diberikan tetap NULL. Selain default teknis yang tercantum, seluruh nilai NN wajib diberikan eksplisit.
+
+| Tabel / kolom | Tipe / nullability | DEFAULT | Makna dan constraint |
+|---|---|---|---|
+| `foods.id` | `uuid NN` | `pg_catalog.gen_random_uuid()` | PRIMARY KEY identitas makanan. |
+| `foods.canonical_name` | `text NN` | Tidak ada | Nama tampilan; tidak blank, tidak UNIQUE. |
+| `foods.normalized_name` | `text NN` | Tidak ada | Nama pencarian tidak blank; tidak UNIQUE atau generated; algoritme normalisasi OPEN. |
+| `foods.food_type` | `text NN` | Tidak ada | Jenis makanan tidak blank; vocabulary operasional OPEN, tanpa enum buatan. |
+| `foods.region` | `text NULL` | Tidak ada | Daerah bila diketahui; jika terisi tidak blank. |
+| `foods.publication_status` | `text NN` | Tidak ada | CHECK tepat DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED; antrean penerbitan dan visibilitas makanan. |
+| `foods.current_published_revision_id` | `uuid NULL` | Tidak ada | Pointer revisi makanan itu sendiri; wajib terisi jika publication_status = PUBLISHED. |
+| `foods.created_at` | `timestamptz NN` | `pg_catalog.now()` | CHECK finite; waktu pencatatan server. |
+| `foods.updated_at` | `timestamptz NN` | `pg_catalog.now()` | CHECK finite; default hanya INSERT, pembaruan eksplisit backend nanti. |
+| `food_revisions.id` | `uuid NN` | `pg_catalog.gen_random_uuid()` | PRIMARY KEY versi komposisi. |
+| `food_revisions.food_id` | `uuid NN` | Tidak ada | FK ke foods.id. |
+| `food_revisions.revision_number` | `integer NN` | Tidak ada | CHECK > 0; UNIQUE per makanan, tanpa default nomor. |
+| `food_revisions.source_id` | `uuid NN` | Tidak ada | FK ke food_sources.id; satu sumber utama untuk seluruh komposisi revisi. |
+| `food_revisions.basis_quantity` | `numeric(14,5) NN` | Tidak ada | Positif dan finite; tidak otomatis 100. |
+| `food_revisions.basis_unit` | `text NN` | Tidak ada | CHECK tepat g atau ml. |
+| `food_revisions.composition_definition` | `text NN` | Tidak ada | Tidak blank; menjelaskan komposisi/kondisi/bagian yang direpresentasikan. |
+| `food_revisions.source_method` | `text NN` | Tidak ada | Metode tidak blank, berbeda dari jenis registry sumber; vocabulary operasional OPEN. |
+| `food_revisions.quality_status` | `text NN` | Tidak ada | CHECK tepat DRAFT, REVIEWED, PUBLISHED; tahap review/penerbitan revisi. |
+| `food_revisions.published_at` | `timestamptz NULL` | Tidak ada | CHECK finite jika terisi; terisi tepat ketika quality_status = PUBLISHED. |
+| `food_revision_nutrients.food_revision_id` | `uuid NN` | Tidak ada | FK ke food_revisions.id; bagian PRIMARY KEY. |
+| `food_revision_nutrients.nutrient_code` | `text NN` | Tidak ada | Salah satu 11 kode kanonis; bagian PRIMARY KEY. |
+| `food_revision_nutrients.value` | `numeric(14,5) NULL` | Tidak ada | Unknown tetap NULL; nilai diketahui finite dan >= 0, nol sah. |
+
+### CHECK dan relasi final
+
+- **Teks:** canonical_name, normalized_name, food_type, composition_definition dan source_method memakai `kolom ~ '[^[:space:]]'`; region memakai `region IS NULL OR region ~ '[^[:space:]]'`. Tidak melakukan trim atau mengubah isi yang sah; tidak ada UNIQUE global nama, enum food_type/source_method atau fallback bisnis.
+- **Numerik:** CHECK basis_quantity memakai `basis_quantity > 0 AND basis_quantity NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)`; CHECK value memakai `value IS NULL OR (value >= 0 AND value NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric))`. PostgreSQL membandingkan NaN lebih tinggi dari angka biasa, sehingga > 0 atau >= 0 saja tidak cukup. NUMERIC(14,5) juga menolak infinity pada tingkat tipe; pengujian membedakan penolakan tipe dari CHECK. Ini batas representasi teknis, bukan ambang klinis. Backend wajib menolak input presisi berlebih sebelum coercion PostgreSQL; CHECK setelah coercion tidak memulihkan presisi asli.
+- **Kode nutrisi:** energy_kcal, protein_g, carbohydrate_g, fat_g, fiber_g, sugar_g, saturated_fat_g, trans_fat_g, cholesterol_mg, sodium_mg, potassium_mg. Unit mengikuti [kamus kanonis §2](database-schema.md#2-tipe-satuan-dan-presisi); tidak ada kolom unit tambahan atau total_sugar_g aktif.
+- **Waktu:** created_at dan updated_at memakai CHECK `pg_catalog.isfinite(kolom)`; published_at memakai `published_at IS NULL OR pg_catalog.isfinite(published_at)`. Tidak ada trigger otomatis untuk updated_at atau default published_at.
+- **Hubungan lokal:** CHECK `publication_status <> 'PUBLISHED' OR current_published_revision_id IS NOT NULL`; CHECK `(quality_status = 'PUBLISHED') = (published_at IS NOT NULL)`. DRAFT/REVIEWED harus memiliki published_at NULL; label status bukan bukti review atau izin sumber.
+- **PK/UNIQUE:** foods PK(id), food_revisions PK(id), UNIQUE(food_id,revision_number), UNIQUE(food_id,id); food_revision_nutrients PK(food_revision_id,nutrient_code). UNIQUE pendukung (food_id,id) non-deferrable diperlukan sebagai target FK gabungan walaupun id sudah unik secara logis.
+- **Empat FK:** food_revisions.food_id -> foods.id; food_revisions.source_id -> food_sources.id; food_revision_nutrients.food_revision_id -> food_revisions.id; (foods.id,current_published_revision_id) -> food_revisions(food_id,id). Seluruhnya ON DELETE RESTRICT, ON UPDATE RESTRICT, NOT DEFERRABLE. Pointer memakai MATCH SIMPLE agar id makanan terisi dengan pointer NULL tetap sah; tidak memakai MATCH FULL. FK pointer membuktikan kepemilikan makanan, belum membuktikan quality_status target PUBLISHED.
+- **Indeks minimum:** enam indeks pada tiga tabel baru: tiga indeks PK, dua indeks UNIQUE revisi, satu B-tree foods(normalized_name). Tidak ada indeks tambahan untuk pointer/source_id, partial published, DESC duplikat, atau trigram. Kebutuhan optimasi berikutnya harus berdasarkan query/profiling; B-tree bukan jaminan pencarian substring. Indeks existing food_sources tidak diubah.
+
+### Lifecycle struktural dan batas publikasi
+
+- Status makanan mengatur visibilitas/antrean penerbitan; status revisi mengatur versi komposisi. Backend nanti memberi DRAFT eksplisit pada awal pencatatan. Revisi baru mendapat nomor baru per makanan dengan serialisasi transaksi, bukan MAX + 1 tanpa pengamanan; draft baru tidak otomatis mengganti pointer versi aktif. Persetujuan vocabulary bukan implementasi state machine editorial lengkap.
+- Draft dapat memiliki 0-11 baris nutrisi. Aturan sebelum publikasi: tepat 11 kode, empat inti diketahui dan ditinjau, tujuh lainnya boleh NULL. PK/CHECK hanya membatasi baris yang ada, tidak memaksa jumlah 11 atau membuktikan review. API publik tetap proyeksi foods + revisi terpilih + 11 nilai decimal-string/null, bukan komposisi duplikat di foods.
+- Revisi PUBLISHED harus immutable pada komposisi, porsi dan identitas sumber; perubahan membutuhkan revisi baru. published_at dipertahankan dan revisi tidak dikembalikan ke DRAFT untuk membuka edit. Pengarsipan makanan menghentikan visibilitas tanpa menghapus versi historis. Ini invariant yang disetujui, **enforcement masih OPEN**: RESTRICT tidak melarang perubahan/hapus langsung pada baris nutrisi atau menjamin append-only.
+- Traceability struktural minimum food_sources -> food_revisions -> food_revision_nutrients. Satu source_id wajib berlaku untuk seluruh komposisi revisi; tidak ada dukungan provenance campuran per nutrien atau rantai derivasi bahan/yield yang diklaim. Source record locator dan riwayat bukti izin belum direpresentasikan sebagai kontrak terstruktur.
+- **Publikasi/import tetap diblokir:** enforcement immutable, target pointer PUBLISHED, kelengkapan/review 11 nutrien, bukti hak sumber/atribusi, editorial authorization dan runtime privileges tetap OPEN. food_sources.license_status = ALLOWED tetap membutuhkan bukti sah per sumber sesuai D05, bukan legal clearance dari CHECK. Vocabulary food_type/source_method, normalisasi nama, catalog_reviews dan catalog_import_batches tetap OPEN; tidak ditambah kolom spekulatif.
+- Tidak ada trigger/stored procedure yang disetujui. Runner existing menolak token BEGIN/END termasuk dalam komentar/literal; enforcement berikutnya memerlukan review kompatibilitas terpisah. Struktur kosong tidak memberi izin endpoint publikasi, seed/import, data nyata atau klaim kesiapan editorial produksi.
+- **UP yang disetujui secara desain:** foods tanpa FK pointer -> food_revisions dengan UNIQUE pendukung -> food_revision_nutrients -> ADD FK pointer setelah kedua tabel ada. Constraint diperiksa langsung; INSERT kelak dapat membuat foods dengan pointer NULL, lalu revisi/nutrisi, validasi dan pemasangan pointer secara transaksional.
+- **DOWN disetujui dan teruji:** DROP FK pointer eksplisit -> DROP food_revision_nutrients -> DROP food_revisions -> DROP foods, tanpa CASCADE. Tidak menyentuh identity, food_sources, schema atau metadata engine secara langsung; preservasi OID, owner, definisi dan data kedua domain terdahulu lulus pada suite disposable. Dependensi dari migration lebih baru harus dilepas melalui DOWN terbalik, bukan dihapus paksa. Eksekusi berikutnya memerlukan approval baru; [status implementasi dan tests](sql-migration-plan.md#katalog-struktural-m03-01).
+
 ## Migration dependency order (planning only)
 
 1. Manual prerequisites: schema/role provisioning dan ledger bootstrap terpisah, bukan domain migration 0001; tidak ada dummy foundation migration.
 2. First domain file yang disetujui: `backend/migrations/0001_identity.sql` untuk app_users, profiles, preferences, privacy acknowledgements; belum dibuat/dijalankan pada M03-01A.
-3. Catalog base: sources, categories, foods, food_revisions (handle circular published pointer in a later ALTER), nutrients, servings, aliases, joins. Registry `food_sources` sudah ditulis dan diuji pada PostgreSQL disposable (13/13 PASS); kontrak katalog lainnya tetap memerlukan perincian sebelum migration berikutnya.
+3. Catalog base: food_sources sudah diuji (13/13 PASS); foods, food_revisions dan food_revision_nutrients telah diimplementasikan pada 0003 dan diuji (18/18 PASS). FK pointer ditambahkan setelah kedua tabel ada dalam migration yang sama, tanpa deferral. Categories, servings, aliases, joins serta audit editorial tetap memerlukan kontrak terperinci; tidak ada izin migration lain dan urutan milestone M03-01/M03-02/M03-03 tidak berubah.
 4. Simple custom foods & revisions and food favorites are MVP; recent derives from logs and copying logs uses new IDs/snapshots. User recipes/revisions/ingredients post-MVP (O-18 final); separate saved-meal scope is unchanged.
 5. Food logs, journal states, weights, versioned nutrition goals.
 6. Sync operation ledger, change feed/cursors, deletion workflow.
-7. Add FK for `current_*_revision_id` after both tables exist; add check triggers and indexes; load reviewed seed data only after license audit.
+7. Pointer katalog memakai kontrak gabungan langsung pada langkah 3. Pointer domain lain, enforcement publikasi, trigger dan indeks tambahan memerlukan keputusan terkait; tidak otomatis termasuk approval struktural katalog. Load reviewed seed data hanya setelah izin sumber, review kualitas dan approval terpisah.
 8. Migration smoke-test clean install + forward upgrade + constraints + rollback strategy in disposable local DB.
 
 ## Implementation traps / unresolved (must close before executable migration)
