@@ -11,12 +11,16 @@ SELECT :'run_id' ~ '^[a-f0-9]{32}$' COLLATE "C"
 SELECT 'nutrasa_it_' || :'run_id' AS it_database,
        'nutrasa_it_' || :'run_id' || '_migrator' AS it_role \gset
 SELECT current_database() = 'postgres' AND r.rolsuper
-       AND host(inet_server_addr()) IN ('127.0.0.1', '::1') AND inet_server_port() = 5432
+       AND current_user = 'nutrasa_it_admin' AND session_user = current_user
+       AND host(inet_server_addr()) IN ('127.0.0.1', '::1') AND inet_server_port() = 5433
+       AND current_setting('server_version_num')::integer >= 180000
+       AND current_setting('server_version_num')::integer < 190000
+       AND current_setting('cluster_name') = 'nutrasa_it_pg18'
        AS valid_admin
 FROM pg_catalog.pg_roles r WHERE r.rolname = current_user \gset
 \if :valid_admin
 \else
-  \echo STOP: use the authorized local administrator on postgres
+  \echo STOP: require nutrasa_it_admin on the dedicated PostgreSQL 18 test cluster
   \quit
 \endif
 SELECT count(*) = 1 AND bool_and(
@@ -40,6 +44,18 @@ FROM pg_catalog.pg_roles r WHERE r.rolname = :'it_role' \gset
   \quit
 \endif
 \connect :it_database
+SELECT current_database() = :'it_database' AND r.rolsuper
+       AND current_user = 'nutrasa_it_admin' AND session_user = current_user
+       AND host(inet_server_addr()) IN ('127.0.0.1', '::1') AND inet_server_port() = 5433
+       AND current_setting('server_version_num')::integer >= 180000
+       AND current_setting('server_version_num')::integer < 190000
+       AND current_setting('cluster_name') = 'nutrasa_it_pg18' AS correct_database
+FROM pg_catalog.pg_roles r WHERE r.rolname = current_user \gset
+\if :correct_database
+\else
+  \echo STOP: wrong target connection
+  \quit
+\endif
 SELECT count(*) = 2 AND bool_and(nspowner = :'it_role'::regrole) AS matching_schemas
 FROM pg_catalog.pg_namespace WHERE nspname IN ('nutrasa', 'nutrasa_migrations') \gset
 \if :matching_schemas
@@ -48,6 +64,18 @@ FROM pg_catalog.pg_namespace WHERE nspname IN ('nutrasa', 'nutrasa_migrations') 
   \quit
 \endif
 \connect postgres
+SELECT current_database() = 'postgres' AND r.rolsuper
+       AND current_user = 'nutrasa_it_admin' AND session_user = current_user
+       AND host(inet_server_addr()) IN ('127.0.0.1', '::1') AND inet_server_port() = 5433
+       AND current_setting('server_version_num')::integer >= 180000
+       AND current_setting('server_version_num')::integer < 190000
+       AND current_setting('cluster_name') = 'nutrasa_it_pg18' AS valid_admin
+FROM pg_catalog.pg_roles r WHERE r.rolname = current_user \gset
+\if :valid_admin
+\else
+  \echo STOP: wrong cleanup maintenance connection
+  \quit
+\endif
 \prompt 'Confirm permanent removal by typing the exact integration database name: ' confirm_database
 SELECT :'confirm_database' = :'it_database' AS confirmed \gset
 \if :confirmed

@@ -43,8 +43,10 @@ Engine tetap `node-pg-migrate` 9.0.0. Command migration domain adalah
 `npm run migrate -- up` dan `npm run migrate -- down [jumlah]` dari `backend/`,
 hanya untuk `nutrasa_dev` atau `nutrasa_test` dengan role migrator masing-masing.
 Migration domain pertama `migrations/0001_identity.sql` sudah ditulis pada
-M03-01B.1, tetapi belum dijalankan atau divalidasi melalui PostgreSQL.
-Eksekusinya memerlukan persetujuan terpisah dan
+M03-01B.1 dan divalidasi melalui PostgreSQL 18.6 pada database disposable
+identity dalam M03-01B.2: **15/15 PASS, exit code 0**, termasuk UP/DOWN/UP.
+Hasil ini tidak menyatakan migration sudah diterapkan pada `nutrasa_dev` atau
+`nutrasa_test`. Eksekusi pada kedua database domain memerlukan persetujuan terpisah dan
 bootstrap ledger pada database target; jangan menjalankannya pada review dokumentasi,
 termasuk dry-run. Pengujian integration destructive memakai database sementara
 `nutrasa_it_<32hex>` tersendiri, bukan kedua database domain tersebut.
@@ -54,6 +56,10 @@ Target tetap `nutrasa`, histori `nutrasa_migrations.pgmigrations`, tanpa pembuat
 schema otomatis, dengan transaksi batch, order check, dan advisory lock mode fail.
 Environment proses memakai `MIGRATION_DATABASE_URL` untuk migrator lokal yang
 sesuai database dev/test. Tidak membaca file `.env` otomatis atau mencetak URL.
+URL tanpa port dinormalisasi menjadi `5432`; `PGPORT` tidak dapat mengalihkan
+koneksi. `PGOPTIONS` dan `PGREPLICATION` yang tidak kosong ditolak sebelum client
+dibuat, termasuk saat wrapper dipanggil langsung. URL tanpa password tetap
+didukung seperti sebelumnya; perubahan ini tidak mengubah mekanisme credential.
 
 Konvensi resmi NUTRASA untuk file di `backend/migrations/` adalah `NNNN_nama.sql`:
 nomor urut empat digit `0001`–`9999`, unik; nama diawali huruf kecil ASCII,
@@ -126,17 +132,30 @@ Suite identity M03-01B.1 terpisah melalui `npm run test:integration:identity` da
 memakai setup harness serta guard yang sama dengan suite engine. Ia menyalin byte
 SQL domain ke workspace sementara, bukan membuat salinan DDL fixture yang berbeda.
 Setiap suite memerlukan database integration baru karena baseline checksum immutable;
-jangan menjalankan suite engine dan identity pada target yang sama. Suite identity
-belum dijalankan; pengujian nyata memerlukan persetujuan M03-01B.2.
+jangan menjalankan suite engine dan identity pada target yang sama. Instance khusus
+integration memakai PostgreSQL 18 pada `127.0.0.1:5433`, cluster `nutrasa_it_pg18`,
+administrator `nutrasa_it_admin`, dan migrator khusus untuk setiap database.
+Guard memeriksa identitas koneksi, marker, ownership dan privilege sebelum mutasi;
+preflight eksternal juga memverifikasi data directory dan system identifier.
 
-Bukti yang dikonfirmasi pemilik proyek pada finalisasi M03-02D:
+Bukti M03-01B.2 yang dikonfirmasi pemilik proyek pada 16 Oktober 2026:
 
-- Backend unit tests: **39/39 PASS**.
-- PostgreSQL integration tests: **11/11 PASS, 0 fail, 0 skipped**.
-- Database integration sementara sudah dibersihkan manual; `nutrasa_dev` dan
-  `nutrasa_test` tetap dipertahankan.
+- Identity integration: **15/15 PASS, 0 fail, 0 skipped, exit code 0**.
+- Migration-engine integration B: **11/11 PASS, 0 fail, 0 skipped, exit code 0**.
+- Backend unit tests pada final review: **47/47 PASS**.
+- UP/DOWN/UP identity, commit/rollback DDL+data+history+checksum, baseline immutable,
+  penolakan file berubah/hilang, history-ledger mismatch, concurrency dan pelepasan
+  advisory lock telah lulus pada target disposable masing-masing.
+- Percobaan berikutnya pada B dihentikan preflight `schemas_empty`: suite tidak
+  dijalankan dan PASS sebelumnya tetap berlaku. Target yang sudah digunakan
+  tidak boleh dipakai ulang, di-reset atau dibersihkan tanpa approval terpisah.
+- Seluruh database disposable M03-01B.2 dipertahankan sebagai bukti; tidak ada
+  cleanup pada finalisasi ini atau akses ke cluster utama port 5432.
 
-Hasil tersebut tidak diuji ulang pada koreksi dokumentasi ini. Eksekusi integration
-berikutnya memerlukan target sementara baru serta persetujuan terpisah untuk
-provisioning, pengujian, dan cleanup. Lihat [prosedur integration](tests/integration/README.md)
-untuk instruksi keamanan dan batas pengujian; crash recovery saat commit tetap OPEN.
+Catatan historis M03-02D tetap berlaku untuk sesi terdahulu: unit 39/39 PASS,
+integration 11/11 PASS, dan target sementara sesi tersebut dibersihkan manual.
+Catatan cleanup historis itu tidak berlaku untuk target M03-01B.2 saat ini.
+Integration tidak dijalankan ulang pada finalisasi dokumentasi ini. Eksekusi
+berikutnya memerlukan target fresh dan approval baru. Lihat
+[hasil dan prosedur integration](tests/integration/README.md) untuk identitas target,
+kondisi terakhir dan batas pengujian; crash recovery saat commit tetap OPEN.

@@ -1,15 +1,41 @@
-# Isolated migration integration tests — M03-02D
+# Isolated migration integration tests — M03-02D / M03-01B.2
 
-Hasil yang dikonfirmasi pemilik proyek pada finalisasi M03-02D:
+## Hasil final M03-01B.2 — 16 Oktober 2026
 
-- Backend unit tests: **39/39 PASS**.
-- PostgreSQL integration tests: **11/11 PASS, 0 fail, 0 skipped**.
-- Database integration sementara sudah dibersihkan manual; `nutrasa_dev` dan
-  `nutrasa_test` tetap dipertahankan.
+Berdasarkan output terminal dan konfirmasi pemilik proyek:
 
-Hasil tersebut tidak diuji ulang pada koreksi dokumentasi ini. Untuk eksekusi
-berikutnya, provisioning, pengujian, dan cleanup masing-masing tetap membutuhkan
-persetujuan pemilik proyek serta target sementara baru.
+- Identity integration: **15/15 PASS, 0 fail, 0 skipped, exit code 0**
+  (14 checkpoint dan satu parent test), termasuk migration UP/DOWN/UP.
+- Migration-engine B: **11/11 PASS, 0 fail, 0 skipped, exit code 0**
+  (10 checkpoint dan satu parent test). Verifikasi read-only akhir B juga PASS.
+- Backend unit tests pada final review: **47/47 PASS**.
+- Percobaan berikutnya pada B berhenti pada preflight `schemas_empty` karena
+  target sudah dipakai. Suite tidak dijalankan pada percobaan tersebut; hasil
+  PASS sebelumnya tetap berlaku. Tidak ada retry, reset atau cleanup sesudahnya.
+
+Seluruh target berikut dipertahankan sebagai bukti. Nama role masing-masing
+adalah nama database dengan suffix `_migrator`; tidak ada target yang tersedia
+untuk dipakai ulang. Kondisi di bawah berasal dari bukti eksekusi, bukan query
+database baru pada finalisasi dokumentasi.
+
+| Database disposable | Kondisi terakhir yang diketahui |
+|---|---|
+| `nutrasa_it_19aef3f06cbc428b8928f15d96bee4af` | Percobaan identity awal berhenti pada assertion metadata `name[]`; UP berhasil, DOWN belum tercapai. Isi akhir tidak diaudit ulang. |
+| `nutrasa_it_b31050e74d094192b8d63e5cbc915d34` | Percobaan identity berikutnya berhenti pada ekspektasi SQLSTATE RESTRICT; DOWN belum tercapai. Isi akhir tidak diaudit ulang. |
+| `nutrasa_it_78bb7ba14c944afe860e0424cbfbd9c9` | Identity 15/15 PASS; empat tabel identity diterapkan kembali, sentinel dipertahankan, history `0001_identity` dan satu baseline checksum konsisten. |
+| `nutrasa_it_7058d1b4a4144bd5b63d383ccc4b2478` | Engine 11/11 PASS; tabel `integration_probe` dan `integration_concurrent`, history `0001_probe` / `0002_concurrent`, dua baseline checksum. Probe berisi `{id: 1, value: "original"}` dan tabel concurrent kosong. |
+
+Koreksi test metadata memakai `attname::text` agar array katalog diparse menjadi
+`text[]`; assertion urutan/key tetap ketat. RESTRICT diperiksa dengan SQLSTATE
+`23001` beserta schema/tabel/constraint; referensi child tidak valid tetap `23503`.
+SQL identity tidak diubah untuk perbaikan tersebut.
+
+Catatan historis finalisasi M03-02D: unit 39/39 PASS, integration 11/11 PASS,
+dan target sementara sesi itu dibersihkan manual; `nutrasa_dev` / `nutrasa_test`
+dipertahankan. Cleanup historis tersebut tidak mencakup empat target di atas.
+Finalisasi M03-01B.2 hanya menjalankan checks non-database dan memperbarui dokumentasi.
+Pengujian PostgreSQL telah dihentikan; provisioning, pengujian berikutnya dan
+cleanup memerlukan approval terpisah, dengan target fresh untuk setiap suite.
 
 ## Target dan batas keamanan
 
@@ -21,33 +47,72 @@ Hanya boleh memakai `nutrasa_it_<32hex>` yang terisolasi. Jangan menargetkan
 
 - Database `nutrasa_it_<id>`: ID tepat 32 karakter hex kecil.
 - Role `nutrasa_it_<id>_migrator`: terpisah dari role dev/test utama.
-- PostgreSQL lokal pada loopback port 5432. Tidak membutuhkan Docker.
+- Instance PostgreSQL 18 khusus integration pada `127.0.0.1:5433`,
+  dengan `cluster_name = nutrasa_it_pg18`. Port 5432 ditolak oleh harness.
 - Dua schema `nutrasa` dan `nutrasa_migrations` owned oleh role khusus.
 - Role tanpa SUPERUSER, CREATEDB, CREATEROLE, INHERIT, REPLICATION, BYPASSRLS
-  atau membership. Database owned oleh administrator provisioning.
+  atau membership. Database owned oleh administrator khusus `nutrasa_it_admin`.
 - Komentar database `NUTRASA migration integration:<id>` menjadi marker target.
 - Role hanya mendapat CONNECT ke target dan DDL pada dua schema miliknya.
   PUBLIC tidak mendapat CONNECT/CREATE/TEMP pada database integration.
-- Database utama harus tetap REVOKE CONNECT FROM PUBLIC sesuai provisioning
-  sebelumnya. Role baru tidak otomatis terisolasi dari database lain yang
-  masih memberikan CONNECT kepada PUBLIC.
+- Katalog dan role terpisah dari cluster utama 5432. Jangan mengubah privilege,
+  konfigurasi atau service cluster utama. Pada instance test, HBA harus membatasi
+  migrator ke pasangan database/role masing-masing; PUBLIC CONNECT pada maintenance
+  database tidak boleh dianggap sebagai isolasi role yang lengkap.
 
-Harness menolak URL tanpa password eksplisit agar tidak mengambil password PG
-utama secara implisit. Gunakan password khusus. Tidak membaca `.env`/credential
+Harness mewajibkan password khusus dan port eksplisit `5433` pada URL; URL tanpa
+port ditolak agar `PGPORT` tidak dapat mengalihkan koneksi. `PGOPTIONS` dan
+`PGREPLICATION` yang tidak kosong ditolak sebelum client dibuat. Guard tidak
+mengubah environment proses untuk menimpa pengaturan tersebut. Validasi target
+tetap berlaku saat helper koneksi dipanggil langsung. Tidak membaca `.env`/credential
 file. Guard memeriksa database, current_user, session_user, ownership kedua schema,
-alamat/port server, marker dan privilege role sebelum tindakan mutatif. CLI normal
-tetap memakai allowlist dev/test dan direktori domain tetap, tanpa override.
+owner database `nutrasa_it_admin`, alamat/port server, versi 18, cluster name,
+marker dan privilege role sebelum tindakan mutatif. CLI normal tetap memakai
+allowlist dev/test dan port 5432, dengan direktori domain tetap, tanpa override.
+Cluster name adalah marker operasional tambahan, bukan identitas kriptografis.
+Pada eksekusi yang disetujui, preflight eksternal juga memeriksa proses/listener,
+data directory dan system identifier `7697229180258678980` terhadap control data.
+Pemeriksaan system identifier ini bukan fitur otomatis guard TypeScript.
+
+## Instance test khusus dan approval gates
+
+Target setup: `D:\Rajendra\NUTRASA-Postgres-IT\data`, terpisah dari data directory
+service utama. Gunakan binary PostgreSQL 18 yang sudah tersedia, SCRAM-SHA-256,
+administrator dan password khusus, ACL direktori terbatas, serta startup manual.
+Jangan memakai credential utama, trust authentication, fallback port atau Windows
+service tambahan. Setup dan authenticated verification telah PASS pada PostgreSQL
+18.6, endpoint `127.0.0.1:5433`, administrator `nutrasa_it_admin`, cluster
+`nutrasa_it_pg18`, UTF8 dan system identifier di atas. HBA setelah recovery
+memiliki 11 aturan valid tanpa parsing error; migrator hanya diizinkan ke pasangan
+database/role masing-masing pada `127.0.0.1/32` dengan SCRAM. Cluster utama 5432
+tidak diakses atau diubah dalam rangkaian testing ini.
+
+Approval terpisah diperlukan sebelum: (1) membuat direktori/ACL, initdb,
+konfigurasi dan startup; (2) provisioning dua database/role; (3) eksekusi kedua
+suite; (4) cleanup atau penghentian instance. Penghapusan seluruh data directory
+memerlukan keputusan terpisah. Sebelum provisioning, verifikasi versi, port,
+cluster name, data directory, administrator dan system identifier aktual.
+Jangan mengarang system identifier atau menjalankan bootstrap ledger manual.
 
 ## Provisioning manual untuk review
 
-Dari `backend/`, setelah persetujuan terpisah, gunakan administrator lokal sah.
-Ganti `postgres` bila nama administrator berbeda:
+Dari `backend/`, setelah instance diverifikasi dan provisioning disetujui terpisah,
+gunakan hanya administrator `nutrasa_it_admin` pada maintenance database `postgres`:
+Sebelum psql, tolak environment nonkosong `PGOPTIONS`, `PGREPLICATION`,
+`PGHOSTADDR`, `PGSERVICE` atau `PGSERVICEFILE` tanpa mencetak nilainya; jangan
+menghapus atau menimpa setting tersebut diam-diam. Gunakan path binary absolut
+bila psql tidak tersedia di PATH. Setiap pesan STOP berarti hentikan workflow,
+meskipun exit code psql tidak menunjukkan kegagalan.
 
 ```powershell
-psql -X -h 127.0.0.1 -p 5432 -U postgres -d postgres -W -v ON_ERROR_STOP=1 -f tests/integration/provision.sql
+psql -X -h 127.0.0.1 -p 5433 -U nutrasa_it_admin -d postgres -W -v ON_ERROR_STOP=1 -f tests/integration/provision.sql
 ```
 
 Masukkan ID baru saat diminta, misalnya hasil `(New-Guid).ToString('N')`.
+Nama target M03-01B.2 di tabel hasil sudah digunakan dan tidak boleh diprovisioning
+ulang. Untuk eksekusi lain yang disetujui, ketersediaan database dan role
+`<database>_migrator` wajib diperiksa read-only pada cluster yang diverifikasi
+sebelum provisioning; nama kandidat bukan bukti bahwa target belum ada.
 Script menolak database/role yang sudah ada, membuat role NOLOGIN dan database
 template0, lalu schema, search_path, default privileges dan marker. Password SCRAM
 diisi lewat `\password`; LOGIN diaktifkan setelah konfirmasi nama role.
@@ -59,13 +124,14 @@ atau menghapus objek otomatis. NOLOGIN membatasi akses sebelum provisioning sele
 Verifikasi login terpisah tanpa password pada command (ganti ID pada kedua nama):
 
 ```powershell
-psql -X -h 127.0.0.1 -p 5432 -U nutrasa_it_ID_migrator -d nutrasa_it_ID -W
+psql -X -h 127.0.0.1 -p 5433 -U nutrasa_it_ID_migrator -d nutrasa_it_ID -W
 ```
 
 Query read-only:
 
 ```sql
 SELECT current_database(), current_user, session_user, inet_server_addr(), inet_server_port();
+SELECT current_setting('server_version_num'), current_setting('cluster_name');
 SELECT nspname, pg_get_userbyid(nspowner) AS owner
 FROM pg_catalog.pg_namespace WHERE nspname IN ('nutrasa', 'nutrasa_migrations');
 SELECT datname, pg_get_userbyid(datdba) AS owner,
@@ -78,7 +144,8 @@ SELECT rolname, rolsuper, rolcreatedb, rolcreaterole, rolinherit, rolreplication
 FROM pg_catalog.pg_roles WHERE rolname = current_user;
 ```
 
-Expected: identitas khusus sesuai; schema owned oleh migrator; CONNECT true,
+Expected: port 5433, versi 18, cluster name `nutrasa_it_pg18`, owner database
+`nutrasa_it_admin`; identitas khusus sesuai; schema owned oleh migrator; CONNECT true,
 CREATE/TEMP false, semua flag role false. Kedua schema belum memiliki tabel.
 Jangan membaca pg_authid/rolpassword.
 
@@ -88,7 +155,12 @@ Jangan membaca pg_authid/rolpassword.
 suite identity memakai `npm run test:integration:identity`. Keduanya memakai
 guard dan setup harness yang sama, tetapi **wajib target database baru terpisah**:
 baseline immutable `0001_probe` dan `0001_identity` tidak dapat dipertukarkan.
-Set environment pada sesi lokal, tanpa credential literal pada history:
+Preflight harus memastikan schema fresh dan metadata belum ada. Penolakan
+`schemas_empty` pada target yang sudah digunakan adalah STOP yang benar, bukan
+alasan menghapus objek atau melemahkan guard. Jangan reuse, reset, reprovisioning,
+retry atau cleanup tanpa keputusan pemilik. Jangan menjalankan ulang suite yang
+sudah PASS. Blok berikut hanya referensi untuk eksekusi baru setelah approval;
+set environment pada sesi lokal tanpa credential literal pada history:
 
 ```powershell
 $itRunId = Read-Host 'ID integration yang telah diprovision'
@@ -98,7 +170,7 @@ $itPassword = Read-Host 'Password role integration khusus' -AsSecureString
 try {
   $itEncodedPassword = [Uri]::EscapeDataString([Net.NetworkCredential]::new('', $itPassword).Password)
   $env:NUTRASA_IT_CONFIRM_DATABASE = $itDatabase
-  $env:NUTRASA_IT_DATABASE_URL = 'postgresql://{0}:{1}@127.0.0.1:5432/{2}' -f $itRole, $itEncodedPassword, $itDatabase
+  $env:NUTRASA_IT_DATABASE_URL = 'postgresql://{0}:{1}@127.0.0.1:5433/{2}' -f $itRole, $itEncodedPassword, $itDatabase
   npm run test:integration
 } finally {
   $itPassword.Dispose()
@@ -141,11 +213,11 @@ verifikasi path. Database/role/schema/ledger tidak dibersihkan otomatis. Eksekus
 memerlukan target baru karena baseline immutable tersisa. Jika proses dihentikan
 paksa, workspace OS temporary mungkin perlu dibersihkan manual setelah review.
 
-## Identity suite M03-01B.1 — disiapkan, belum dijalankan
+## Identity suite M03-01B.1 — diverifikasi pada M03-01B.2
 
-Setelah persetujuan M03-01B.2, gunakan prosedur provisioning dan environment di atas
-pada target baru, lalu ganti command suite dengan `npm run test:integration:identity`.
-Jangan bootstrap ledger manual atau memakai kembali target suite engine.
+Suite `npm run test:integration:identity` telah PASS pada target identity final
+di tabel hasil. Untuk eksekusi baru, approval dan target fresh tetap diperlukan.
+Jangan bootstrap ledger manual atau memakai kembali target suite engine/identity.
 
 Suite memakai byte `backend/migrations/0001_identity.sql` melalui core yang sama.
 Empat belas checkpoint memeriksa struktur/tipe/nullability/default/key/index,
@@ -157,8 +229,9 @@ DOWN juga harus mempertahankan sentinel non-domain dan metadata/history/checksum
 sesuai lifecycle engine. Test tidak mengubah metadata secara manual.
 
 Setup/bootstrap dan pemeriksaan lock yang sebelumnya inline pada suite engine
-dipakai bersama melalui `harness.ts`; guard produksi/integration tidak diperluas.
-Regresi PostgreSQL atas ekstraksi harness ini juga belum diuji ulang.
+dipakai bersama melalui `harness.ts`. CLI normal tetap di 5432; guard integration
+kini membatasi instance khusus 5433 dengan versi, cluster name dan owner yang sesuai.
+Kedua suite yang PASS memakai harness bersama ini pada instance khusus 5433.
 
 Scope mutasi pada target sementara: bootstrap ledger, tabel histori engine,
 empat tabel identity, satu sentinel pengujian, data sintetis dan lifecycle UP/DOWN/UP.
@@ -174,18 +247,21 @@ tidak dibuktikan oleh suite struktural ini.
 Setelah hasil/sisa kegagalan direview dan penghapusan disetujui:
 
 ```powershell
-psql -X -h 127.0.0.1 -p 5432 -U postgres -d postgres -W -v ON_ERROR_STOP=1 -f tests/integration/cleanup.sql
+psql -X -h 127.0.0.1 -p 5433 -U nutrasa_it_admin -d postgres -W -v ON_ERROR_STOP=1 -f tests/integration/cleanup.sql
 ```
 
 Script meminta ID dan konfirmasi nama database lengkap. Ia memeriksa marker,
+versi/cluster/administrator/port, termasuk setelah reconnect,
 ownership database/schema, role dan ketiadaan sesi aktif. Tidak memakai FORCE atau
 memutus sesi lain. DROP ROLE ditolak bila ada dependency di tempat lain; STOP dan
 review. Jangan memakai DROP OWNED/REASSIGN otomatis. Harness tidak memanggil script.
 
 Hasil PASS yang dikonfirmasi mencakup skenario lifecycle di atas, termasuk
 atomicity, rollback, concurrency, pelepasan lock, dan recovery melalui re-run.
-Provisioning dan cleanup target sementara telah dilakukan manual oleh pemilik
-proyek; harness tidak melakukan cleanup database otomatis.
+Provisioning target dilakukan manual oleh pemilik proyek. Empat target M03-01B.2
+tetap dipertahankan; tidak ada cleanup database/role pada finalisasi ini.
+Harness tidak melakukan cleanup database otomatis. Jangan menjalankan prosedur
+cleanup atau menghentikan instance tanpa approval terpisah.
 
 OPEN: crash/kill atau putus koneksi saat commit belum diuji. Pengujian kegagalan
 transaksi dan re-run bukan jaminan crash recovery menyeluruh. Hasil pada lingkungan

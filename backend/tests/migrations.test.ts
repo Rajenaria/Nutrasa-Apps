@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { MigrationBuilder } from 'node-pg-migrate/migrationBuilder';
 import { PG_MIGRATE_LOCK_ID } from 'node-pg-migrate/runner';
@@ -215,6 +217,91 @@ test('environment requires a matching local migrator and does not leak rejected 
       assert.ok(!error.message.includes(value));
       return true;
     });
+  }
+});
+
+test('CLI normalizes missing ports while retaining passwordless URLs and both local targets', () => {
+  for (const database of ['nutrasa_dev', 'nutrasa_test']) {
+    for (const host of ['localhost', '127.0.0.1', '[::1]']) {
+      for (const port of ['', ':5432']) {
+        const target = readMigrationEnvironment({
+          MIGRATION_DATABASE_URL: `postgresql://${database}_migrator@${host}${port}/${database}`,
+          PGPORT: '6543',
+        });
+        const url = new URL(target.connectionString);
+        assert.equal(url.port, '5432');
+        assert.equal(url.password, '');
+        assert.equal(target.database, database);
+      }
+    }
+  }
+  for (const port of ['0', '5433', '65536', 'invalid']) {
+    assert.throws(() => readMigrationEnvironment({
+      MIGRATION_DATABASE_URL: `postgresql://nutrasa_dev_migrator@localhost:${port}/nutrasa_dev`,
+    }));
+  }
+});
+
+test('CLI rejects nonempty startup settings in the supplied environment without exposing values', () => {
+  const environment = { MIGRATION_DATABASE_URL: 'postgresql://nutrasa_dev_migrator@localhost/nutrasa_dev' };
+  for (const key of ['PGOPTIONS', 'PGREPLICATION']) {
+    for (const value of ['unit-test-private-setting', ' ', '0']) {
+      assert.throws(() => readMigrationEnvironment({ ...environment, [key]: value }), (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Inherited PGOPTIONS/);
+        if (value.trim()) assert.ok(!error.message.includes(value));
+        assert.ok(!error.message.includes(environment.MIGRATION_DATABASE_URL));
+        return true;
+      });
+    }
+  }
+  assert.doesNotThrow(() => readMigrationEnvironment({ ...environment, PGOPTIONS: '', PGREPLICATION: '' }));
+});
+
+test('CLI wrapper checks actual process settings before connecting, independently of the caller map', () => {
+  // Only validation and pg construction run: connect/query are mocked before calling the wrapper.
+  const script = `
+    import assert from 'node:assert/strict';
+    import { Client } from 'pg';
+    import { runMigrations } from './src/migrations/runner.ts';
+    const before = { ...process.env };
+    const observed = [];
+    let queried = false;
+    Client.prototype.connect = async function () {
+      observed.push({ port: this.port, database: this.database, role: this.user, password: this.password });
+      throw new Error('Synthetic stop before network access.');
+    };
+    Client.prototype.query = async function () {
+      queried = true;
+      throw new Error('SQL prohibited in unit tests.');
+    };
+    Client.prototype.end = async function () {};
+    const unsafe = Boolean(process.env.PGOPTIONS || process.env.PGREPLICATION);
+    for (const database of ['nutrasa_dev', 'nutrasa_test']) {
+      for (const port of ['', ':5432']) {
+        await assert.rejects(runMigrations({ direction: 'up' }, {
+          MIGRATION_DATABASE_URL: 'postgresql://' + database + '_migrator@localhost' + port + '/' + database,
+        }), unsafe ? /Inherited PGOPTIONS/ : /Synthetic stop before network access/);
+        if (!unsafe) assert.deepEqual(observed.at(-1), {
+          port: 5432, database, role: database + '_migrator', password: process.env.PGPASSWORD || null,
+        });
+      }
+    }
+    assert.equal(observed.length, unsafe ? 0 : 4);
+    assert.equal(queried, false);
+    assert.deepEqual({ ...process.env }, before);
+  `;
+  for (const settings of [
+    {}, { PGPORT: '6543' }, { PGPORT: 'invalid' },
+    { PGOPTIONS: '-c search_path=public' }, { PGREPLICATION: 'database' },
+    { PGOPTIONS: ' ', PGREPLICATION: '0' }, { PGPASSWORD: 'unit-test-placeholder' },
+  ]) {
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      cwd: fileURLToPath(new URL('../', import.meta.url)), encoding: 'utf8', timeout: 10000,
+      env: { SystemRoot: process.env.SystemRoot, ...settings },
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
   }
 });
 

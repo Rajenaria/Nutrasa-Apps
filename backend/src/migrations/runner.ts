@@ -2,12 +2,14 @@ import { Client } from 'pg';
 
 import { migrationsDirectory } from './config.ts';
 import { runMigrationCore } from './core.ts';
-import { readMigrationEnvironment } from './environment.ts';
+import { assertSafePgEnvironment, readMigrationEnvironment } from './environment.ts';
 
 export async function runMigrations(
   command: { direction: 'up' | 'down'; count?: number },
   environment: Readonly<Record<string, string | undefined>>,
 ) {
+  // pg reads the actual process environment even when the caller supplies a separate map.
+  assertSafePgEnvironment(process.env);
   const target = readMigrationEnvironment(environment);
   const client = new Client({ connectionString: target.connectionString });
   client.on('error', () => { /* Query failures propagate; do not print connection details. */ });

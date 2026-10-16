@@ -1,4 +1,11 @@
+export function assertSafePgEnvironment(environment: Readonly<Record<string, string | undefined>>) {
+  if (environment.PGOPTIONS || environment.PGREPLICATION) {
+    throw new Error('Inherited PGOPTIONS and PGREPLICATION are not allowed for migration connections.');
+  }
+}
+
 export function readMigrationEnvironment(environment: Readonly<Record<string, string | undefined>>) {
+  assertSafePgEnvironment(environment);
   const connectionString = environment.MIGRATION_DATABASE_URL;
   if (!connectionString) throw new Error('MIGRATION_DATABASE_URL is required.');
 
@@ -18,5 +25,7 @@ export function readMigrationEnvironment(environment: Readonly<Record<string, st
       (url.port !== '' && url.port !== '5432') || url.search !== '' || url.hash !== '') {
     throw new Error('Migration requires the matching local development/testing migrator.');
   }
-  return { connectionString, database, role };
+  // pg otherwise falls back to PGPORT when the URL has no port.
+  url.port = '5432';
+  return { connectionString: url.toString(), database, role };
 }

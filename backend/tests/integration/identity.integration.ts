@@ -59,8 +59,9 @@ test('identity migration on a fresh isolated PostgreSQL target', { timeout: 9000
   const rejectSql = async (sql: string, values: unknown[], expected: string | readonly string[]) => {
     const codes = typeof expected === 'string' ? [expected] : expected;
     await assert.rejects(client.query(sql, values), (error: unknown) => {
-      assert.ok(typeof error === 'object' && error !== null && 'code' in error);
-      assert.ok(typeof error.code === 'string' && codes.includes(error.code), `Expected SQLSTATE ${codes.join('/')}`);
+      assert.ok(typeof error === 'object' && error !== null && 'code' in error, 'Expected a PostgreSQL error with SQLSTATE');
+      assert.ok(typeof error.code === 'string' && /^[0-9A-Z]{5}$/.test(error.code), 'Expected a valid PostgreSQL SQLSTATE');
+      assert.ok(codes.includes(error.code), `Expected SQLSTATE ${codes.join('/')}; received ${error.code}`);
       return true;
     });
   };
@@ -145,10 +146,10 @@ test('identity migration on a fresh isolated PostgreSQL target', { timeout: 9000
       referenced_columns: string[]; delete_action: string;
     }>(`SELECT child.relname AS table_name, c.contype AS kind, c.confdeltype AS delete_action,
         parent.relname AS referenced_table,
-        ARRAY(SELECT a.attname FROM unnest(c.conkey) WITH ORDINALITY k(attnum, ordinal)
+        ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k(attnum, ordinal)
               JOIN pg_catalog.pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum
               ORDER BY k.ordinal) AS columns,
-        ARRAY(SELECT a.attname FROM unnest(c.confkey) WITH ORDINALITY k(attnum, ordinal)
+        ARRAY(SELECT a.attname::text FROM unnest(c.confkey) WITH ORDINALITY k(attnum, ordinal)
               JOIN pg_catalog.pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.attnum
               ORDER BY k.ordinal) AS referenced_columns
         FROM pg_catalog.pg_constraint c JOIN pg_catalog.pg_class child ON child.oid = c.conrelid
@@ -326,7 +327,13 @@ test('identity migration on a fresh isolated PostgreSQL target', { timeout: 9000
     )).rows;
     await client.query("UPDATE nutrasa.app_users SET account_status = 'PENDING_DELETION' WHERE id = $1", [id]);
     assert.deepEqual(await counts(), [{ accounts: 1, profiles: 1, preferences: 1 }]);
-    await rejectSql('DELETE FROM nutrasa.app_users WHERE id = $1', [id], '23503');
+    // PostgreSQL 18 distinguishes RESTRICT violations from invalid child references (23503).
+    await assert.rejects(client.query('DELETE FROM nutrasa.app_users WHERE id = $1', [id]), {
+      code: '23001',
+      schema: 'nutrasa',
+      table: 'privacy_acknowledgements',
+      constraint: 'privacy_acknowledgements_user_id_fkey',
+    });
     assert.deepEqual(await counts(), [{ accounts: 1, profiles: 1, preferences: 1 }]);
     await client.query('DELETE FROM nutrasa.privacy_acknowledgements WHERE user_id = $1', [id]);
     await client.query('DELETE FROM nutrasa.app_users WHERE id = $1', [id]);

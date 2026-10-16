@@ -12,12 +12,16 @@ SELECT :'run_id' ~ '^[a-f0-9]{32}$' COLLATE "C"
 SELECT 'nutrasa_it_' || :'run_id' AS it_database,
        'nutrasa_it_' || :'run_id' || '_migrator' AS it_role \gset
 SELECT current_database() = 'postgres' AND r.rolsuper
-       AND host(inet_server_addr()) IN ('127.0.0.1', '::1') AND inet_server_port() = 5432
+       AND current_user = 'nutrasa_it_admin' AND session_user = current_user
+       AND host(inet_server_addr()) IN ('127.0.0.1', '::1') AND inet_server_port() = 5433
+       AND current_setting('server_version_num')::integer >= 180000
+       AND current_setting('server_version_num')::integer < 190000
+       AND current_setting('cluster_name') = 'nutrasa_it_pg18'
        AS valid_admin
 FROM pg_catalog.pg_roles r WHERE r.rolname = current_user \gset
 \if :valid_admin
 \else
-  \echo STOP: use the authorized local administrator on postgres
+  \echo STOP: require nutrasa_it_admin on the dedicated PostgreSQL 18 test cluster
   \quit
 \endif
 SELECT NOT EXISTS (SELECT 1 FROM pg_catalog.pg_database WHERE datname = :'it_database')
@@ -39,7 +43,12 @@ SELECT format('COMMENT ON DATABASE %I IS %L', :'it_database',
 
 \connect :it_database
 BEGIN;
-SELECT current_database() = :'it_database' AND r.rolsuper AS correct_database
+SELECT current_database() = :'it_database' AND r.rolsuper
+       AND current_user = 'nutrasa_it_admin' AND session_user = current_user
+       AND host(inet_server_addr()) IN ('127.0.0.1', '::1') AND inet_server_port() = 5433
+       AND current_setting('server_version_num')::integer >= 180000
+       AND current_setting('server_version_num')::integer < 190000
+       AND current_setting('cluster_name') = 'nutrasa_it_pg18' AS correct_database
 FROM pg_catalog.pg_roles r WHERE r.rolname = current_user \gset
 \if :correct_database
 \else
