@@ -322,7 +322,7 @@ Indeks B-tree(import_batch_id,source_id). NULL mempertahankan revisi manual/hist
 
 ### Digest konten dan canonicalization v1
 
-**APPROVED DESIGN; implementasi/golden vectors OPEN.** Database PostgreSQL 18 adalah satu otoritas serializer dan digest review; backend tidak membuat implementasi hashing konten kedua dan tidak mengotorisasi digest kiriman caller.
+**APPROVED DESIGN; helper SQL dan enam fixed vectors teruji PostgreSQL 18.6, enforcement operasional OPEN.** Database PostgreSQL 18 adalah satu otoritas serializer dan digest review; backend tidak membuat implementasi hashing konten kedua dan tidak mengotorisasi digest kiriman caller.
 
 - Representasi berupa JSONB berskema tetap dengan penanda canonical_version=1 serta jenis payload SOURCE_PERMISSION atau REVISION_CONTENT. Byte yang di-hash adalah UTF-8 dari representasi jsonb::text PostgreSQL 18, tanpa pretty-print. Ini kontrak internal berversi, bukan klaim RFC 8785, urutan key JSON client atau portabilitas lintas versi database.
 - Payload SOURCE_PERMISSION memuat source_snapshot, license_status, permission_scope, attribution_required, attribution_text, valid_from, valid_until, evidence_reference dan evidence_sha256. source_snapshot memuat metadata registry yang diperiksa (id, name, source_type, edition, reference, license_status, permission_notes, accessed_at), hanya sejauh sah disimpan; tidak menyalin artefak sumber penuh. Bukti yang tidak boleh disimpan tetap melalui locator aman dan keputusan legal, bukan diisi data buatan.
@@ -335,6 +335,24 @@ Indeks B-tree(import_batch_id,source_id). NULL mempertahankan revisi manual/hist
 - Review menghitung digest di bawah lock atas konten yang benar-benar diperiksa. Operator membawa expected digest/versi untuk mendeteksi perubahan sejak pembacaan; nilai caller bukan otoritas. Perubahan draft atau keputusan izin efektif membuat keputusan lama tidak lagi cukup untuk gate, walaupun audit lama tetap tersedia.
 - PostgreSQL 18 menyediakan sha256(bytea); encode hex menghasilkan format hash di atas tanpa pgcrypto. Golden vectors harus mengunci hasil untuk NULL/nol, decimal, Unicode, urutan input, timestamp/timezone dan sumber porsi berbeda. Upgrade yang mengubah representasi memerlukan versi kontrak baru dan review kompatibilitas.
 - Hash membuktikan kesamaan representasi, bukan akurasi nutrisi, identitas manusia, kebenaran dokumen atau legalitas hak sumber.
+
+### Implementasi digest v1 internal setelah approval coding
+
+SQL `0007_catalog_digest.sql` telah diuji pada target disposable yang disetujui: [15/15 integration PASS, 0 fail/skip, exit 0](../../backend/tests/integration/README.md#catalog-digest-v1-m03-01), termasuk enam fixed vectors, helper ACL, rollback, DOWN/UP/re-run dan final state PASS. Tidak mengubah 0001-0006. Tidak ada role/grant operasional, SECURITY DEFINER, writer, autentikasi aktor atau aktivasi publikasi. Helper SECURITY INVOKER dimiliki migrator; EXECUTE PUBLIC dicabut dalam transaksi migration yang sama.
+
+| Helper | Input dan output | Batas |
+|---|---|---|
+| `catalog_source_permission_payload_v1` | source_id UUID; license_status; scope JSONB; attribution boolean/text; valid_from/valid_until timestamptz; evidence_reference/hash -> JSONB | Snapshot diambil dari food_sources saat pemanggilan, bukan merekonstruksi metadata historis yang sudah berubah. Tidak mencatat event atau memutuskan hak sumber. |
+| `catalog_revision_payload_v1` | revision_id UUID dan permission_review_ids UUID[] -> JSONB | Tepat satu event SOURCE_PERMISSION per sumber komposisi/porsi; menolak sumber hilang/tambahan, ID hilang/NULL/duplikat. Pemilihan event efektif/berwenang tetap tugas entrypoint mendatang. |
+| `catalog_payload_digest_v1` | Envelope JSONB version 1/kind SOURCE_PERMISSION atau REVISION_CONTENT -> hex SHA-256 | Helper hashing tidak membuktikan payload berasal dari pembacaan otoritatif. Writer mendatang wajib membentuk payload sendiri di bawah lock; tidak mempercayai payload/hash caller. |
+
+Format SOURCE_PERMISSION mempunyai key root canonical_version, payload_kind, source_snapshot, license_status, permission_scope, attribution_required, attribution_text, valid_from, valid_until, evidence_reference, evidence_sha256. Snapshot mempunyai tepat delapan field registry yang telah disetujui. Format REVISION_CONTENT mempunyai root canonical_version, payload_kind, revision, nutrients, servings, sources. revision memuat sebelas field konten yang disebut kontrak; nutrients memakai objek nutrient_code/value untuk baris yang benar-benar ada, bukan sebelas baris buatan. servings memuat sepuluh kolom existing, sources memuat source_id/permission_review_id/content_digest. Array sumber dan porsi diurut UUID, nutrients mengikuti urutan sebelas kode kanonis.
+
+Timestamp memakai UTC `YYYY-MM-DDTHH24:MI:SS.USZ` (enam digit mikrodetik); semua key nullable tetap hadir. Decimal selalu string lima angka desimal. Teks tersimpan tidak di-trim/NFC. SQL NULL input/target tidak ditemukan/daftar sumber tidak lengkap menghasilkan SQL NULL, bukan digest fallback; entrypoint mendatang wajib menolaknya. Kesalahan tipe PostgreSQL tetap error. Tidak ada parameter kosong yang diubah menjadi izin legal atau nutrisi nol.
+
+STABLE digunakan pada dua pembaca tabel; hash JSONB murni IMMUTABLE. Perhitungan revisi memakai satu statement/snapshot. Tidak memperoleh lock editorial atau menilai expiry/revocation, clinical review atau publication gate. Event REJECTED sintetis boleh direpresentasikan; hal itu bukan izin publikasi. Future writer harus mengulang validasi state setelah lock dan tidak memakai helper sebagai authorization.
+
+Verifikasi non-database batch: focused scanner 11/11 dan full backend unit tests 76/76 PASS; backend/mobile typecheck/lint PASS. Pada tahap coding sebelumnya belum ada PostgreSQL yang dijalankan; sesudah approval database, satu suite integration telah PASS 15/15 pada PostgreSQL 18.6. Enam frozen golden vectors terverifikasi: permission dengan NULL, permission Unicode/mikrodetik, revisi NULL, missing nutrient, nutrient nol, serta dua sumber/porsi. Byte/hash dipatok; tidak ada serializer backend kedua. Hash byte fixture diuji tanpa database; kecocokan dengan JSONB PostgreSQL 18.6 kini juga terbukti melalui integration test satu kali pada target fresh yang disetujui. Serializer lintas major version tetap memerlukan review.
 
 ### Efektivitas keputusan dan batas aktivasi governance
 

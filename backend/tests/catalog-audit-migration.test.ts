@@ -11,7 +11,7 @@ import { createVerifiedLoader } from '../src/migrations/loader.ts';
 test('audit discovery preserves all five applied byte hashes and excludes its failure fixture', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
   assert.deepEqual(files.map(file => file.name), ['0001_identity', '0002_food_sources', '0003_food_catalog',
-    '0004_food_taxonomy', '0005_food_servings_provenance', '0006_catalog_audit']);
+    '0004_food_taxonomy', '0005_food_servings_provenance', '0006_catalog_audit', '0007_catalog_digest']);
   assert.deepEqual(files.slice(0, 5).map(file => file.sha256), [
     'a86a276c6d99080cd123a57647b0c51c53ad1fbce3951e13ddaddfbd113be5af',
     '9485a3b5e9d7f26afde5cf94454fac5d76fd384489574a4a960583cad19528b6',
@@ -26,11 +26,11 @@ test('audit discovery preserves all five applied byte hashes and excludes its fa
 
 test('actual audit UP and guarded DOWN queue with their checksum through the transactional public loader', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
-  const audit = files.at(-1);
+  const audit = files[5];
   assert.ok(audit);
   const units = await createVerifiedLoader(files, async () => ({ ledgerExists: true, historyExists: false, history: [], ledger: [] }))(
     files.map(file => file.path));
-  const unit = units.at(-1);
+  const unit = units[5];
   assert.ok(unit);
   for (const direction of ['up', 'down'] as const) {
     const denied = async () => { throw new Error('Database access prohibited.'); };
@@ -58,7 +58,7 @@ test('actual audit UP and guarded DOWN queue with their checksum through the tra
 
 test('changed or missing applied audit SQL never reaches execution even after DOWN', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
-  const audit = files.at(-1);
+  const audit = files[5];
   assert.ok(audit);
   const changed = snapshotSql(audit.path, Buffer.from(`${audit.content}\n`));
   for (const history of [files.map(file => file.name), files.slice(0, 5).map(file => file.name)]) {
@@ -66,8 +66,8 @@ test('changed or missing applied audit SQL never reaches execution even after DO
       ledger: files.map(file => ({ name: file.name, sha256: file.sha256 })) };
     let calls = 0;
     const execute = async () => { calls++; };
-    await assert.rejects(executeAfterIntegrityCheck([...files.slice(0, 5), changed], state, execute));
-    await assert.rejects(executeAfterIntegrityCheck(files.slice(0, 5), state, execute));
+    await assert.rejects(executeAfterIntegrityCheck([...files.slice(0, 5), changed, ...files.slice(6)], state, execute));
+    await assert.rejects(executeAfterIntegrityCheck(files.filter(file => file.name !== audit.name), state, execute));
     assert.equal(calls, 0);
   }
 });
