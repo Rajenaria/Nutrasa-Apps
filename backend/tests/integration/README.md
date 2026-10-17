@@ -644,3 +644,81 @@ cleanup atau menghentikan instance tanpa approval terpisah.
 OPEN: crash/kill atau putus koneksi saat commit belum diuji. Pengujian kegagalan
 transaksi dan re-run bukan jaminan crash recovery menyeluruh. Hasil pada lingkungan
 yang diuji tidak otomatis membuktikan seluruh kondisi, versi, atau konfigurasi lain.
+
+## Catalog digest v1 M03-01
+
+**POSTGRESQL INTEGRATION PASS - 2026-10-18.** Owner-provided terminal output
+confirms **15/15 PASS, 0 fail, 0 skipped, exit code 0**, including
+CATALOG DIGEST FINAL STATE PASS. One approved invocation passed all 14 checkpoints
+plus its parent. All six frozen JSONB text/UTF-8 SHA-256 vectors matched PostgreSQL
+18.6 exactly; neither expected bytes nor hashes were revised after execution.
+Unit hash checks remain separate from this real PostgreSQL evidence.
+
+The suite bootstraps one fresh target, applies actual 0001-0006 and synthetic
+source/revision/prior REJECTED event data, then tests 0007 failure rollback, exact
+three INVOKER functions and ACL, fixed vectors, UTC/DateStyle/Unicode behavior,
+NULL versus zero versus missing rows, independent serving sources/order, invalid
+source coverage, meaningful versus excluded changes, READ ONLY calls and preserved
+domains. DOWN removes helpers only; UP/re-run retains immutable checksum history.
+No actor authorization, append-only, operational role grants, publication gate or
+concurrent editorial safety is established. Migrator updates in rolled-back tests
+explicitly demonstrate that this calculation package does not enforce immutability.
+
+Future separately approved execution from backend:
+
+```powershell
+npm.cmd run test:integration:catalog-digest
+```
+
+Do not run on any of the nine retained disposable targets or permanent databases.
+Use one new nutrasa_it_<32 lowercase hex> database and matching dedicated migrator
+on 127.0.0.1:5433, cluster nutrasa_it_pg18, system identifier 7697229180258678980.
+One combined owner approval is required for the exact target, one pair-specific
+HBA SCRAM rule/reload, existing manual provisioning, authenticated admin/fresh
+migrator preflight and one test invocation. Recheck unused names, prior targets,
+marker, ownership, PUBLIC/default privileges, no sessions/objects, environment
+overrides and approved file hashes. Passwords remain local interactive input.
+No manual ledger bootstrap, automatic retry, reset or cleanup. On any failure STOP
+and preserve the target; no fallback to port 5432. Crash recovery at commit stays OPEN.
+
+
+Execution evidence for the approved target:
+
+- Database: `nutrasa_it_fe30b453570e472daf0e35ff4d251748`.
+- Migrator: `nutrasa_it_fe30b453570e472daf0e35ff4d251748_migrator`.
+- PostgreSQL 18.6, cluster `nutrasa_it_pg18`, system identifier
+  `7697229180258678980`, data directory `D:/Rajendra/NUTRASA-Postgres-IT/data`.
+- Existing test cluster started once, pg_ctl exit 0, loopback listener verified.
+  Normal startup WAL recovery completed after a previous interrupted shutdown;
+  this is not a controlled crash-at-commit integration test or its sign-off.
+- Authenticated preflight confirmed unused target names and all eight older
+  databases/roles present. One exact HBA SCRAM rule was added, preserving 15 prior
+  rules; owner confirmed 16 valid rules and zero errors after reload verification.
+- Manual provisioning returned exit 0. The guarded local helper permits the suite
+  only after fresh login/marker/ownership/privilege/schema/session checks pass;
+  it prevents a second invocation with a local execution receipt.
+- Suite PASS covers three INVOKER helper signatures, fixed path, PUBLIC EXECUTE
+  removed, no domain DML during helper calls, all fixed vectors, eleven nutrients,
+  full numeric precision, missing/NULL/zero, Unicode, UTC microseconds, deterministic
+  source/serving ordering, invalid targets, expected content changes and exclusions.
+- Actual DDL failure rolls back functions, ACL, history and checksum. DOWN removes
+  only helpers despite populated audit; identical UP/re-run preserves domains and
+  all seven immutable baselines. Migration 0001-0006 bytes remain unchanged.
+
+The final read-only helper reported PASS against its pinned expectations:
+15 application tables, 13 revision columns, three SQL INVOKER helpers (two STABLE,
+one IMMUTABLE), fixed pg_catalog,pg_temp paths, migrator ownership, no PUBLIC
+EXECUTE, history 0001_identity through 0007_catalog_digest and seven matching
+SHA-256 baselines. Synthetic rows: one app_user, two sources, one food, one revision,
+two nutrients and two SOURCE_PERMISSION/REJECTED/UNVERIFIED audit events. Other
+application tables are empty; no revision import_batch_id is populated.
+energy_kcal=0.00000 remains different from sugar_g=NULL. All nine disposable
+databases are retained; older targets were not connected to or modified.
+
+Tested 0007 SHA-256:
+`b6df290443a21652ce28776bbf3b2f86fac085151eb8759b6c0c9d2802930425`.
+This PASS does not establish actor identity, append-only privileges, effective
+source permissions, legal/clinical review, publication gate, editorial concurrency
+or crash recovery at commit. No operational grant or SECURITY DEFINER was added.
+No test rerun, reset, database cleanup or Git mutation occurred in final review.
+M03-01 remains incomplete.

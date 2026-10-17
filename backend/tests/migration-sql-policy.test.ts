@@ -82,3 +82,33 @@ test('false loader markers in dollar bodies, literals or nested comments are rej
     "SELECT 'line\n-- Up Migration\n';", '/* nested\n-- Down Migration\n*/ SELECT 1;']) assert.throws(() => parse(sql));
   assert.throws(() => snapshotSql('0001_policy.sql', Buffer.from('/*\n-- Up Migration\nSELECT 1;\n-- Down Migration\nSELECT 2;\n*/\n')));
 });
+
+const sqlHelper = (body: string) => `CREATE FUNCTION nutrasa.catalog_payload_digest_v1(p_payload jsonb)
+RETURNS text LANGUAGE sql IMMUTABLE SECURITY INVOKER SET search_path = pg_catalog, pg_temp AS $digest$${body}$digest$;`;
+
+test('read-only SQL helpers require a single SELECT, invoker and exact safe path', () => {
+  assert.doesNotThrow(() => parse(sqlHelper("SELECT CASE WHEN p_payload IS NULL THEN NULL ELSE 'ok' END;")));
+  for (const body of ['SELECT 1; SELECT 2;', 'DELETE FROM nutrasa.foods;',
+    'SELECT 1 INTO temporary_result;', 'SELECT 1 FOR UPDATE;',
+    "SELECT pg_catalog.set_config('role','x',false);", 'SELECT $$opaque$$;',
+    'SELECT 1; COMMIT;', 'SELECT * FROM nutrasa_migrations.pgmigrations;'])
+    assert.throws(() => parse(sqlHelper(body)));
+  for (const [from, to] of [['SECURITY INVOKER','SECURITY DEFINER'],
+    ['pg_catalog, pg_temp','public, pg_catalog'], ['IMMUTABLE','VOLATILE'],
+    ['LANGUAGE sql','LANGUAGE c'], [' SET search_path = pg_catalog, pg_temp','']])
+    assert.throws(() => parse(sqlHelper('SELECT 1;').replace(from, to)));
+});
+
+test('REVOKE is limited to PUBLIC EXECUTE on exact digest helper signatures', () => {
+  for (const signature of ['catalog_payload_digest_v1(jsonb)',
+    'catalog_revision_payload_v1(uuid,uuid[])',
+    'catalog_source_permission_payload_v1(uuid,text,jsonb,boolean,text,timestamptz,timestamptz,text,text)'])
+    assert.doesNotThrow(() => parse('REVOKE EXECUTE ON FUNCTION nutrasa.'+signature+' FROM PUBLIC;'));
+  for (const sql of ['GRANT EXECUTE ON FUNCTION nutrasa.catalog_payload_digest_v1(jsonb) TO PUBLIC;',
+    'REVOKE ALL ON SCHEMA nutrasa FROM PUBLIC;',
+    'REVOKE EXECUTE ON FUNCTION nutrasa.catalog_payload_digest_v1(jsonb) FROM operator;',
+    'REVOKE EXECUTE ON FUNCTION nutrasa.catalog_payload_digest_v1(text) FROM PUBLIC;',
+    'REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA nutrasa FROM PUBLIC;',
+    'REVOKE EXECUTE ON FUNCTION public.catalog_payload_digest_v1(jsonb) FROM PUBLIC;',
+    'REVOKE EXECUTE ON FUNCTION nutrasa.other(jsonb) FROM PUBLIC;']) assert.throws(() => parse(sql));
+});

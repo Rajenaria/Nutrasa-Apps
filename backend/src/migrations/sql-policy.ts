@@ -101,8 +101,8 @@ function inspectTokens(tokens: readonly Token[], body = false) {
 const types = new Set(['uuid', 'text', 'integer', 'bigint', 'smallint', 'boolean', 'numeric',
   'jsonb', 'timestamptz', 'bytea', 'void']);
 
-// Supported header: CREATE FUNCTION nutrasa.name([name type,...]) RETURNS type
-// LANGUAGE plpgsql AS $tag$...$tag$. No replace, defaults, dynamic SQL or privilege clauses yet.
+// Digest helpers opt into one SELECT, INVOKER, a fixed path and STABLE/IMMUTABLE.
+// Existing static PL/pgSQL support stays unchanged; neither path is a SQL sandbox.
 function inspectFunction(statement: readonly Token[]) {
   inspectTokens(statement);
   let index = 0;
@@ -117,6 +117,10 @@ function inspectFunction(statement: readonly Token[]) {
   const type = () => {
     const token = statement[index++];
     if (token?.kind !== 'word' || !types.has(token.value)) reject();
+    if (statement[index]?.value === '[') {
+      if (token.value !== 'uuid') reject();
+      take('['); take(']');
+    }
   };
   take('create'); take('function'); take('nutrasa'); take('.'); name(); take('(');
   if (statement[index]?.value !== ')') {
@@ -126,7 +130,16 @@ function inspectFunction(statement: readonly Token[]) {
       take(',');
     }
   }
-  take(')'); take('returns'); type(); take('language'); take('plpgsql'); take('as');
+  take(')'); take('returns'); type(); take('language');
+  const language = statement[index]?.value;
+  if (language === 'sql') {
+    take('sql');
+    const volatility = statement[index]?.value;
+    if (volatility !== 'stable' && volatility !== 'immutable') reject();
+    take(volatility); take('security'); take('invoker');
+    take('set'); take('search_path'); take('='); take('pg_catalog'); take(','); take('pg_temp');
+  } else take('plpgsql');
+  take('as');
   const body = statement[index++];
   if (body?.kind !== 'body' || index !== statement.length) reject();
   // Header validation does not grant permission to ignore executable content inside the body.
@@ -139,6 +152,14 @@ function inspectFunction(statement: readonly Token[]) {
     if (token.kind === 'symbol' && token.value === ')' && --parentheses < 0) reject();
   }
   if (parentheses !== 0) reject();
+  if (language === 'sql') {
+    if (nested.tokens[0]?.kind !== 'word' || nested.tokens[0]?.value !== 'select' ||
+        nested.tokens.at(-1)?.value !== ';' ||
+        nested.tokens.slice(0, -1).some(token => token.value === ';' && token.kind === 'symbol') ||
+        nested.tokens.some(token => token.kind === 'body' || token.kind === 'marker' ||
+          (token.kind === 'word' && ['insert', 'update', 'delete', 'merge', 'into', 'lock', 'begin'].includes(token.value)))) reject();
+    return;
+  }
   let position = 0;
   const block = (): void => {
     const opening = nested.tokens[position++];
@@ -164,6 +185,25 @@ function inspectFunction(statement: readonly Token[]) {
   if (position !== nested.tokens.length) reject();
 }
 
+function inspectDigestRevoke(statement: readonly Token[]) {
+  // No role grants, wildcards, procedures or metadata targets are admitted here.
+  const values = statement.map(token => token.value);
+  const prefix = ['revoke', 'execute', 'on', 'function', 'nutrasa', '.'];
+  const expected: Record<string, string[]> = {
+    catalog_source_permission_payload_v1: ['uuid', 'text', 'jsonb', 'boolean', 'text', 'timestamptz', 'timestamptz', 'text', 'text'],
+    catalog_revision_payload_v1: ['uuid', 'uuid', '[', ']'],
+    catalog_payload_digest_v1: ['jsonb'],
+  };
+  const name = values[6] ?? '';
+  const argumentsList = expected[name];
+  if (!argumentsList) reject();
+  const signature = name === 'catalog_revision_payload_v1' ? ['uuid', ',', 'uuid', '[', ']'] :
+    argumentsList.flatMap((value, index) => index === 0 ? [value] : [',', value]);
+  const exact = [...prefix, name, '(', ...signature, ')', 'from', 'public'];
+  if (statement.length !== exact.length || !exact.every((value, index) => values[index] === value &&
+      statement[index]?.kind === (['.', '(', ')', ',', '[', ']'].includes(value) ? 'symbol' : 'word'))) reject();
+}
+
 export function assertMigrationSqlPolicy(sql: string) {
   const { tokens, markers } = tokenize(sql);
   if (markers.join('\n') !== '-- Up Migration\n-- Down Migration') reject();
@@ -174,6 +214,7 @@ export function assertMigrationSqlPolicy(sql: string) {
     const first = statement[0];
     if (first?.kind !== 'word') reject();
     if (first.value === 'create' && statement[1]?.value === 'function') inspectFunction(statement);
+    else if (first.value === 'revoke') inspectDigestRevoke(statement);
     else {
       if (!['create', 'alter', 'drop', 'select', 'insert', 'update', 'delete', 'lock'].includes(first.value)) reject();
       const second = statement[1];

@@ -223,3 +223,22 @@ npm.cmd run test:integration:catalog-audit
 ```
 
 See [audit integration evidence and safety boundaries](tests/integration/README.md#catalog-audit-foundation-m03-01).
+
+## Catalog digest v1 internal - PostgreSQL integration PASS
+
+Migration 0007 adds three read-only SECURITY INVOKER helpers, each with fixed
+search_path=pg_catalog,pg_temp and PUBLIC EXECUTE revoked in the same migration
+transaction. Table readers are STABLE; hashing is IMMUTABLE. No runtime/editorial
+grants, privileged ownership changes, actor verification or writer is added.
+
+See [digest contract](../docs/02-architecture/postgres-physical-schema-v1.5.md#implementasi-digest-v1-internal-setelah-approval-coding)
+and [integration evidence and safety boundaries](tests/integration/README.md#catalog-digest-v1-m03-01).
+Owner-provided PostgreSQL 18.6 terminal output confirms **15/15 integration PASS,
+0 fail/skip, exit code 0**, including final state PASS on the approved fresh target.
+All six fixed byte/hash vectors, helper ACL, failure rollback, DOWN/UP/re-run and
+preservation of prior domains passed. No serializer or expected hash was changed
+to obtain this result. Future execution requires a separately approved fresh target. M03-01 remains incomplete.
+
+Digest batch non-database verification: focused scanner 11/11, full backend unit
+tests 76/76, backend typecheck/lint and mobile typecheck/lint PASS. These results
+do not establish PostgreSQL function semantics or golden-vector compatibility.
