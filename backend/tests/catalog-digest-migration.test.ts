@@ -19,7 +19,7 @@ const historicalHashes = [
 test('digest discovery preserves all six byte hashes and excludes candidate vectors/failure fixture', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
   assert.deepEqual(files.map(file => file.name), ['0001_identity','0002_food_sources','0003_food_catalog',
-    '0004_food_taxonomy','0005_food_servings_provenance','0006_catalog_audit','0007_catalog_digest']);
+    '0004_food_taxonomy','0005_food_servings_provenance','0006_catalog_audit','0007_catalog_digest', '0008_catalog_capabilities']);
   assert.deepEqual(files.slice(0,6).map(file => file.sha256), historicalHashes);
   assert.ok(!files.some(file => file.name === '0008_failure'));
 });

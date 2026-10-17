@@ -1,6 +1,17 @@
 import { buildApp } from './app.ts';
+import { createFirebaseVerifier } from './firebase.ts';
+import type { FirebaseTokenVerifier } from './identity.ts';
 
-const app = buildApp();
+// Configuration is explicit. With no project configured, health remains available
+// and protected hooks still fail closed; no credentials are discovered.
+let verifier: FirebaseTokenVerifier | undefined;
+try {
+  verifier = createFirebaseVerifier(process.env);
+} catch {
+  console.error('Backend identity configuration failed.');
+  process.exit(1);
+}
+const app = buildApp({ verifier });
 
 async function shutdown() {
   try {

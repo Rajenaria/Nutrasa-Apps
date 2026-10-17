@@ -360,7 +360,56 @@ Gate memakai keputusan relevan terbaru menurut event_number di bawah lock; audit
 
 State machine, matriks role dan publication transaction dijelaskan pada [system architecture](system-architecture.md#catalog-governance-m03-01). Tidak ada grant, entrypoint atau API baru yang sudah diimplementasikan. Struktur ini tidak menjamin immutability atau append-only tanpa enforcement yang diuji.
 
-**OPEN owner/legal/clinical:** pihak berwenang, self-review, jumlah reviewer wajib, kualifikasi nutrisi, kontrak identitas lokal/Firebase, bukti/scope/atribusi per sumber, expiry/revocation/retention dan privasi reviewer. Hak menyimpan locator/hash pun mengikuti kebijakan yang sah; tidak otomatis menyimpan dokumen mentah, token atau data pribadi reviewer. Kebijakan histori saat izin dicabut tetap membutuhkan keputusan legal; tidak ada janji penghapusan otomatis atau retensi tanpa batas. **DEFERRED:** implementasi sampai approval coding, provisioning/tests sampai approval database, aktivasi sampai gate owner/legal/clinical ditutup. Restricted functions disetujui sebagai desain, tetapi tidak ada fungsi SQL/trigger yang dibuat atau diizinkan untuk dieksekusi; nama file migration baru belum ditetapkan.
+**OPEN owner/legal/clinical:** pihak berwenang, self-review, jumlah reviewer wajib, kualifikasi nutrisi, binding Firebase/Fastify hingga SQL (pilihan local/Firebase historis sudah superseded), bukti/scope/atribusi per sumber, expiry/revocation/retention dan privasi reviewer. Hak menyimpan locator/hash pun mengikuti kebijakan yang sah; tidak otomatis menyimpan dokumen mentah, token atau data pribadi reviewer. Kebijakan histori saat izin dicabut tetap membutuhkan keputusan legal; tidak ada janji penghapusan otomatis atau retensi tanpa batas. **DEFERRED:** implementasi sampai approval coding, provisioning/tests sampai approval database, aktivasi sampai gate owner/legal/clinical ditutup. Restricted functions disetujui sebagai desain, tetapi tidak ada fungsi SQL/trigger yang dibuat atau diizinkan untuk dieksekusi; nama file migration baru belum ditetapkan.
+
+## Capability persistence foundation M03-01 (PROPOSED)
+
+**CANDIDATE SQL PREPARED, NOT APPLIED OR OPERATIONAL.** Owner menyetujui penulisan struktur 10/4 kolom dan scope nonblank tanpa vocabulary tetap. backend/migrations/0008_catalog_capabilities.sql serta unit/static dan integration suite disiapkan; belum dijalankan pada PostgreSQL. Kontrak identity 0001 tetap utuh. Tidak ada fungsi administrative, runtime lookup PostgreSQL atau grant baru. Matriks ini satu sumber proposal fisik; [trust/transaction boundary](system-architecture.md#capability-persistence-contract---desain-belum-ddl) dan [test plan](sql-migration-plan.md#capability-persistence-foundation-test-plan) melengkapinya.
+
+### Binding dan state minimum
+
+app_users.id dipakai sebagai subject internal; firebase_uid existing sudah NOT NULL, UNIQUE dan COLLATE C. Lookup exact dari verified UID, tidak trim/lowercase atau mencocokkan email. Tidak perlu tabel principal/editor tambahan atau user_profiles untuk binding editorial. Subject missing/PENDING_DELETION/DELETED ditolak; ACTIVE hanya prasyarat, bukan capability. Satu deployment terikat satu project Firebase yang disetujui; perpindahan project memerlukan review binding terpisah. Jangan mengubah 0001 untuk menambah project atau status editor secara spekulatif.
+
+Rekomendasi dua tabel: catalog_capability_events menyimpan transisi immutable; catalog_capability_assignments hanya menunjuk event efektif per key. State GRANT/REVOKE dibaca dari event, sehingga tidak ada boolean revoked atau timestamp duplikat yang dapat bertentangan. Event lama tetap ada ketika assignment dicabut/diberikan kembali. Tidak memakai catalog_reviews sebagai histori hak dan tidak menambah role hierarchy, tabel role atau SQL enum.
+
+### catalog_capability_events (sepuluh kolom, PROPOSED)
+
+| Kolom | Tipe / nullability | Default | Constraint / arti |
+|---|---|---|---|
+| id | uuid NOT NULL | pg_catalog.gen_random_uuid() | PK; identitas event. |
+| event_number | bigint NOT NULL | GENERATED ALWAYS AS IDENTITY | UNIQUE dan > 0; urutan diagnostik, boleh gap, bukan pengganti lock atau cursor sync. |
+| subject_id | uuid NOT NULL | Tidak ada | FK app_users(id), subjek penerima/perubahan hak. |
+| capability | text COLLATE C NOT NULL | Tidak ada | Nonblank; kode exact server. Vocabulary operasional tetap OPEN; CHECK nonblank tidak memberi hak atau menerima capability tak dikenal pada evaluator. |
+| scope | text COLLATE C NOT NULL | Tidak ada | APPROVED scope adjustment: CHECK nonblank; tanpa enum, hierarchy atau normalisasi. Vocabulary tetap OPEN; unknown scope wajib ditolak authorization. |
+| action | text NOT NULL | Tidak ada | PROPOSED CHECK GRANT/REVOKE; transisi teknis, bukan role bisnis. |
+| actor_subject_id | uuid NOT NULL | Tidak ada | FK app_users(id), actor authenticated yang telah diotorisasi proses administrative. Tidak boleh NULL, UID input bebas atau akun SYSTEM buatan. |
+| reason | text NOT NULL | Tidak ada | Nonblank; alasan tanpa credential/token/dokumen sensitif. |
+| request_id | text NOT NULL | Tidak ada | Nonblank; correlation server, bukan bukti actor atau idempotency key. Tidak UNIQUE karena satu request dapat mempunyai beberapa event. |
+| recorded_at | timestamptz NOT NULL | pg_catalog.clock_timestamp() | Finite; waktu pencatatan server, bukan waktu keputusan dari client. |
+
+Nonblank memakai konvensi existing ~ '[^[:space:]]'; tidak mengubah teks valid secara diam-diam. Semua FK ON DELETE RESTRICT, ON UPDATE RESTRICT, NOT DEFERRABLE. Tambahkan UNIQUE(subject_id,capability,scope,id) hanya sebagai target FK gabungan projection. Tiga indeks B-tree pendukung saja: PK(id), UNIQUE(event_number), UNIQUE(subject_id,capability,scope,id). Prefix indeks terakhir melayani lookup riwayat satu assignment dan referensi subject; tidak menambah indeks speculative. FK actor belum membutuhkan indeks terpisah untuk foundation kecil; evaluasi dengan query plan sebelum aktivasi/beban audit meningkat.
+
+### catalog_capability_assignments (empat kolom, PROPOSED)
+
+| Kolom | Tipe / nullability | Default | Constraint / arti |
+|---|---|---|---|
+| subject_id | uuid NOT NULL | Tidak ada | Bagian PK; subject sama dengan event efektif. |
+| capability | text COLLATE C NOT NULL | Tidak ada | Bagian PK; nonblank dan exact code. |
+| scope | text COLLATE C NOT NULL | Tidak ada | Bagian PK; APPROVED scope adjustment: CHECK nonblank, tanpa fixed vocabulary atau normalisasi. |
+| last_event_id | uuid NOT NULL | Tidak ada | Pointer ke event efektif, bukan cache izin terpisah. |
+
+PK(subject_id,capability,scope). Satu FK gabungan (subject_id,capability,scope,last_event_id) menuju catalog_capability_events(subject_id,capability,scope,id), RESTRICT UPDATE/DELETE dan NOT DEFERRABLE. Tidak menambah FK subject duplikat karena relasi melalui event sudah memastikan subject valid. Hanya indeks PK; tidak perlu indeks last_event_id tersendiri sebelum ada consumer/query yang membutuhkannya. Parent event key sudah indexed. Histori event untuk key sama tidak dapat dipindahkan ke subject/capability/scope lain tanpa melanggar FK, tetapi FK tidak membuktikan pointer menunjuk event terbaru.
+
+### Transisi, lifecycle dan batas enforcement
+
+- PROPOSED: GRANT awal membuat event dan projection; GRANT pada state aktif ditolak sebagai duplicate tanpa event baru. REVOKE memerlukan assignment aktif; missing/already-revoked ditolak sebagai no-op, bukan bukti pencabutan baru. Regrant sesudah REVOKE membuat event baru dan memindahkan pointer. Retry sesudah hasil commit tidak diketahui harus membaca state/audit, bukan otomatis mengulang grant. Request ID tidak diklaim sebagai protokol idempotensi.
+- Satu transaksi mengunci katalog, membaca ulang authority/subject/state, INSERT event dan INSERT/UPDATE pointer. Event+projection wajib commit/rollback bersama. Rekomendasi memakai lock katalog dua-int (1314214994,1) yang sudah PROPOSED agar grant/revoke, writer editorial dan perubahan status actor memakai urutan yang sama. Bukan lock migration. Semua state read setelah lock pada statement terpisah, READ COMMITTED; tidak mengambil row lock dahulu. Kebutuhan isolation level lain tetap OPEN/testing.
+- Tidak ada writer sekarang. Pointer terbaru, actor sah, duplicate policy dan append-only tidak dijamin CHECK/FK saja. Future restricted entrypoint harus memvalidasi seluruhnya, termasuk larangan UPDATE/DELETE/TRUNCATE event oleh caller operasional. Migrator/superuser tetap batas administratif tepercaya.
+- Proposed initial policy melarang self-approval/self-publication: subject pembuat perubahan tidak boleh menjadi approver/publisher perubahan itu. Empat fungsi konseptual draft, rights review, nutrition review dan publish tidak otomatis saling memberi hak. Ini PROPOSED policy, bukan keputusan owner final atau larangan seluruh orang memegang dua capability. Riwayat actor pembuat/reviewer yang cukup untuk membuktikan separation per konten masih perlu dirinci sebelum writer; dua kolom actor pada audit saja belum membuktikan seluruh provenance manusia.
+- Account deletion: RESTRICT mempertahankan referensi subject/actor, sehingga physical DELETE terblokir sampai kebijakan legal retensi/anonymization disetujui. PENDING_DELETION/DELETED logis tetap dimungkinkan dan harus segera ditolak evaluator. Tidak mengklaim retensi tanpa batas atau pemulihan hak otomatis ketika Firebase diaktifkan kembali. Lifecycle disable/delete/re-enable membutuhkan keputusan dan workflow tersendiri; tidak mengubah status akun existing.
+- UP berikutnya: events lalu assignments, default ACL/owner diperiksa agar tidak ada akses operasional; tidak ada assignment bootstrap/seed, function writer, trigger atau grant. DOWN: hanya jika kedua tabel kosong, drop assignments lalu events/sequence owned tanpa CASCADE; populated audit harus menolak DOWN atomik. Struktur/history/checksum mengikuti runner existing. Candidate bernomor 0008_catalog_capabilities.sql mengikuti discovery aktual; tidak mengubah 0001-0007.
+
+**Owner gates sebelum coding/aktivasi bagian terkait:** authority/grantor nyata dan initial bootstrap, vocabulary/scope, separation of duties dan reviewer qualification, binding actor hingga restricted SQL, reactivation policy, retensi/deletion. Approval struktur kosong dan static tests dapat dipisah dari aktivasi, tetapi belum menyelesaikan gate tersebut. SQL kandidat hanya menerapkan struktur yang diizinkan; administrative trust boundary dan activation tetap OPEN. CHECK/FK tidak menolak duplicate GRANT events, inactive subject atau audit UPDATE oleh migrator. Writer harus menegakkan policy tersebut sebelum activation.
 
 ## Migration dependency order (planning only)
 

@@ -242,3 +242,84 @@ to obtain this result. Future execution requires a separately approved fresh tar
 Digest batch non-database verification: focused scanner 11/11, full backend unit
 tests 76/76, backend typecheck/lint and mobile typecheck/lint PASS. These results
 do not establish PostgreSQL function semantics or golden-vector compatibility.
+
+## Editorial identity foundation - fail closed
+
+Firebase staff identity verified by Fastify is APPROVED. The app registers a
+per-request identity and explicit authenticate/requireCapability hooks. No protected
+editorial endpoint is installed; health stays public. Verifier and capability
+authority are trusted server dependencies, never request input. verifyIdToken
+always receives checkRevoked=true. UID/custom role claims do not grant rights.
+Missing authority denies access; dependency failure returns safe SERVER_ERROR.
+
+firebase-admin 14.5.0 is installed only in the backend (SDK Node >=22; local Node
+24.21.0). src/firebase.ts uses modular app/auth APIs and delegates verifyIdToken(token,
+true) to the SDK. Only the verified UID crosses the adapter; claims never grant rights.
+server.ts composes the verifier only when FIREBASE_PROJECT_ID is supplied explicitly.
+
+Configuration flow: set FIREBASE_PROJECT_ID to the owner's actual project ID in the
+server process, then supply external Application Default Credentials through the
+official SDK mechanism. The [project ID format](https://cloud.google.com/resource-manager/reference/rest/v1/projects)
+requires 6-30 lowercase letters,
+digits or hyphens, start with a letter and end with a letter/digit. Legacy project
+identifiers require separate review rather than bypassing validation. The server
+does not load .env automatically. Never embed credentials in mobile EXPO_PUBLIC_*
+configuration, source or templates. FIREBASE_AUTH_EMULATOR_HOST is rejected because
+emulator tokens do not establish production identity.
+
+No project configured means no credential discovery and no verifier; public health
+still works and protected hooks fail closed. Invalid configuration stops startup with
+a sanitized message. Initialization reuses the named backend app for the same project,
+rejects a different project and sanitizes credential initialization errors. Credential
+availability may only be established when verification actually requests an access
+token; SDK initialization alone does not prove valid credentials.
+
+Live integration status: **CONFIGURATION PENDING**. No actual project configuration,
+credential discovery, signed-user verification or external revocation call was tested.
+Unit tests use synthetic credentials that cannot request access tokens and trusted
+SDK/authority mocks; wrong audience/issuer are also rejected by the installed SDK
+offline before signature lookup. No capability persistence is installed.
+See [identity and privilege contract](../docs/02-architecture/system-architecture.md#firebase-identity-boundary-dan-proposed-privilege-manifest).
+M03-01 and governance enforcement remain incomplete.
+
+Identity batch verification: focused identity/error/health 27/27 PASS; full backend
+unit tests 92/92 PASS, zero failures/skips; backend/mobile typecheck and lint PASS.
+The verifier and capability tests use injected trusted mocks. No Firebase credentials,
+external Firebase verification, PostgreSQL SQL or privilege tests were executed.
+
+Firebase Admin batch verification: focused identity/SDK/error/health 34/34 PASS;
+full backend unit regression 99/99 PASS, zero failures/skips; backend typecheck and
+lint PASS. Dependency lock matches package.json; existing locked package versions
+are unchanged. Mobile checks were not repeated because mobile/shared source and
+root dependencies were untouched. No live credentials or PostgreSQL were used.
+
+Next gate: approve capability-store physical schema/testing plus the owner policy
+for grant/revoke and separation of duties before activating any authority/writer.
+See the [persistence design](../docs/02-architecture/system-architecture.md#capability-persistence-contract---desain-belum-ddl).
+
+## Capability persistence SQL foundation - not applied
+
+Candidate migration 0008_catalog_capabilities.sql adds only capability events
+(10 columns) and effective-assignment pointers (4 columns). Scope is required,
+case-sensitive, nonblank text with no enum or hidden normalization. The composite
+FK ensures the pointer matches the subject/capability/scope of its event. All FKs
+use RESTRICT; guarded DOWN refuses any populated capability history under locks.
+No roles, operational grants, writer functions, seeds or actor assignments are added.
+
+This is not an authority implementation: stored unknown capability/scope must never
+be treated as authorization. Duplicate active GRANT/inactive REVOKE policy, latest
+pointer validation, inactive-user denial, append-only runtime privileges, pool
+context and concurrent revocation require future restricted writers and tests.
+No default capability authority is wired into Fastify. Current hooks still deny
+without trusted authority. Vocabulary, grantor/bootstrap and separation policy
+remain OPEN. Firebase live verification remains CONFIGURATION PENDING.
+
+See [prepared integration suite](tests/integration/README.md#capability-persistence-sql-foundation-m03-01)
+and [physical contract](../docs/02-architecture/postgres-physical-schema-v1.5.md#capability-persistence-foundation-m03-01-proposed).
+No PostgreSQL operation is authorized by this README or the presence of 0008.
+M03-01 remains incomplete.
+
+Capability batch non-database verification: focused migration/scanner 14/14 PASS;
+full backend unit regression 102/102 PASS (0 fail/skip); backend typecheck/lint and
+git diff --check PASS. These results do not prove PostgreSQL DDL, constraints or
+operational authorization. The prepared PostgreSQL suite has not been executed.

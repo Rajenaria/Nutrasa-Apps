@@ -1,10 +1,12 @@
 import Fastify from 'fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { registerIdentityBoundary } from './identity.ts';
+import type { IdentityDependencies } from './identity.ts';
 
 function handleError(error: unknown, request: FastifyRequest, reply: FastifyReply) {
   const clientStatus =
     error instanceof Error && 'statusCode' in error &&
-    (error.statusCode === 400 || error.statusCode === 404 ||
+    (error.statusCode === 400 || error.statusCode === 401 || error.statusCode === 403 || error.statusCode === 404 ||
       error.statusCode === 413 || error.statusCode === 415)
       ? error.statusCode
       : undefined;
@@ -13,7 +15,14 @@ function handleError(error: unknown, request: FastifyRequest, reply: FastifyRepl
 
   let code = 'SERVER_ERROR';
   let message = 'An internal server error occurred.';
-  if (clientStatus === 404) {
+  if (clientStatus === 401) {
+    code = 'AUTH_REQUIRED';
+    message = 'Authentication required.';
+    reply.header('www-authenticate', 'Bearer');
+  } else if (clientStatus === 403) {
+    code = 'ACCESS_DENIED';
+    message = 'Access denied.';
+  } else if (clientStatus === 404) {
     code = 'NOT_FOUND';
     message = 'Resource not found.';
   } else if (clientStatus !== undefined) {
@@ -27,10 +36,11 @@ function handleError(error: unknown, request: FastifyRequest, reply: FastifyRepl
   });
 }
 
-export function buildApp() {
+export function buildApp(identity: IdentityDependencies = {}) {
   // Router errors such as malformed URLs bypass setErrorHandler.
   const app = Fastify({ frameworkErrors: handleError });
   app.setErrorHandler(handleError);
+  registerIdentityBoundary(app, identity);
 
   app.setNotFoundHandler((request, reply) => reply.code(404).send({
     error: { code: 'NOT_FOUND', message: 'Resource not found.' },

@@ -148,3 +148,7 @@ Kode 400 kanonis adalah `INVALID_REQUEST` dan `VALIDATION_FAILED`; `VALIDATION_E
 - Gate teknis OPEN: typed sync payload per entitas, canonical hashing, validasi semantik OpenAPI 3.1/examples/responses, migrasi/constraint/concurrency tests; Firebase SDK/persistensi Expo 57 dan SQLCipher device QA belum terverifikasi.
 
 **Tahap sesudah dokumen ini:** rincikan `openapi.yaml`, `sql-migration-plan.md` (tanpa menjalankan SQL), dan engineering signoff. Jangan mulai coding sampai review kontrak disetujui.
+
+### Status fondasi identity dan authorization M03-01
+
+Editor memakai Firebase ID token verified oleh Fastify; capabilities server-side deny-by-default, bukan UID/email/domain/custom claims sebagai grant. Hook opt-in tersedia tanpa editorial route produksi. Error layer kini juga memetakan 401 AUTH_REQUIRED untuk missing/invalid/revoked token dan 403 ACCESS_DENIED untuk capability tidak ada/ditolak sesuai kode OpenAPI. Verifier tidak terkonfigurasi atau provider/authority failure tak dikenal gagal tertutup dengan 500 SERVER_ERROR, tanpa kode 503 baru. 401 mempunyai WWW-Authenticate: Bearer. Adapter firebase-admin 14.5.0 tersedia dengan explicit project dan ADC eksternal; live verification CONFIGURATION PENDING. Account/domain status mapping dan capability persistence belum aktif. Tests memakai trusted mocks dan synthetic credential; penolakan wrong audience/issuer oleh SDK juga diuji offline, bukan bukti signature verification user produksi, live revocation atau privilege PostgreSQL. Tidak menambah endpoint atau mengubah wire envelope.

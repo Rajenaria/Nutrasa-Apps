@@ -722,3 +722,45 @@ source permissions, legal/clinical review, publication gate, editorial concurren
 or crash recovery at commit. No operational grant or SECURITY DEFINER was added.
 No test rerun, reset, database cleanup or Git mutation occurred in final review.
 M03-01 remains incomplete.
+
+## Capability persistence SQL foundation M03-01
+
+PREPARED, NOT EXECUTED. After separate approval and fresh-target verification only,
+run from backend: npm.cmd run test:integration:catalog-capabilities.
+Use the existing guarded NUTRASA_IT_DATABASE_URL and NUTRASA_IT_CONFIRM_DATABASE
+process environment with an explicitly approved disposable database and dedicated
+migrator, only on the approved PostgreSQL 18 test cluster at port 5433. Enter the
+password using the previously reviewed local interactive procedure, never chat,
+command arguments, a repository file or terminal output. Do not reuse a retained
+database. Production/dev/test databases and port 5432 are forbidden.
+
+The suite uses the existing harness, bootstrap definition, SHA-256, transaction and
+advisory-lock core. It applies actual 0001-0007 as prerequisites, not a repeat of the
+catalog/digest integration suites. It then tests actual 0008 plus a separate 0009
+failure fixture. No normal runner discovers fixtures. Guards stop after a failed
+checkpoint; there is no automatic retry, reset, role/database cleanup or provisioning.
+
+Prepared: DDL/history/hash rollback; exact 10/4 types/defaults/NULL/collation; three
+RESTRICT FKs and composite pointer matching; two PK/two UNIQUE/four indexes/nine
+CHECKs; blank/nonblank and unnormalized scope; UUID and sequence uniqueness;
+subject/actor references; protection against physical deletion/renaming; synthetic
+event+pointer transaction rollback; empty DOWN/UP/re-run; populated DOWN refusal;
+no nonowner table ACL; preservation of old rows, constraints, helpers and baselines.
+Scope/capability fixtures are SYNTHETIC, not a proposed operational vocabulary.
+
+DEFERRED UNTIL WRITER/PRIVILEGE ENFORCEMENT: duplicate active GRANT/inactive REVOKE
+rejection, unknown-code or disabled-subject authorization, bootstrap/grantor identity,
+self-escalation, unauthorized assignment/audit mutation, concurrent revoke/write,
+and pooled identity context. These are acceptance plans, not skipped placeholder
+tests or claims of PASS. Direct migrator DML does not prove runtime security.
+
+Expected successful final state: eight history entries and eight immutable hashes,
+all old domains retained, two synthetic capability events GRANT then REVOKE, and one
+projection pointing to the REVOKE event. No real editorial assignment or authority
+exists. Preserve the target as evidence after execution; any cleanup, reuse or reset
+requires separate owner approval. Crash recovery at commit remains OPEN.
+
+Capability batch non-database verification: focused migration/scanner 14/14 PASS;
+full backend unit regression 102/102 PASS (0 fail/skip); backend typecheck/lint and
+git diff --check PASS. These results do not prove PostgreSQL DDL, constraints or
+operational authorization. The prepared PostgreSQL suite has not been executed.
