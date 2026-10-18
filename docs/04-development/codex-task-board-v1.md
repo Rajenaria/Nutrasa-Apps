@@ -1,5 +1,15 @@
 # NUTRASA — Task Board untuk Codex v1.0
 
+**Prioritas owner - 18 Oktober 2026:** M03-01 **PAUSED/PARTIAL**; fokus sementara
+React Native/Expo Portfolio Prototype dengan mock data terisolasi. Lihat
+[backend pause handoff](M03-01-BACKEND-PAUSE-HANDOFF.md) untuk kronologi,
+migration/testing evidence, target retained, OPEN gates dan langkah resume.
+HEAD aktual preflight handoff 3e4cf3c; e9e8e82 + tiga modified adalah checkpoint
+historis yang sudah disimpan owner. Tidak ada aktivasi authority/editorial,
+perubahan urutan milestone M00-M10 atau izin database dari prioritas prototype.
+Deliverable dokumentasi akhir proyek yang direncanakan: histori pembangunan
+komprehensif dan handbook teknis engineer; keduanya belum diklaim selesai.
+
 **Cara pakai:** satu task pada satu waktu; ikuti AGENTS.md root dan struktur src/app/ + src/features/. M00-01, M00-02 dan M00-03A telah dilaporkan selesai pada sesi sebelumnya. M00-03B selesai dalam allowlist: link relatif, preservasi SHA-256, git diff --check, typecheck dan lint lulus; klausul roadmap di luar allowlist dilaporkan untuk task berikutnya. Catatan awal "M01–M10 BELUM DIKERJAKAN" adalah baseline historis, bukan status terkini. M03-01 kini mempunyai bukti identity 15/15, food_sources 13/13 dan [katalog struktural 0003 18/18](../../backend/tests/integration/README.md#food-catalog-m03-01) integration PASS, masing-masing exit 0; engine 11/11 PASS. [Bukti food_sources](../../backend/tests/integration/README.md#food-sources-m03-01) dipertahankan. [Kontrak lanjutan](../02-architecture/postgres-physical-schema-v1.5.md#kontrak-katalog-lanjutan-m03-01) empat tabel dan dua kolom provenance APPROVED; [SQL 0004/0005 dan tests](../02-architecture/sql-migration-plan.md#katalog-lanjutan-m03-01) telah diuji pada satu target disposable yang disetujui: [suite gabungan 24/24 PASS, 0 fail/skip, exit 0](../../backend/tests/integration/README.md#katalog-lanjutan-m03-01), termasuk rollback, DOWN/UP/re-run dan preservasi domain terdahulu. Normalisasi konseptual disetujui, belum diimplementasikan. [Kontrak audit/governance](../02-architecture/postgres-physical-schema-v1.5.md#kontrak-governance-katalog-m03-01) kini APPROVED untuk dokumentasi; Scanner subset awal dan SQL struktur audit 0006 kini ditulis setelah approval berikutnya; [16/16 integration PASS, 0 fail/skip, exit 0](../../backend/tests/integration/README.md#catalog-audit-foundation-m03-01), termasuk failure rollback, empty DOWN/UP/re-run, populated DOWN refusal dan preservasi domain terdahulu. Enforcement/security serta keputusan owner/legal/clinical tetap OPEN. Seluruh M03-01 belum DONE. Hasil migration bukan bukti fitur aplikasi/publikasi operasional. Urutan dan ID milestone di bawah dipertahankan.
 
 | ID | Task | Input yang wajib dibaca | Bukti selesai | Dependensi |
