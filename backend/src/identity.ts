@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest, onRequestAsyncHookHandler } from 'fastify';
+import { isKnownCapability } from './capability-registry.ts';
 
 export interface VerifiedIdentity {
   readonly firebaseUid: string;
@@ -11,7 +12,7 @@ export interface FirebaseTokenVerifier {
 }
 
 export interface CapabilityAuthority {
-  allows(firebaseUid: string, capability: string): Promise<boolean>;
+  allows(firebaseUid: string, capability: string, scope: string): Promise<boolean>;
 }
 
 export interface IdentityDependencies {
@@ -25,7 +26,7 @@ declare module 'fastify' {
   }
   interface FastifyInstance {
     authenticate: onRequestAsyncHookHandler;
-    requireCapability(capability: string): onRequestAsyncHookHandler;
+    requireCapability(capability: string, scope: string): onRequestAsyncHookHandler;
   }
 }
 
@@ -70,17 +71,21 @@ export function registerIdentityBoundary(app: FastifyInstance, dependencies: Ide
   app.decorate('authenticate', async function (request: FastifyRequest) {
     await authenticate(request);
   });
-  app.decorate('requireCapability', (capability: string): onRequestAsyncHookHandler => {
+  app.decorate('requireCapability', (capability: string, scope: string): onRequestAsyncHookHandler => {
     if (capability.length === 0 || capability.trim() !== capability) {
       throw new Error('Protected routes require an explicit server-defined capability.');
     }
+    if (typeof scope !== 'string' || scope.trim().length === 0) {
+      throw new Error('Protected routes require an explicit server-defined scope.');
+    }
     return async function (request) {
       await authenticate(request);
+      if (!isKnownCapability(capability, scope)) deny(403);
       const identity = request.identity;
       if (!identity || !dependencies.capabilities) deny(403);
       let allowed: boolean;
       try {
-        allowed = await dependencies.capabilities.allows(identity.firebaseUid, capability);
+        allowed = await dependencies.capabilities.allows(identity.firebaseUid, capability, scope);
       } catch {
         throw new Error('Capability authority unavailable.');
       }

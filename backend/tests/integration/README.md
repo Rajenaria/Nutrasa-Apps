@@ -725,7 +725,8 @@ M03-01 remains incomplete.
 
 ## Capability persistence SQL foundation M03-01
 
-PREPARED, NOT EXECUTED. After separate approval and fresh-target verification only,
+Original setup instructions; execution has since been reported PASS below.
+For any future run, after separate approval and fresh-target verification only,
 run from backend: npm.cmd run test:integration:catalog-capabilities.
 Use the existing guarded NUTRASA_IT_DATABASE_URL and NUTRASA_IT_CONFIRM_DATABASE
 process environment with an explicitly approved disposable database and dedicated
@@ -764,3 +765,249 @@ Capability batch non-database verification: focused migration/scanner 14/14 PASS
 full backend unit regression 102/102 PASS (0 fail/skip); backend typecheck/lint and
 git diff --check PASS. These results do not prove PostgreSQL DDL, constraints or
 operational authorization. The prepared PostgreSQL suite has not been executed.
+
+### Catalog capabilities owner-reported execution evidence
+
+Owner terminal summary confirms 16 tests, 16 pass, 0 fail, 0 skipped. Provisioning
+reported exit code 0; the numeric suite exit code and final-state JSON were not
+provided as separate terminal evidence. Earlier PREPARED/NOT EXECUTED statements
+describe the coding checkpoint. This execution does not prove writer policy, read
+privileges, runtime pool isolation or concurrency. Preserve the disposable target;
+no rerun or cleanup is authorized by recording these results.
+
+<a id="capability-reader-security---prepared-not-executed"></a>
+
+## Capability reader security - verified disposable checkpoint
+
+The original offline preparation was followed by approved disposable execution:
+**8/8 PASS, exit 0**, reported by the owner. See [execution evidence](#reader-security-execution-evidence).
+Earlier 0008 structural 16/16 PASS remains separate evidence. Neither result
+authorizes operational assignments or proves a controlled writer.
+
+Files: [guard](reader-guard.ts), [suite](capability-reader.integration.ts),
+[shared registry](../../src/capability-registry.ts),
+[approved manifest and decision gates](../../../docs/02-architecture/authorization-registry-reader-security.md).
+Normal npm test includes only tests/*.test.ts, never this opt-in suite. Synthetic
+fixtures are generated after preflight, outside domain migration discovery.
+
+### Multi-role installation contract - separate approval required
+
+Historical setup design below was subsequently exercised on the retained target.
+It is not permission to repeat setup, reuse that target or perform cleanup.
+Existing provision.sql creates only the schema-owning migrator; do not rerun it
+on any retained evidence database. Review ONE target-specific setup package:
+
+1. Allocate a new nutrasa_it_<32 lowercase hex> database on PostgreSQL 18 at
+   127.0.0.1:5433. Administrator read-only preflight must prove cluster
+   nutrasa_it_pg18, system identifier 7697229180258678980, data directory
+   D:/Rajendra/NUTRASA-Postgres-IT/data and unused names. Do not reuse old targets.
+2. Preserve the admin-owned database, provisioning marker and matching _migrator
+   ownership of nutrasa/nutrasa_migrations. Install bootstrap and immutable
+   0001-0008 using the existing guarded engine; ALL domain tables must be empty.
+   The offline [setup entrypoint](setup-reader-cli.ts) now installs this stage through
+   [shared bootstrap](installation.ts) and the unchanged migration core. The
+   security suite itself does not migrate or install permissions. Do not bypass the production
+   CLI allowlist or use a previous domain test as setup: it would leave fixtures.
+3. Prepare matching _runtime LOGIN, NOINHERIT, no privileged role attributes,
+   memberships in either direction, SET ROLE paths or object ownership. Only
+   CONNECT on its target, USAGE nutrasa and the 3+4+6 SELECT columns in the linked
+   manifest are allowed. No table-wide SELECT, grant option, DML, metadata,
+   application function, sequence, database CREATE/TEMP or schema CREATE rights.
+   Authenticate as this reader; administrator SET ROLE is not equivalent proof.
+4. Close PUBLIC access on the target database/application/metadata/public schemas
+   and objects; review migrator global/per-schema defaults. Keep owner rights
+   and normal pg_catalog built-ins. No blanket future reader defaults. Catalog
+   CONNECT/TEMP on other databases is not HBA access: inspect without connecting
+   to them, and do not alter those databases to satisfy a test.
+5. Only approved exact loopback SCRAM target/role HBA entries may be installed;
+   preserve administrator and retained-target rules. Enter passwords locally;
+   never paste password-bearing URLs into chat, history, repository or logs.
+6. Verify actual server identity, ownership/marker, roles, defaults, schema and
+   exact column privileges, clean READ COMMITTED and empty domain tables. The
+   administrator verifies system identifier/control data; the reader must NOT
+   gain privileged control functions merely to prove them. This suite does not
+   independently verify the system identifier.
+
+### One-shot execution after separate approval
+
+The approved one-shot invocation from backend/ was
+npm.cmd run test:integration:capability-reader. It completed; do not run it again
+on the retained target. Any future fresh-target execution requires new approval. Use an approved secure local prompt/process-only
+credential mechanism. Required environment:
+
+- NUTRASA_IT_DATABASE_URL: explicit matching disposable _migrator connection.
+- NUTRASA_IT_READER_URL: explicit same-database _runtime connection.
+- NUTRASA_IT_CONFIRM_DATABASE: exact disposable database name.
+- Both URLs require password, loopback, explicit 5433 and no query/options.
+- PGOPTIONS, PGREPLICATION, PGHOSTADDR, PGSERVICE, PGSERVICEFILE absent or empty;
+  PGPORT absent/empty or 5433. No automatic override.
+
+Both configurations are checked before connecting. Migrator guard remains strict;
+reader uses its own nonowner login. Effective ACL/PUBLIC/membership/SET ROLE,
+role attributes, ownership, column/table/sequence/function and default privileges
+must pass before any fixture DML. Eight immutable history/hash entries and zero
+domain rows are also required.
+
+Verified checkpoints: exact UID/pair, missing subject/assignment, no inferred
+grant/revoke capability, sequential/concurrent Fastify requests through a test-owned max=1 Pool,
+inactive account, stale pointer, committed revoke, forbidden data writes,
+TRUNCATE/DDL/TEMP/ALTER, sequence/metadata/extra-column reads and SET ROLE,
+preserved synthetic audit, sanitized failure after closing the owned connection.
+The executed Pool scenario asserts the actual backend PID is reused, with a
+reader guard on every held checkout and release/discard on completion/failure.
+This max=1 reuse scenario passed on PostgreSQL; network-failure discard remains
+separate mock coverage. Production Pool lifecycle, multiple-backend behavior,
+network outages, writer locking/duplicate transitions, real actor authorization or atomic
+Firebase revocation remain PLANNED, not executed/skipped PASS.
+
+On failure STOP; no automatic retry or cleanup. Denied attempts are rolled back,
+but earlier committed fixtures remain. Expected success retains two synthetic
+ACTIVE app_users, GRANT then REVOKE events, one revoked projection, eight history/
+checksum entries and installed ACL. No real reviewer or publisher is activated.
+Only owned connections are closed; reuse/reset/DROP/cleanup needs separate owner
+approval. Crash-at-commit, authority/bootstrap/delegation/separation and reviewer
+qualifications remain OPEN. server.ts still installs no capability authority.
+
+<a id="disposable-reader-installer---offline-coding-complete-execution-not-authorized"></a>
+
+### Disposable reader installer - historical setup procedure
+
+Retained, already-used target (not a fresh candidate):
+
+- Database: nutrasa_it_b6ffd021fd5e4f00b14f135b764a6cdc
+- Migrator: nutrasa_it_b6ffd021fd5e4f00b14f135b764a6cdc_migrator
+- Reader: nutrasa_it_b6ffd021fd5e4f00b14f135b764a6cdc_runtime
+
+The [setup policy](reader-setup.ts) pins this exact target, 127.0.0.1:5433,
+PostgreSQL 18.6, cluster nutrasa_it_pg18, system identifier 7697229180258678980
+and data directory D:/Rajendra/NUTRASA-Postgres-IT/data. It rejects startup and
+connection overrides before any connection. A changed target/version requires review.
+[Installer composition](setup-reader.ts) is import-safe; only the explicit CLI
+runs actions. Neither normal unit tests nor the reader security suite run setup.
+
+The owner approved the two exact HBA entries below, testing-cluster reload,
+database/two-role setup and one security invocation. That approval was consumed.
+Future execution needs a new reviewed target, target pin and owner approval.
+Preserve all existing HBA rules and put these before the general reject:
+
+```text
+host nutrasa_it_b6ffd021fd5e4f00b14f135b764a6cdc nutrasa_it_b6ffd021fd5e4f00b14f135b764a6cdc_migrator 127.0.0.1/32 scram-sha-256
+host nutrasa_it_b6ffd021fd5e4f00b14f135b764a6cdc nutrasa_it_b6ffd021fd5e4f00b14f135b764a6cdc_runtime 127.0.0.1/32 scram-sha-256
+```
+
+The installer does not edit/reload HBA: it requires both exact, unshadowed SCRAM
+rules, zero parsing errors and configuration load time after HBA modification.
+Authenticated logins then prove the two intended connections work; catalog
+CONNECT/TEMP results on other databases are logged separately, without connecting
+to them. This is not a claim that HBA alone establishes database ACL isolation.
+
+Historical command sequence, from backend/; **do not rerun on the retained target**:
+
+```powershell
+npm.cmd run setup:integration:capability-reader
+if ($LASTEXITCODE -ne 0) { throw 'STOP: preserve partial setup; do not retry.' }
+npm.cmd run test:integration:capability-reader
+if ($LASTEXITCODE -ne 0) { throw 'STOP: preserve test evidence; do not retry.' }
+```
+
+Run these only within ONE script block with terminating error handling; do not
+paste the second command separately after a STOP. No suite is auto-launched by
+the installer. Do not pipe prepared commands into psql: it needs real local input.
+NUTRASA_IT_ADMIN_URL additionally holds the explicit maintenance postgres login
+for nutrasa_it_admin, while the two earlier URLs hold the matching migrator/reader
+credentials. Set all three using local masked password prompts and URL-encode the
+passwords in process memory. Never type a password-bearing URL as a shell command.
+Use temporary process-only environment; remove it in the caller's finally block.
+Do not read .env or use credential files. The installer never prints these URLs.
+
+The installer passes only a credential-free connection argument to psql, uses
+shell=false, -X and ON_ERROR_STOP, and supplies the administrator password in the
+child's temporary process environment. It reuses [provision.sql](provision.sql)
+with an already-validated run_id (no run-ID prompt). Locally enter the SAME new
+migrator password configured in the process URL when psql asks twice, then confirm
+the exact role. [enable-reader.sql](enable-reader.sql) similarly prompts for the
+reader password and confirmation after its NOLOGIN role/ACL transaction commits.
+Interactive password/LOGIN recovery was performed locally after an interrupted
+setup; no activation marker or numeric activation exit was supplied as evidence.
+Inability to use the local console is STOP, never a reason to pass a password as
+an argument.
+
+Installer contract (not evidence that the entire original invocation completed):
+
+1. Administrator verifies identity, HBA load/rules and collisions for database
+   AND both roles. Snapshot all other database/role/membership catalog metadata;
+   require at least nine retained disposable targets. No password/hash is read.
+2. Provision once using existing SQL. Every logical STOP raises a SQL error before
+   quit. Require exit=0 AND exactly one matching NUTRASA_IT_PROVISION_COMPLETE
+   marker; partial output or a marker for another target is rejected.
+3. Independently authenticate the migrator, verify schema ownership/marker,
+   no history/ledger and no objects in either schema; authenticate target admin.
+4. Hold the existing migration advisory lock across shared bootstrap and core UP.
+   No second engine, relaxed production CLI or changed historical SQL is used.
+5. Verify all eight ordered history entries and every SHA-256, all 17 domain
+   tables empty, and every relation/function owned by the matching migrator.
+6. Create reader NOLOGIN plus CONNECT/USAGE/13 column grants in one transaction;
+   no membership, SET ROLE, table-wide SELECT, DML, sequence or operational rights.
+7. Interactive reader password then LOGIN. Require its marker and authenticate
+   as that reader; run effective ACL/PUBLIC/default/membership/ownership guards.
+8. Recheck empty domains and history/checksums, compare retained catalog snapshots,
+   then emit NUTRASA_IT_READER_SETUP_COMPLETE bound to the exact database.
+   Only this complete path exits setup successfully. Next invoke the suite once.
+
+Failure boundaries: CREATE DATABASE cannot be included in one atomic transaction
+with the whole setup; the earlier NOLOGIN role/database may remain after failure.
+The bootstrap commit may remain if migration UP fails; reader ACL transaction may
+remain NOLOGIN before password setup, or LOGIN if its later verification fails.
+STOP without retry, reset or DROP in every case. Negative-test rollback does not
+promise to rewind sequence allocations if a forbidden nextval unexpectedly works.
+Only owned Clients/Pool are closed; setup preserves all partial database evidence.
+
+Cluster-wide changes are limited to the TWO new roles and separately approved HBA
+reload; per-owner default ACL, schema/objects and column grants are target-database
+changes. No retained database or role is modified. Existing production guard,
+AGENTS.md and migrations 0001-0008 remain untouched. No editorial assignment,
+publication, operational Pool or real Firebase activity is enabled. Crash recovery
+at commit remains OPEN. Disposable ACL and the tested max=1 Pool scenarios now
+have the owner-confirmed evidence below; production activation remains disabled.
+
+Latest offline setup batch: focused guard/setup tests 30/30 PASS; one full backend unit regression 130/130 PASS, 0 fail/skip; backend typecheck/lint PASS. Mobile root typecheck also PASS. These are offline results, not PostgreSQL provisioning, privilege or Pool-isolation PASS. No integration suite, migration, HBA operation or real database connection was run.
+
+## Reader security execution evidence
+
+Owner-supplied terminal results: **8 tests, 8 PASS, 0 FAIL, 0 SKIPPED, 0 cancelled,
+exit code 0** (READER INTEGRATION EXIT CODE: 0). No integration test was rerun for
+this documentation checkpoint.
+
+| Boundary | Confirmed evidence |
+|---|---|
+| Instance | PostgreSQL 18.6, 127.0.0.1:5433, cluster nutrasa_it_pg18; administrator preflight system identifier 7697229180258678980 and D:/Rajendra/NUTRASA-Postgres-IT/data. Reader does not gain control-data privileges. |
+| Target | nutrasa_it_b6ffd021fd5e4f00b14f135b764a6cdc; matching _migrator and _runtime. Database owner nutrasa_it_admin; schema/object owner migrator; reader is a separate nonowner login. |
+| HBA | Original 17 rules preserved, two exact target/role SCRAM loopback entries added before reject; reload verified, 19 valid rules, 0 parse errors. No main-cluster change. |
+| Initial state | Suite verified eight immutable history/hash entries and completely empty domain tables before synthetic fixture DML. |
+| Reader ACL | Exactly 13 SELECT columns (3 app_users + 4 assignments + 6 events); effective ACL, PUBLIC/default privileges, ownership/membership/SET ROLE paths and negative write/DDL/sequence/metadata checks passed. No table-wide SELECT grant. |
+| Lookup | Exact verified UID/internal subject and approved pair; missing binding/assignment, unknown pair, inactive account, committed revoke and stale pointer deny. Parameterized query and request isolation exercised. |
+| Pool | Actual test-owned max=1 Pool reused its backend across sequential and concurrent identities; safe lookup failure after closing only that Pool. |
+| End | Synthetic audit and eight history/checksum entries retained; no real staff assignment or editorial activation. |
+
+Setup history: an earlier invocation installed the target, eight migrations and
+reader ACL with the reader still NOLOGIN. The owner confirmed a manual retry after
+incorrect input. That retry stopped at existing-target collision preflight with
+exit 1; it did not run setup actions or the suite. Read-only inspection established
+the existing state, followed by separately approved targeted password/LOGIN
+recovery and authenticated reader guards. The suite then passed. No original
+full-install success marker, activation marker or numeric activation exit was
+supplied; they are not inferred from the final suite result.
+
+The suite retains two synthetic users, GRANT then REVOKE audit events and a
+projection pointing to REVOKE; final audit/history assertions passed. This is
+suite/fixture evidence, not a new post-suite database inventory. Ten earlier
+disposable targets were confirmed retained before execution. No reset, reuse or
+cleanup is authorized; all target evidence remains preserved. Maintenance/template
+PUBLIC CONNECT/TEMP catalog findings are distinct from exact-pair HBA rejection:
+no claim of universal cross-database ACL isolation is made.
+
+Still OPEN: production Pool/lifecycle, multiple-backend behavior, real network
+failures, live Firebase, controlled writer/duplicate transitions, atomic
+revoke/write concurrency, authority/bootstrap/delegation/separation, reviewer
+qualifications, retention/reactivation and crash recovery during commit. Reader
+PASS does not close these gates. M03-01 remains PARTIAL.

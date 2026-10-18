@@ -311,8 +311,9 @@ be treated as authorization. Duplicate active GRANT/inactive REVOKE policy, late
 pointer validation, inactive-user denial, append-only runtime privileges, pool
 context and concurrent revocation require future restricted writers and tests.
 No default capability authority is wired into Fastify. Current hooks still deny
-without trusted authority. Vocabulary, grantor/bootstrap and separation policy
-remain OPEN. Firebase live verification remains CONFIGURATION PENDING.
+without trusted authority. Six technical pairs are now approved in the registry;
+grantor/bootstrap and separation policy remain OPEN. Firebase live verification
+remains CONFIGURATION PENDING.
 
 See [prepared integration suite](tests/integration/README.md#capability-persistence-sql-foundation-m03-01)
 and [physical contract](../docs/02-architecture/postgres-physical-schema-v1.5.md#capability-persistence-foundation-m03-01-proposed).
@@ -322,4 +323,66 @@ M03-01 remains incomplete.
 Capability batch non-database verification: focused migration/scanner 14/14 PASS;
 full backend unit regression 102/102 PASS (0 fail/skip); backend typecheck/lint and
 git diff --check PASS. These results do not prove PostgreSQL DDL, constraints or
-operational authorization. The prepared PostgreSQL suite has not been executed.
+operational authorization. At that historical offline checkpoint the PostgreSQL
+suite was not executed; the owner subsequently reported 0008 structural 16/16
+PASS. Reader ACL/Pool verification is recorded separately below.
+
+## Authorization read foundation - not operational
+
+src/capabilities.ts provides createCapabilityAuthority(database,approvedPermissions).
+It does not construct a pool, read credentials, query at import or activate routes.
+The default approved-pair list is empty and denies before database access. Tests
+consume the approved shared technical registry; no real assignment is introduced.
+server.ts still supplies no capability authority.
+
+requireCapability(capability,scope) now requires explicit server-defined scope.
+The reader issues one parameterized SELECT with verified UID and the exact pair,
+uses ACTIVE app_users plus the composite effective event binding and GRANT state,
+and conservatively rejects a pointer with a higher-numbered event for the same key.
+Scope/UID are not normalized. Unknown pairs never query; lookup errors/invalid
+results fail closed through existing safe 500 handling; denied reads use 403.
+No claim/admin/body/header value becomes a capability or actor authority.
+
+One SQL statement gives one consistent PostgreSQL snapshot; it does not hold
+permission through a later writer transaction. Queries are not cached and set no
+session actor/GUC/role. The future injected runtime boundary must use clean,
+autocommit READ COMMITTED connections. The disposable reader suite now proves SQL
+row predicates, exact 13-column privileges and max=1 Pool identity isolation in
+the tested scenarios (8/8 PASS, exit 0). Operational revoke/write concurrency
+still requires a controlled writer and separate PostgreSQL testing.
+Do not connect this adapter using migrator credentials to bypass missing grants.
+
+See [read boundary, writer and bootstrap design](../docs/02-architecture/system-architecture.md#authorization-read-boundary-dan-restricted-writer-plan)
+and [future security test plan](../docs/02-architecture/sql-migration-plan.md#authorization-read-boundary-dan-writer-security-test-plan).
+No writer, privileged function, operational grant or pool is activated. Registry membership alone grants nothing.
+M03-01 remains incomplete; Firebase live configuration remains pending.
+
+Authorization read batch: focused identity/Firebase/capability 33/33 PASS; full
+backend unit regression 112/112 PASS (0 fail/skip); backend typecheck/lint PASS.
+Tests use injected query mocks. No PostgreSQL connection, pool privilege test,
+migration replay, live Firebase verification or operational writer was executed.
+
+## Approved registry and guarded reader - disposable verification complete
+
+The [registry and reader contract](../docs/02-architecture/authorization-registry-reader-security.md)
+now contains six APPROVED technical pairs, all scope CATALOG. src/capability-registry.ts
+is the shared typed source. The hook and authority reject unknown pairs before lookup.
+The default activation list remains empty; server.ts installs no capability authority.
+Registry entries are neither actor assignments nor grant/delegation authority.
+
+The nonowner reader guard and opt-in suite have owner-confirmed PostgreSQL
+18.6 results on 127.0.0.1:5433: **8/8 PASS, 0 fail/skip, exit code 0**.
+See [reader execution evidence](tests/integration/README.md#reader-security-execution-evidence) for exact target, ACL/Pool checkpoints,
+setup collision/recovery and retained state. Effective ACL and forbidden access
+checks passed; a test-owned max=1 Pool reused its backend across sequential and
+concurrent identities. This does not activate a production Pool, staff assignment
+or editorial authority. server.ts remains unconnected.
+
+The disposable installer remains target-pinned and opt-in. An earlier invocation
+left installed migrations and a NOLOGIN reader; a manual retry stopped at collision
+preflight (exit 1). Separately approved targeted recovery preceded the successful
+suite. No complete original installer marker or numeric activation exit was
+supplied; do not infer full-installer success from suite success. Do not rerun setup
+or tests on this retained target. Authority/bootstrap/delegation/separation, live
+Firebase, production Pool lifecycle and crash-at-commit remain OPEN. M03-01 remains
+PARTIAL. Historical offline unit results above are not new executions.

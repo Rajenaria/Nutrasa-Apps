@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { request as httpRequest } from 'node:http';
+import { catalogCapabilities, catalogScope } from '../src/capability-registry.ts';
 import { buildApp } from '../src/app.ts';
 import type { IdentityDependencies } from '../src/identity.ts';
 
@@ -15,7 +16,7 @@ function protectedApp(dependencies: IdentityDependencies = {}) {
   const app = buildApp(dependencies);
   // Protected routes exist only in tests, never in the production app.
   app.post('/test/identity', { onRequest: app.authenticate }, async request => request.identity);
-  app.get('/test/capability', { onRequest: app.requireCapability('TEST_ONLY_CAPABILITY') }, async request => request.identity);
+  app.get('/test/capability', { onRequest: app.requireCapability(catalogCapabilities.nutritionReview, catalogScope) }, async request => request.identity);
   return app;
 }
 
@@ -61,7 +62,7 @@ test('invalid expired revoked disabled and deleted Firebase identities fail with
 
 test('verified UID is preserved and spoofed headers body roles and custom claims are discarded', async t => {
   const app = protectedApp({ verifier: { async verifyIdToken() {
-    return { uid: ' SYNTHETIC_UID ', role: 'publisher', capabilities: ['TEST_ONLY_CAPABILITY'], email_verified: true };
+    return { uid: ' SYNTHETIC_UID ', role: 'publisher', capabilities: [catalogCapabilities.nutritionReview], email_verified: true };
   } } });
   t.after(() => app.close());
   const response = await app.inject({ method: 'POST', url: '/test/identity',
@@ -88,7 +89,7 @@ test('verifier outage missing configuration and malformed verifier results fail 
 test('identity and forged custom role claims never grant a capability without an authority', async t => {
   const app = protectedApp({ verifier: { async verifyIdToken() { return { uid: 'SYNTHETIC', role: 'publisher', admin: true }; } } });
   t.after(() => app.close());
-  const response = await app.inject({ url: '/test/capability', headers: { authorization, 'x-capability': 'TEST_ONLY_CAPABILITY' } });
+  const response = await app.inject({ url: '/test/capability', headers: { authorization, 'x-capability': catalogCapabilities.nutritionReview } });
   assert.equal(response.statusCode, 403);
   assert.deepEqual(response.json().error, { code: 'ACCESS_DENIED', message: 'Access denied.' });
 });
@@ -96,14 +97,14 @@ test('identity and forged custom role claims never grant a capability without an
 test('capability lookup uses only verified UID and server route capability and rechecks revocation each request', async t => {
   let allowed = true;
   const calls: string[][] = [];
-  const app = protectedApp({ verifier: verified, capabilities: { async allows(uid, capability) {
-    calls.push([uid, capability]); return allowed;
+  const app = protectedApp({ verifier: verified, capabilities: { async allows(uid, capability, scope) {
+    calls.push([uid, capability, scope]); return allowed;
   } } });
   t.after(() => app.close());
   assert.equal((await app.inject({ url: '/test/capability', headers: { authorization, 'x-firebase-uid': 'SPOOFED' } })).statusCode, 200);
   allowed = false;
   assert.equal((await app.inject({ url: '/test/capability', headers: { authorization } })).statusCode, 403);
-  assert.deepEqual(calls, [['SYNTHETIC_UID', 'TEST_ONLY_CAPABILITY'], ['SYNTHETIC_UID', 'TEST_ONLY_CAPABILITY']]);
+  assert.deepEqual(calls, [['SYNTHETIC_UID', catalogCapabilities.nutritionReview, catalogScope], ['SYNTHETIC_UID', catalogCapabilities.nutritionReview, catalogScope]]);
 });
 
 test('failed authentication does not call capability authority and authority outage cannot grant access', async t => {
@@ -124,7 +125,7 @@ test('capability defaults reject unknown or missing assignments rather than infe
   } } });
   t.after(() => app.close());
   assert.equal((await app.inject({ url: '/test/capability', headers: { authorization } })).statusCode, 403);
-  for (const capability of ['', ' ', ' TEST_ONLY_CAPABILITY']) assert.throws(() => app.requireCapability(capability));
+  for (const capability of ['', ' ', ' TEST_ONLY_CAPABILITY']) assert.throws(() => app.requireCapability(capability, catalogScope));
 });
 
 test('concurrent requests and later unauthenticated requests never share identity context', async t => {

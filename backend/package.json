@@ -20,7 +20,9 @@
     "test:integration:catalog-foundation": "node --test --test-concurrency=1 tests/integration/catalog-foundation.integration.ts",
     "test:integration:catalog-audit": "node --test --test-concurrency=1 tests/integration/catalog-audit.integration.ts",
     "test:integration:catalog-digest": "node --test --test-concurrency=1 tests/integration/catalog-digest.integration.ts",
-    "test:integration:catalog-capabilities": "node --test --test-concurrency=1 tests/integration/catalog-capabilities.integration.ts"
+    "test:integration:catalog-capabilities": "node --test --test-concurrency=1 tests/integration/catalog-capabilities.integration.ts",
+    "setup:integration:capability-reader": "node tests/integration/setup-reader-cli.ts",
+    "test:integration:capability-reader": "node --test --test-concurrency=1 tests/integration/capability-reader.integration.ts"
   },
   "dependencies": {
     "fastify": "5.12.5",

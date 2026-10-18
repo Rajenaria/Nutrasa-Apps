@@ -152,3 +152,18 @@ Kode 400 kanonis adalah `INVALID_REQUEST` dan `VALIDATION_FAILED`; `VALIDATION_E
 ### Status fondasi identity dan authorization M03-01
 
 Editor memakai Firebase ID token verified oleh Fastify; capabilities server-side deny-by-default, bukan UID/email/domain/custom claims sebagai grant. Hook opt-in tersedia tanpa editorial route produksi. Error layer kini juga memetakan 401 AUTH_REQUIRED untuk missing/invalid/revoked token dan 403 ACCESS_DENIED untuk capability tidak ada/ditolak sesuai kode OpenAPI. Verifier tidak terkonfigurasi atau provider/authority failure tak dikenal gagal tertutup dengan 500 SERVER_ERROR, tanpa kode 503 baru. 401 mempunyai WWW-Authenticate: Bearer. Adapter firebase-admin 14.5.0 tersedia dengan explicit project dan ADC eksternal; live verification CONFIGURATION PENDING. Account/domain status mapping dan capability persistence belum aktif. Tests memakai trusted mocks dan synthetic credential; penolakan wrong audience/issuer oleh SDK juga diuji offline, bukan bukti signature verification user produksi, live revocation atau privilege PostgreSQL. Tidak menambah endpoint atau mengubah wire envelope.
+
+### Authorization read boundary M03-01
+
+Hook internal requireCapability(capability,scope) menerima pair dari route/server,
+bukan input client. Nonoperational PostgreSQL reader tersedia melalui trusted DI;
+subset aktivasi default kosong berarti DENY; registry teknis enam pair APPROVED
+tetap terpisah dari assignment aktor. Read denial tetap 403 ACCESS_DENIED dan
+query/malformed-result failure tetap 500 SERVER_ERROR aman. Token failure tetap
+401 AUTH_REQUIRED. Tidak menambah endpoint, wire field, scope vocabulary atau
+OpenAPI enum. Reader disposable exact 13-column SELECT dan Pool max=1 sudah
+teruji 8/8 PASS, exit 0; Pool produksi dan writer masih nonaktif;
+precheck boolean tidak menggantikan reauthorization pada transaksi writer.
+
+Bukti reader dan batas aktivasi: [bukti reader 8/8 PASS, exit 0](../../backend/tests/integration/README.md#reader-security-execution-evidence). Tidak ada perubahan wire contract,
+endpoint, operational assignment atau klaim live Firebase dari hasil ini.

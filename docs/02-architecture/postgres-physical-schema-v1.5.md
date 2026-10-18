@@ -364,7 +364,7 @@ State machine, matriks role dan publication transaction dijelaskan pada [system 
 
 ## Capability persistence foundation M03-01 (PROPOSED)
 
-**CANDIDATE SQL PREPARED, NOT APPLIED OR OPERATIONAL.** Owner menyetujui penulisan struktur 10/4 kolom dan scope nonblank tanpa vocabulary tetap. backend/migrations/0008_catalog_capabilities.sql serta unit/static dan integration suite disiapkan; belum dijalankan pada PostgreSQL. Kontrak identity 0001 tetap utuh. Tidak ada fungsi administrative, runtime lookup PostgreSQL atau grant baru. Matriks ini satu sumber proposal fisik; [trust/transaction boundary](system-architecture.md#capability-persistence-contract---desain-belum-ddl) dan [test plan](sql-migration-plan.md#capability-persistence-foundation-test-plan) melengkapinya.
+**STRUCTURAL INTEGRATION REPORTED PASS, NOT OPERATIONAL.** Owner menyetujui struktur 10/4 kolom dan scope nonblank tanpa vocabulary tetap. Owner kemudian mengirim output suite backend/migrations/0008_catalog_capabilities.sql: 16/16 PASS, 0 fail/skip pada target disposable yang disetujui. Ini bukan bukti read authorization, writer atau privilege operasional; tidak ada pengujian PostgreSQL ulang pada batch read boundary. Kontrak identity 0001 tetap utuh. Tidak ada fungsi administrative, runtime lookup PostgreSQL atau grant baru. Matriks ini satu sumber proposal fisik; [trust/transaction boundary](system-architecture.md#capability-persistence-contract---desain-belum-ddl) dan [test plan](sql-migration-plan.md#capability-persistence-foundation-test-plan) melengkapinya.
 
 ### Binding dan state minimum
 
@@ -379,8 +379,8 @@ Rekomendasi dua tabel: catalog_capability_events menyimpan transisi immutable; c
 | id | uuid NOT NULL | pg_catalog.gen_random_uuid() | PK; identitas event. |
 | event_number | bigint NOT NULL | GENERATED ALWAYS AS IDENTITY | UNIQUE dan > 0; urutan diagnostik, boleh gap, bukan pengganti lock atau cursor sync. |
 | subject_id | uuid NOT NULL | Tidak ada | FK app_users(id), subjek penerima/perubahan hak. |
-| capability | text COLLATE C NOT NULL | Tidak ada | Nonblank; kode exact server. Vocabulary operasional tetap OPEN; CHECK nonblank tidak memberi hak atau menerima capability tak dikenal pada evaluator. |
-| scope | text COLLATE C NOT NULL | Tidak ada | APPROVED scope adjustment: CHECK nonblank; tanpa enum, hierarchy atau normalisasi. Vocabulary tetap OPEN; unknown scope wajib ditolak authorization. |
+| capability | text COLLATE C NOT NULL | Tidak ada | Nonblank; kode exact server. Enam pair teknis runtime APPROVED pada registry reader; vocabulary storage tidak dibatasi; CHECK nonblank tidak memberi hak atau menerima capability tak dikenal pada evaluator. |
+| scope | text COLLATE C NOT NULL | Tidak ada | APPROVED scope adjustment: CHECK nonblank; tanpa enum, hierarchy atau normalisasi. Registry runtime mengenali exact CATALOG untuk enam pair APPROVED; storage tidak dibatasi ke literal itu; unknown scope wajib ditolak authorization. |
 | action | text NOT NULL | Tidak ada | PROPOSED CHECK GRANT/REVOKE; transisi teknis, bukan role bisnis. |
 | actor_subject_id | uuid NOT NULL | Tidak ada | FK app_users(id), actor authenticated yang telah diotorisasi proses administrative. Tidak boleh NULL, UID input bebas atau akun SYSTEM buatan. |
 | reason | text NOT NULL | Tidak ada | Nonblank; alasan tanpa credential/token/dokumen sensitif. |
@@ -409,7 +409,7 @@ PK(subject_id,capability,scope). Satu FK gabungan (subject_id,capability,scope,l
 - Account deletion: RESTRICT mempertahankan referensi subject/actor, sehingga physical DELETE terblokir sampai kebijakan legal retensi/anonymization disetujui. PENDING_DELETION/DELETED logis tetap dimungkinkan dan harus segera ditolak evaluator. Tidak mengklaim retensi tanpa batas atau pemulihan hak otomatis ketika Firebase diaktifkan kembali. Lifecycle disable/delete/re-enable membutuhkan keputusan dan workflow tersendiri; tidak mengubah status akun existing.
 - UP berikutnya: events lalu assignments, default ACL/owner diperiksa agar tidak ada akses operasional; tidak ada assignment bootstrap/seed, function writer, trigger atau grant. DOWN: hanya jika kedua tabel kosong, drop assignments lalu events/sequence owned tanpa CASCADE; populated audit harus menolak DOWN atomik. Struktur/history/checksum mengikuti runner existing. Candidate bernomor 0008_catalog_capabilities.sql mengikuti discovery aktual; tidak mengubah 0001-0007.
 
-**Owner gates sebelum coding/aktivasi bagian terkait:** authority/grantor nyata dan initial bootstrap, vocabulary/scope, separation of duties dan reviewer qualification, binding actor hingga restricted SQL, reactivation policy, retensi/deletion. Approval struktur kosong dan static tests dapat dipisah dari aktivasi, tetapi belum menyelesaikan gate tersebut. SQL kandidat hanya menerapkan struktur yang diizinkan; administrative trust boundary dan activation tetap OPEN. CHECK/FK tidak menolak duplicate GRANT events, inactive subject atau audit UPDATE oleh migrator. Writer harus menegakkan policy tersebut sebelum activation.
+**Owner gates sebelum coding/aktivasi bagian terkait:** authority/grantor nyata dan initial bootstrap, vocabulary/scope tambahan di luar enam pair APPROVED, separation of duties dan reviewer qualification, binding actor hingga restricted SQL, reactivation policy, retensi/deletion. Approval struktur kosong dan static tests dapat dipisah dari aktivasi, tetapi belum menyelesaikan gate tersebut. SQL kandidat hanya menerapkan struktur yang diizinkan; administrative trust boundary dan activation tetap OPEN. CHECK/FK tidak menolak duplicate GRANT events, inactive subject atau audit UPDATE oleh migrator. Writer harus menegakkan policy tersebut sebelum activation.
 
 ## Migration dependency order (planning only)
 
@@ -430,3 +430,12 @@ PK(subject_id,capability,scope). Satu FK gabungan (subject_id,capability,scope,l
 4. **Deletion vs receipt history:** define retention of sync/idempotency receipts and account deletion evidence; cannot promise complete retention or immediate deletion of audit artifacts without policy.
 5. **Nutrition**: engine values and eligible profile conditions need professional review; never seed unsupported or asserted medically validated target values.
 6. **Source rights**: each imported source must be approved for storage and redistribution.
+
+### Checkpoint reader setelah struktur capability
+
+[bukti reader 8/8 PASS, exit 0](../../backend/tests/integration/README.md#reader-security-execution-evidence) terpisah dari structural 0008 16/16 PASS: exact 13 kolom SELECT,
+effective ACL dan negative privileges serta reuse Pool max=1 telah teruji pada
+disposable PostgreSQL 18.6 port 5433. Tidak mengubah matriks/SQL historis, membuat
+assignment operasional atau mengaktifkan writer. Setup collision exit 1 disusul
+recovery terarah sesuai approval; marker/exit aktivasi terpisah tidak tersedia.
+Authority/bootstrap, writer concurrency, produksi dan crash-at-commit tetap OPEN.

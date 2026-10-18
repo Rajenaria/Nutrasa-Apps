@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { TestContext } from 'node:test';
@@ -8,9 +8,9 @@ import { PG_MIGRATE_LOCK_ID } from 'node-pg-migrate/runner';
 
 import { inspectIntegrityState, runMigrationCore } from '../../src/migrations/core.ts';
 import { readSqlSnapshots } from '../../src/migrations/checksum.ts';
-import { withMigrationLock } from '../../src/migrations/lock.ts';
+import { bootstrapIntegrationTarget } from './installation.ts';
 import {
-  connectIntegrationTarget, ledgerDefinitionFromBootstrap, readIntegrationEnvironment,
+  connectIntegrationTarget, readIntegrationEnvironment,
   verifyFixtureDirectory, verifyIntegrationConnection,
 } from './guard.ts';
 
@@ -66,28 +66,6 @@ export async function createMigrationHarness(t: TestContext) {
     await t.test(name, async () => { await execute(); passed = true; });
     assert.equal(passed, true, `STOP: failed checkpoint ${name}; do not continue mutating this target.`);
   };
-  const bootstrap = async () => {
-    await verifyIntegrationConnection(client, target);
-    await withMigrationLock(client, async () => {
-      const state = await inspectIntegrityState(client);
-      assert.equal(state.historyExists, false);
-      assert.equal(state.ledgerExists, false);
-      const objects = await client.query<{ count: string }>(
-        `SELECT count(*) FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-         WHERE n.nspname IN ('nutrasa', 'nutrasa_migrations')`,
-      );
-      assert.equal(objects.rows[0]?.count, '0', 'A new, empty integration target is required for every run.');
-      const source = await readFile(new URL('../../sql/bootstrap-migration-ledger.sql', import.meta.url), 'utf8');
-      await client.query('BEGIN');
-      try {
-        await client.query(ledgerDefinitionFromBootstrap(source));
-        await client.query('REVOKE ALL ON TABLE nutrasa_migrations.migration_checksums FROM PUBLIC');
-        await client.query('COMMIT');
-      } catch (error: unknown) {
-        await client.query('ROLLBACK');
-        throw error;
-      }
-    });
-  };
+  const bootstrap = () => bootstrapIntegrationTarget(client, target);
   return { target, directory, client, observer, migrate, tableExists, expectState, scenario, bootstrap };
 }
