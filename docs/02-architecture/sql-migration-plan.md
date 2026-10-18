@@ -310,3 +310,19 @@ Earlier acceptance matrices are plans, not blanket PASS: controlled writers,
 duplicate transitions, atomic revoke/write concurrency, production/multi-backend
 Pool lifecycle, network failure injection and crash-at-commit remain OPEN. No
 operational assignment, publication or cleanup is authorized. M03-01 PARTIAL.
+
+### Restricted grant/revoke foundation decision gate
+
+Review from clean checkpoint e9e8e82 confirms Reader & Pool 8/8 PASS remains separate
+from writer security. The [authority/bootstrap and writer specification](authorization-registry-reader-security.md#9-authority-and-restricted-grantrevoke-foundation)
+now describes manual bootstrap preconditions, the proposed transition/locking
+protocol, closed function ownership phases and the deterministic test matrix.
+
+Writer SQL and executable integration preparation are BLOCKED on the finite
+delegation policy and accepted service-to-actor trust boundary, plus bootstrap
+recording and lifecycle rules. The current scanner does not accept the proposed
+privileged function grammar; no expansion, new migration or fake always-denying
+writer is added without a concrete approved body. No new PostgreSQL test result
+is claimed. Existing migrations 0001-0008 and Reader suite remain unchanged.
+Coding, privileged installation and PostgreSQL execution are separate approvals;
+M03-01 stays PARTIAL and publication/import remain disabled.

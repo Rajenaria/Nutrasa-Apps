@@ -157,3 +157,188 @@ SECURITY DEFINER writer or editorial activation was introduced. Synthetic audit,
 eight immutable migrations and prior targets remain retained; no reuse/reset or
 cleanup without explicit approval. Crash-at-commit and the authority gates above
 remain OPEN.
+
+## 9. Authority and restricted grant/revoke foundation
+
+Status: **DESIGN PREPARED; WRITER BLOCKED ON OWNER POLICY**. Reviewed from clean
+checkpoint e9e8e82 on feat/database-foundation. The Reader & Pool 8/8 PASS evidence
+above is retained; it is not evidence of a privileged writer. No migration 0009,
+writer signature, role, operational grant or activation is introduced here.
+
+### Baseline and unresolved trust boundary
+
+The current task requires manual owner-approved bootstrap, no first-user admin,
+no automatic authority from UID/email/custom claims, no self-grant or self-revoke,
+exact approved registry pairs, no wildcard/inheritance, atomic audit and
+fail-closed authorization. These are constraints on the future implementation;
+they do not designate a grantor or approve delegation.
+
+Two blocking choices cannot be supplied by SQL defaults:
+
+| Gate | Existing evidence / gap | Minimal proposal, still PROPOSED |
+|---|---|---|
+| Service-to-actor binding | identity.ts exposes only the UID from verified Firebase tokens; capabilities.ts is a read-only boolean evaluator. Neither establishes a database writer identity. session_user of a pooled login is a service, not a human. | Accept the dedicated backend service as the trusted identity-assertion boundary: only trusted server composition passes its verified request UID; SQL resolves the internal actor and revalidates ACTIVE/authority after locking. Actor UUID, GUC, body/header/custom claim or a prior boolean ALLOW cannot select the actor. A compromised service credential can impersonate an asserted UID: this model does not cryptographically prove the human to PostgreSQL. If that residual trust is unacceptable, STOP and design a separately reviewed assertion protocol; do not introduce signing keys, context setters or new tables silently. |
+| Delegation and first authority | Six registry pairs exist, including grant/revoke, but no rule says which target pairs each grantor can grant/revoke. Recognition alone cannot authorize self-delegation or bootstrap. | Owner approves an explicit finite delegation matrix and bootstrap actors before use. Recommended conservative starting boundary: no ordinary administrative transition grants/revokes the grant/revoke capabilities themselves; such delegation remains manual maintenance until separately approved. This recommendation is not an approved authority rule. |
+
+An always-denying SQL function would add unused schema and scanner surface without
+proving a writer. A function accepting arbitrary actor UUID plus a generic
+catalog.capability.grant check would instead invent delegation policy. Neither is
+introduced as a substitute for the missing decisions. No external-user access or
+new authentication scheme is inferred from this planning batch.
+
+### Manual bootstrap contract, not an executable procedure
+
+1. Owner records explicit approval of the environment, exact verified Firebase UID
+   and existing ACTIVE internal subject of the recipient, exact registry pairs,
+   reason, request correlation and the separate person recording the bootstrap.
+   No actual UID, subject, credential or assignment is selected in this document.
+2. Resolve the bootstrap recording actor before any SQL is generated.
+   0008 requires actor_subject_id to reference app_users and the task prohibits
+   self-grant. A PostgreSQL administrator is not automatically an app_users actor.
+   PROPOSED: a distinct owner-approved ACTIVE internal recording subject, with
+   manual maintenance authorization for this one bootstrap only. Do not invent a
+   system account, fabricate an actor or bootstrap by calling an ordinary writer
+   that presupposes existing authority. This exception needs owner approval.
+3. A separately approved maintenance procedure verifies cluster/target, schema,
+   immutable history, exact registry and actor/recipient bindings. It takes the
+   same catalog transaction lock as future writers, rechecks absence of conflicting
+   capability history and denies duplicate/already-initialized bootstrap. The
+   precise initial pairs and definition of already initialized require the owner
+   decision; absence of an arbitrary row is not a first-user rule.
+4. Append the event and matching effective pointer in one transaction; verify
+   audit fields and postconditions before commit. Any failure rolls back both,
+   with no automatic retry, replacement of history or silent idempotent success.
+   Sequence gaps after rollback are acceptable and not evidence of lost audit.
+5. Close the one-off maintenance path. No reusable bootstrap endpoint, credential,
+   caller EXECUTE, role membership or standing escalation privilege remains.
+   Report a partial phase and STOP if an installation step fails; do not recover
+   through reset/DROP/reassignment or run bootstrap again without owner review.
+
+This contract is review material only. No bootstrap SQL or integration fixture
+that assigns real authority is generated. Retention/deletion and reactivation of
+subjects referenced by authority history remain separate owner decisions.
+
+### Candidate writer transaction and lifecycle
+
+The following is an implementation plan, not installed enforcement. Function
+signature, error mapping, lock reservation and delegation rules remain subject to
+the coherent approval below; no new API error code is assigned.
+
+1. Validate the trusted caller and server-derived actor UID, exact target/pair,
+   action, nonblank audit reason/correlation and expected effective event. Reject
+   unknown pairs and NULL/blank inputs; reject actor=target for either action.
+   UID/scope/capability matching stays exact without normalization.
+2. Require READ COMMITTED. Acquire the existing PROPOSED catalog transaction-lock
+   pair (1314214994,1), separately reserved from the migration bigint lock; then
+   reread identity, delegation and authoritative event/pointer state in subsequent
+   statements. Never combine waiting and all authorization reads into one stale
+   pre-lock snapshot. No row locks before the catalog lock; all participating
+   writer/lifecycle paths must follow the same protocol.
+3. Check actor ACTIVE and authorized for this exact transition and target pair
+   under the owner-approved matrix, including that administrative capabilities
+   are not implicitly delegable. Unknown/missing policy denies. Grant requires an
+   eligible ACTIVE recipient. Whether an authorized actor may revoke an inactive
+   recipient is an explicit lifecycle decision, not a reason to permit a grant.
+4. Validate the full composite pointer and absence of a newer conflicting event.
+   An expected-pointer mismatch or history/projection disagreement fails closed;
+   do not silently repair missing/stale projection. Initial no-history GRANT is
+   distinct from a missing projection that already has history.
+5. Apply the transition matrix below. Generate event id/number/time using the
+   existing database defaults and bind actor from the trusted resolved subject.
+   Append one event, then insert/update the exact assignment to that event in the
+   same transaction. Leave prior events unchanged. Any audit/pointer error aborts
+   the operation, with no partial commit or automatic retry. request_id is audit
+   correlation, not an approved unique idempotency key.
+6. Caller commits/rolls back on the same held client; the function does not commit
+   itself. The transaction advisory lock releases on transaction end. After error,
+   rollback before release; discard a connection if rollback/cleanup fails.
+   Do not infer writer safety from the max=1 read-only Pool test.
+
+| Current authoritative state | GRANT | REVOKE |
+|---|---|---|
+| No event and no assignment | One event + pointer, if all authority gates pass | Reject inactive/missing REVOKE |
+| Effective GRANT | Reject duplicate active GRANT | One REVOKE event + pointer, subject to approved recipient lifecycle rule |
+| Effective REVOKE | Regrant with new event + pointer, if recipient eligible | Reject duplicate inactive REVOKE |
+| Missing/stale/mismatched pointer with history | Reject and preserve state | Reject and preserve state |
+
+No assignment remains DENY to the reader. A revoked projection is retained and
+points to its REVOKE event; it is not deleted to erase prior authority. Duplicate
+rejection is writer policy, not a claim that 0008 DDL enforces transitions.
+Event numbers may have gaps and are not commit ordering without the shared writer
+protocol. Account lifecycle and protected writers also need compatible locking;
+a standalone grant writer cannot promise atomic Firebase revocation or future
+publication safety.
+
+### Ownership, scanner and rollback boundary
+
+Retain the existing two-phase installer design: domain engine creates closed
+function definitions with schema/tables still migrator-owned; separately approved
+administrator maintenance transfers only reviewed writer signatures to an
+executor NOLOGIN. Do not give CREATE permanently or SET ROLE membership to
+runtime, executor or migrator as an installation shortcut. No actual role or
+signature is selected or installed by this document.
+
+Future writer functions must be VOLATILE, have fixed search_path pg_catalog,pg_temp,
+qualify application objects and contain no dynamic SQL, role changes or transaction
+control. Revoke PUBLIC EXECUTE in the creation transaction and audit inherited
+function/default ACL; ownership transfer is not itself permission to activate.
+Executor gets only reviewed prerequisites plus event INSERT and assignment
+INSERT/UPDATE. No event UPDATE/DELETE/TRUNCATE, metadata access, table/schema
+ownership or runtime direct DML. Sequence USAGE, if needed for event_number, must
+be explicitly justified/tested rather than granted wholesale. Administrative
+owners remain trusted bypasses; append-only is an operational privilege boundary.
+
+The actual sql-policy.ts currently accepts SQL digest SELECT helpers with
+SECURITY INVOKER and STABLE/IMMUTABLE; its restricted PL/pgSQL header/block grammar
+and REVOKE signature allowlist do not accept the proposed privileged writer.
+A future change must add only exact reviewed header/signature/control-flow forms
+with negative regression cases. Do not broadly allow SECURITY DEFINER, arbitrary
+function EXECUTE, IF/dynamic SQL or transaction statements merely to accept a draft.
+No scanner expansion is made before a concrete approved function body exists.
+
+Maintenance DOWN/upgrade requires reviewed ownership handback and closed callers,
+not edits to 0001-0008 or loosening runner owner checks. Removing a future writer
+must preserve capability events/projection and immutable migration baselines; no
+CASCADE or deletion of authority history. Domain/admin/activation phases are not
+one globally atomic deployment. On any failure leave activation closed and report
+exact partial state; no automatic recovery or cleanup.
+
+### Security test specification and execution gates
+
+No executable writer integration suite exists yet: without the approved trust and
+delegation contract it could only test an assumed policy. The existing Reader
+8/8 suite remains unchanged and is not rerun. This specification is the acceptance
+input for one later executable suite, not skipped tests or PostgreSQL PASS.
+
+| Test group | Required deterministic evidence once implementation is approved |
+|---|---|
+| Actor/delegation | Missing/forged client UID/actor/header/claim rejected at server boundary; exact verified UID binding only. Inactive/deleted actor, missing/revoked authority, unknown pair, prohibited delegation and self-grant/self-revoke reject before audit DML. Test the explicitly accepted service-credential trust boundary rather than claiming SQL proves Firebase tokens. |
+| Bootstrap | Wrong environment/target/recipient/recorder, self-recording, existing conflicting history and a second bootstrap rejected; ordinary runtime cannot bootstrap. Approved synthetic maintenance success leaves exactly the intended event/pointer, without a standing bypass. |
+| State and audit | Initial GRANT, duplicate GRANT, REVOKE, duplicate/missing REVOKE, regrant, stale/absent projection with history, wrong composite binding and expected-pointer mismatch. Counts and unchanged historical rows verified after each rejection. |
+| Atomic failure | Inject failure after event append and before pointer update; also fail audit INSERT. Neither event nor pointer change commits. No use of manual cleanup to make assertions pass; sequence gaps permitted. |
+| Real concurrency | Separate clients and explicit barriers: grant/grant, grant/revoke, stale pointer, authority revoke versus protected transition. Verify one shared advisory-lock protocol, post-wait revalidation, finite failure behavior and release after commit/rollback; no timing-only sleeps or inferred commit order from sequence. |
+| Least privilege | Actual nonowner caller, executor attributes, exact ownership/path/body/ACL/default ACL, PUBLIC EXECUTE and membership/SET ROLE denial; forbidden audit UPDATE/DELETE/TRUNCATE, direct assignment writes, metadata and DDL all fail. Temporary shadow objects cannot redirect qualified function lookups. |
+| Connection cleanup | Same checked-out client for transaction; rollback after negative tests; owned connection discarded if cleanup fails; no context leaks between verified request identities. Test infrastructure outage separately from an intentionally closed Pool. |
+| Deployment lifecycle | Atomic closed definition/ACL installation, reviewed ownership-transfer boundary, failed installer leaves no caller access, DOWN removes only future functions, preserves authority history and cannot silently change immutable checksums. |
+
+Focused offline tests will cover the approved scanner grammar and unsafe variants,
+server-to-writer binding and fail-closed error mapping. One full non-database
+regression, typecheck/lint and diff checks follow a stable code batch. PostgreSQL
+concurrency/privilege/rollback and crash-at-commit remain unproven until separately
+authorized real tests; mocks do not certify them.
+
+### One coherent owner gate before writer coding
+
+Decide together: (1) accept or replace the trusted service UID assertion model and
+its credential-compromise limitation; (2) approve the finite grant/revoke delegation
+matrix, especially administrative capability delegation; (3) designate the manual
+bootstrap recording model and initial-authority selection rules without self-grant;
+(4) decide inactive-recipient revocation/reactivation behavior; (5) approve the
+reserved catalog lock protocol across future writers. Then approve one offline
+batch for closed writer migration, minimal scanner changes, unit/static tests and
+prepared isolated integration harness. No operational staff assignment or SQL
+execution follows from that coding approval. Installation, operational grants and
+PostgreSQL tests retain their own explicit approval boundaries. M03-01 PARTIAL.
+
+Technical references: [PostgreSQL 18 function security](https://www.postgresql.org/docs/18/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY)
+and [transaction advisory locks](https://www.postgresql.org/docs/18/explicit-locking.html#ADVISORY-LOCKS).
