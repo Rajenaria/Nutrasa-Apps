@@ -8,19 +8,9 @@ import { withMigrationLock } from '../../src/migrations/lock.ts';
 import { connectIntegrationTarget, verifyIntegrationConnection } from './guard.ts';
 import { bootstrapIntegrationTarget } from './installation.ts';
 import { connectReader, verifyReaderConnection } from './reader-guard.ts';
-import { assertInstalledState, assertProvisionSuccess, assertSetupAdmin, assertSetupHba, readReaderSetupEnvironment,
+import { adminIdentitySql, assertInstalledState, assertProvisionSuccess, assertSetupAdmin, assertSetupHba, readReaderSetupEnvironment,
   readerPrivilegeStatements, runReaderSetup } from './reader-setup.ts';
 import type { ReaderSetupConfig, SetupHbaRule } from './reader-setup.ts';
-
-const adminIdentitySql = `SELECT current_database() AS database, current_user AS role,
-  session_user AS session_role, r.rolsuper AS superuser, host(inet_server_addr()) AS address,
-  inet_server_port() AS port, current_setting('server_version_num')::integer AS version,
-  current_setting('cluster_name') AS cluster, current_setting('data_directory') AS directory,
-  (SELECT system_identifier::text FROM pg_catalog.pg_control_system()) AS system_identifier,
-  current_setting('default_transaction_read_only')='off' AS runtime_writable,
-  pg_catalog.pg_conf_load_time() >= (pg_catalog.pg_stat_file(current_setting('hba_file'))).modification AS hba_loaded,
-  current_setting('transaction_isolation')='read committed' AS read_committed
-  FROM pg_catalog.pg_roles r WHERE r.rolname=current_user`;
 
 async function verifyAdmin(client: Client, database: string) {
   const result = await client.query<Record<string, unknown>>(adminIdentitySql);

@@ -59,7 +59,10 @@ export interface SetupHbaRule {
   readonly error: string | null;
 }
 
-export function assertSetupHba(rules: readonly SetupHbaRule[], config: ReaderSetupConfig) {
+export function assertSetupHba(rules: readonly SetupHbaRule[], config: {
+  readonly migrator: Pick<IntegrationTarget, 'database' | 'role'>;
+  readonly reader: Pick<IntegrationTarget, 'role'>;
+}) {
   if (!rules.length || rules.some(rule => rule.error !== null)) throw new Error('STOP: HBA parsing failed.');
   for (const role of [config.migrator.role, config.reader.role]) {
     const matches = rules.filter(rule => rule.type === 'host' &&
@@ -119,3 +122,13 @@ export async function runReaderSetup(stages: ReaderSetupStages) {
     catch { throw new Error(`STOP: ${name} failed; preserve partial state, no retry or cleanup.`); }
   }
 }
+
+export const adminIdentitySql = `SELECT current_database() AS database, current_user AS role,
+  session_user AS session_role, r.rolsuper AS superuser, host(inet_server_addr()) AS address,
+  inet_server_port() AS port, current_setting('server_version_num')::integer AS version,
+  current_setting('cluster_name') AS cluster, current_setting('data_directory') AS directory,
+  (SELECT system_identifier::text FROM pg_catalog.pg_control_system()) AS system_identifier,
+  current_setting('default_transaction_read_only')='off' AS runtime_writable,
+  pg_catalog.pg_conf_load_time() >= (pg_catalog.pg_stat_file(current_setting('hba_file'))).modification AS hba_loaded,
+  current_setting('transaction_isolation')='read committed' AS read_committed
+  FROM pg_catalog.pg_roles r WHERE r.rolname=current_user`;

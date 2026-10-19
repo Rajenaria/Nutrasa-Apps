@@ -20,6 +20,15 @@ export interface IdentityDependencies {
   readonly capabilities?: CapabilityAuthority;
 }
 
+// Only successful verification issues provenance. A frozen public object is not an authority token.
+const verifiedRequests = new WeakMap<FastifyRequest, VerifiedIdentity>();
+
+export function verifiedRequestUid(request: FastifyRequest): string {
+  const principal = verifiedRequests.get(request);
+  if (!principal) throw new Error('Verified request identity required.');
+  return principal.firebaseUid;
+}
+
 declare module 'fastify' {
   interface FastifyRequest {
     identity: VerifiedIdentity | null;
@@ -42,9 +51,12 @@ function deny(statusCode: 401 | 403): never {
 
 export function registerIdentityBoundary(app: FastifyInstance, dependencies: IdentityDependencies) {
   app.decorateRequest('identity', null);
+  app.addHook('onResponse', async request => { verifiedRequests.delete(request); });
+  app.addHook('onRequestAbort', async request => { verifiedRequests.delete(request); });
 
   const authenticate = async (request: FastifyRequest) => {
     request.identity = null;
+    verifiedRequests.delete(request);
     const authorization = request.headers.authorization;
     const headerCount = request.raw.rawHeaders.filter((name, index) =>
       index % 2 === 0 && name.toLowerCase() === 'authorization').length;
@@ -66,6 +78,7 @@ export function registerIdentityBoundary(app: FastifyInstance, dependencies: Ide
     }
     // Store only verified UID; never propagate arbitrary token/custom claims into authorization.
     request.identity = Object.freeze({ firebaseUid: claims.uid });
+    verifiedRequests.set(request, request.identity);
   };
 
   app.decorate('authenticate', async function (request: FastifyRequest) {

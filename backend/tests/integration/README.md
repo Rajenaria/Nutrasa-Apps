@@ -1011,3 +1011,191 @@ failures, live Firebase, controlled writer/duplicate transitions, atomic
 revoke/write concurrency, authority/bootstrap/delegation/separation, reviewer
 qualifications, retention/reactivation and crash recovery during commit. Reader
 PASS does not close these gates. M03-01 remains PARTIAL.
+
+## Restricted writer 0009 - owner-confirmed 17/17 PASS
+
+[Execution evidence and retained target](governance-writer.README.md) record the
+approved PostgreSQL 18.6 testing batch on 127.0.0.1:5433. Target
+nutrasa_it_5ca7bad4722340279d938775731cd4ee has migrator/reader/writer plus NOLOGIN
+executor. Owner supplied **17/17 PASS, 0 fail/cancel/skip, exit 0**, duration
+4400.8131 ms: sixteen checkpoints plus parent. Final review did not reconnect.
+
+Passing suite checkpoints include closed creation/default ACL failure, DDL rollback,
+finite grants/revokes and stale/duplicate denial, atomic audit/projection failure,
+real role negative privileges, post-lock authority revocation, concurrent clients,
+max-one writer Pool with mocked Firebase and protected DOWN/UP. Synthetic bootstrap
+models an externally verified receipt; it does not establish human/owner identity.
+
+Non-database regression 142/142 PASS, typecheck/lint PASS. These do not supersede
+or repeat prior reader 8/8 PostgreSQL results. The old reader installer remains
+pinned to eight migrations and must not run on retained targets or this new batch.
+Within this tested scope, PostgreSQL permissions, transactional failure and
+concurrency assertions passed. Crash-at-commit, live Firebase and production
+lifecycle remain OPEN. Setup confirmation failed with exit 3 and later writer
+preflight authentication failed with 28P01; separately approved targeted recoveries
+preceded the suite. The authentication failure did not invoke the suite. No full
+original provisioning success marker/exit 0 is inferred from integration PASS.
+The final DOWN/UP asserts nine history/checksum entries and preserved synthetic
+audit, with writer invocation denied after the closed recreation. No new post-suite
+inventory, real staff assignment, editorial activation or cleanup is claimed.
+Retain this occupied target; no reuse/reset without separately approved recovery.
+
+## Catalog preflight 0010 - execution evidence
+
+[Contract, retained targets and policy boundaries](../../../docs/02-architecture/catalog-lifecycle-publication-gates.md)
+cover three read-only internal helpers. Command from backend after separate
+approval/provisioning: npm.cmd run test:integration:catalog-preflight.
+The new guard uses all four existing governance connection variables and exact
+NUTRASA_IT_CATALOG_PREFLIGHT_CONFIRM in addition to the original confirmations.
+Retained writer target and earlier targets are rejected; no unsafe port override.
+Reader/writer credentials and search_path setup follow the reviewed multi-role plan.
+
+Owner-reported retest: **17/17 PASS, 0 fail/cancel/skip, exit code 0**, duration
+1735.0272 ms: sixteen checkpoints plus parent, not seventeen independent scenarios.
+PostgreSQL 18.6, 127.0.0.1:5433, nutrasa_it_pg18, system identifier
+7697229180258678980. Successful target:
+nutrasa_it_e4c65951b6bf42c2b310b5924372b20d; matching _migrator, _runtime and
+_writer login roles plus permanently NOLOGIN _executor. Authenticated HBA evidence
+was 25 -> 28 valid entries, zero errors, with only three exact loopback SCRAM rules
+added and all previous bytes preserved. Provisioning supplied the exact target-bound
+NUTRASA_IT_PROVISION_COMPLETE marker and exit 0. Auxiliary setup and guarded LOGIN
+activation completed; the final preflight/suite success is owner-supplied evidence,
+not a new Codex PostgreSQL invocation.
+
+Previous target nutrasa_it_6643ae844e614d2fa430c6e48953f5be is retained as failure
+evidence. Its first four checkpoints passed, then category fixture INSERT failed
+with 42P08 (text versus uuid), yielding 4 pass / 2 fail including the parent,
+exit 1. The affected parameter was shared between UUID id and text slug. The second
+identical pattern in the concurrency fixture had not executed; it was identified
+statically. Both queries were corrected with explicit UUID typing before text casts,
+without changing assertions or migration bytes. Subsequent non-database checks:
+146/146 unit PASS, typecheck/lint/diff check PASS. A separately approved fresh-target
+retest produced the latest PASS above; it does not erase the previous FAIL.
+Earlier administrator authentication exit 2 occurred before successful provisioning;
+read-only inspection proved the target database/roles absent before an approved retry.
+Writer authentication 28P01 also stopped preflight without invoking the old suite;
+approved password recovery and a read-only login succeeded before that first FAIL.
+
+Passing actual-PostgreSQL assertions cover metadata/ACL/rollback and fact changes
+for missing core nutrients, stale/revoked reviews, source/serving evidence and
+published history, service audit/content DML denial, cycle facts and a fixture-only
+locked reparent race. No publication or withdrawal function exists; no test skip
+or fabricated approval stands in for those future security/concurrency tests.
+Mutability is a fact, not a trigger; migrator fixture changes remain possible.
+Final suite assertions preserve ten matching history/checksum entries and synthetic
+domain/audit across DOWN/UP; closed invoker helpers are recreated migrator-owned
+and writer EXECUTE remains denied. The suite grants writer schema USAGE for negative
+tests only; it does not run the privileged 0009 installer or install reader column
+grants. No operational assignment or publication is established by synthetic fixtures.
+Row totals, post-suite sessions and independent final database inventory were not
+reported and are not inferred. Both targets/roles/HBA remain retained; no reset,
+reuse or cleanup is authorized. Existing PASS suites were not rerun.
+The [approved actor/lineage physical contract](../../../docs/02-architecture/postgres-physical-schema-v1.5.md#review-identity-and-contributor-lineage---approved-physical-contract)
+is now APPROVED and implemented as a structural candidate only; PostgreSQL 0011
+has NOT passed. No contributor/review/publication writer is installed.
+
+## Catalog lineage 0011 - initial preparation record
+
+The preparation record below predates the actual 0011 attempt: target cc04120d...
+passed 12 checkpoints, then failed fixture preparation with SQLSTATE 23514. Two
+incoming-event fixtures were corrected offline; that target remains retained.
+Fresh target 419e5962... was provisioned, but its writer login failed with 28P01
+before the suite was invoked. Integration 0011 has NOT passed. The exact credential
+mismatch cause is unproven. Use the separately approved
+[local recovery runner](LOCAL-INTEGRATION.md) instead of pasting the old PowerShell
+workflow again. Its Diagnose phase stops after authentication recovery and never
+runs the suite. Setup is refused for the existing-target profile; Run requires a
+separate approval.
+
+Historical preparation baseline: owner approved the physical contract and offline
+structural coding before separate execution approval. [Migration](../../migrations/0011_catalog_lineage.sql),
+[suite](catalog-lineage.integration.ts), [guard](catalog-lineage-guard.ts) and
+[failure fixture](fixtures/catalog-lineage/0012_failure.sql) are prepared. The guard
+reuses the existing multi-role/cluster/port checks and additionally denies both
+retained 0010 targets (6643... FAIL and e4c6... PASS), requiring an exact separate
+NUTRASA_IT_CATALOG_LINEAGE_CONFIRM. No production CLI bypass or database creation.
+Offline focused scanner/loader/guard checks 22/22 PASS, full non-database unit
+regression 153/153 PASS, typecheck/lint PASS. No PostgreSQL syntax, constraint or
+runtime security PASS is inferred from static construction of a public SQL builder.
+
+Prepared checkpoints: bootstrap actual 0001-0010 with unbound historical synthetic
+audit; actual 0011 failure rollback; inherited nonowner default table ACL rejection;
+empty UP; exact 13/23/14 column shape; eight ordered RESTRICT FKs and ten new B-tree
+indexes (seven lineage, three audit); fifteen new CHECKs; root/branch/sequence,
+locator/NULL/composite-FK boundaries; all ordinary child event kinds; pinned OUT/IN
+origin; canonical typed actors and review revision binding; audit/subject/event
+RESTRICT; real nonowner/PUBLIC negative privileges; fixture partial-move rollback;
+empty DOWN/UP and checksum retention; bound audit-only and populated DOWN refusal.
+Historical JSON rows exclude only the new nullable bindings for comparison; actual
+digest v1 payload/hash and existing function definitions/owners/ACL are compared
+before/after. No forced change to digest/golden vectors or historical SQL.
+
+Explicit limits: a migrator fixture can insert a false root, record its own review,
+construct an unmatched semantic origin or cross-food move. Tests demonstrate this
+DDL boundary rather than pretending it rejects those cases. Complete lineage,
+source-prefix traversal/attribution, verified actors, reviewer independence,
+current head/digest after A->B->A and full writer lock/concurrency are NOT YET
+IMPLEMENTABLE as security integration tests: no privileged writer exists. There
+are no skipped placeholder tests or synthetic production approvals. Fixture
+transaction rollback is not proof of an absent runtime writer's atomic protocol.
+
+### Candidate manifest requiring one separate execution approval
+
+Generated offline; database/role availability and cluster state NOT checked:
+
+| Resource | Candidate |
+|---|---|
+| Database | nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de |
+| Migrator | nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de_migrator |
+| Runtime | nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de_runtime |
+| Writer login for negative tests only | nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de_writer |
+| Executor, permanently NOLOGIN | nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de_executor |
+
+Only PG 18.6, 127.0.0.1:5433, nutrasa_it_pg18, system identifier
+7697229180258678980, data directory D:/Rajendra/NUTRASA-Postgres-IT/data,
+administrator nutrasa_it_admin. Preserve every existing database/role/HBA entry,
+including both 0010 targets. Never connect to port 5432 or old targets directly.
+
+```text
+host nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de_migrator 127.0.0.1/32 scram-sha-256
+host nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de_runtime 127.0.0.1/32 scram-sha-256
+host nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de nutrasa_it_cc04120d7d674370ad4e6a0e03afd9de_writer 127.0.0.1/32 scram-sha-256
+```
+
+One future approval must cover:
+
+1. Authenticated read-only maintenance identity/system-ID/version proof, collision
+   check for database + four roles, HBA hash/order/parsing and preserved prior targets.
+2. Exactly three target-specific SCRAM entries before rejects, testing-only reload
+   and verification of actual before/after count (28 -> 31 only if baseline unchanged).
+3. Existing [provision.sql](provision.sql) once with run_id=cc04120d7d674370ad4e6a0e03afd9de,
+   marker + exit 0 + independent postconditions; three restricted auxiliary roles,
+   masked local passwords, target CONNECT/search_path for login roles only, executor
+   without password/LOGIN, no memberships/SET ROLE/DDL/TEMP/ownership shortcut.
+4. Independent fresh-target/marker/owner/default and effective ACL/login/session
+   proof. Runtime/writer have no schema/table/sequence access; no 13-column reader
+   grant, function ownership transfer or governanceInstallStatements is used here.
+5. One invocation below through existing harness/core, including actual 0001-0011,
+   bootstrap ledger, synthetic historical fixtures, controlled default-ACL fault
+   injection/restoration, failure fixture, expected rollback and guarded DOWN/UP.
+   Inherited ACL fault is deliberately restored only after the expected rejection;
+   unexpected failure STOPs immediately. Never restore/delete audit merely to pass DOWN.
+
+From backend after approval and preflight, npm.cmd run test:integration:catalog-lineage.
+Four process-only URL variables remain NUTRASA_IT_DATABASE_URL, NUTRASA_IT_READER_URL,
+NUTRASA_IT_WRITER_URL and NUTRASA_IT_ADMIN_URL, all explicit IPv4:5433 on this target.
+Require exact database confirmations NUTRASA_IT_CONFIRM_DATABASE,
+NUTRASA_IT_GOVERNANCE_CONFIRM, NUTRASA_IT_CATALOG_PREFLIGHT_CONFIRM and
+NUTRASA_IT_CATALOG_LINEAGE_CONFIRM. Reject PGOPTIONS/PGREPLICATION and unapproved
+connection overrides before any client; PGPORT absent/5433. No .env secrets read.
+Credentials are locally prompted, never committed/logged, process environment removed
+afterward. Validate the existing runner again before executing; this text is not
+authorization to run a prepared suite.
+
+Final expected success leaves eleven history entries/checksum baselines, populated
+synthetic lineage/typed audit, unchanged native digest, and no operational grants.
+This state is NOT fresh and must not be reused/reset/cleaned. Any setup/test failure
+means STOP without retry, alternative target, DROP or cleanup. Actual test counts,
+exit code and final conditions remain UNVERIFIED until execution evidence exists.
+Qualification/person/source/legal/retention, live Firebase, publication, writer
+concurrency and crash-at-commit remain OPEN. M03-01 PARTIAL / ACTIVE.

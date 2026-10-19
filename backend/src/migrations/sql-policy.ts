@@ -1,3 +1,5 @@
+import { governanceFunction, governanceParameters } from '../governance-contract.ts';
+
 interface Token {
   kind: 'word' | 'identifier' | 'string' | 'body' | 'symbol' | 'marker';
   value: string;
@@ -86,11 +88,13 @@ const forbiddenWords = new Set(['commit', 'rollback', 'abort', 'start', 'savepoi
   'prepare', 'discard', 'reset', 'call', 'do', 'execute', 'vacuum', 'copy', 'load']);
 const metadata = new Set(['nutrasa_migrations', 'pgmigrations', 'migration_checksums']);
 
-function inspectTokens(tokens: readonly Token[], body = false) {
-  for (const token of tokens) {
+function inspectTokens(tokens: readonly Token[], body = false, conflictUpdate = false) {
+  for (const [index, token] of tokens.entries()) {
     // Keep metadata names forbidden in literals too: SQL-taking functions must not hide those references.
     if (token.kind === 'string' && /\b(nutrasa_migrations|pgmigrations|migration_checksums|pg_advisory_unlock\w*)\b/i.test(token.value)) reject();
-    if (token.kind === 'word' && (forbiddenWords.has(token.value) ||
+    const conflictDo = conflictUpdate && token.value === 'do' && tokens[index - 1]?.value === ')'
+      && tokens[index + 1]?.kind === 'word' && tokens[index + 1]?.value === 'update';
+    if (token.kind === 'word' && ((!conflictDo && forbiddenWords.has(token.value)) ||
         (!body && (token.value === 'begin' || token.value === 'end')))) reject();
     if ((token.kind === 'word' || token.kind === 'identifier') &&
         (metadata.has(token.value.toLowerCase()) || /^pg_advisory_unlock/i.test(token.value) ||
@@ -105,6 +109,10 @@ const types = new Set(['uuid', 'text', 'integer', 'bigint', 'smallint', 'boolean
 // Existing static PL/pgSQL support stays unchanged; neither path is a SQL sandbox.
 function inspectFunction(statement: readonly Token[]) {
   inspectTokens(statement);
+  if (statement[4]?.value === governanceFunction) {
+    inspectGovernanceFunction(statement);
+    return;
+  }
   let index = 0;
   const take = (value: string) => {
     const token = statement[index++];
@@ -185,11 +193,80 @@ function inspectFunction(statement: readonly Token[]) {
   if (position !== nested.tokens.length) reject();
 }
 
+function inspectGovernanceFunction(statement: readonly Token[]) {
+  const header = ['create', 'function', 'nutrasa', '.', governanceFunction, '(',
+    ...governanceParameters.flatMap(([name, type], index) => index ? [',', name, type] : [name, type]),
+    ')', 'returns', 'uuid', 'language', 'plpgsql', 'volatile', 'security', 'definer',
+    'set', 'search_path', '=', 'pg_catalog', ',', 'pg_temp', 'as'];
+  if (statement.length !== header.length + 1 || !header.every((value, index) =>
+      statement[index]?.value === value && statement[index]?.kind ===
+        (['.', '(', ')', ',', '='].includes(value) ? 'symbol' : 'word'))) reject();
+  const body = statement.at(-1);
+  if (body?.kind !== 'body') reject();
+  const nested = tokenize(body.value);
+  if (nested.markers.length) reject();
+  inspectTokens(nested.tokens, true, true);
+  const tokens = nested.tokens;
+  let index = 0;
+  const is = (word: string) => tokens[index]?.kind === 'word' && tokens[index]?.value === word;
+  const take = (value: string) => {
+    const token = tokens[index++];
+    if (!token || token.value !== value || token.kind !== (value === ';' ? 'symbol' : 'word')) reject();
+  };
+  const expression = (ending: string) => {
+    const start = index;
+    let depth = 0;
+    while (index < tokens.length) {
+      const token = tokens[index];
+      if (!token || ['body', 'marker'].includes(token.kind)) reject();
+      if (token.value === ending && depth === 0 && token.kind === (ending === ';' ? 'symbol' : 'word')) break;
+      if (token.kind === 'symbol' && token.value === ';') reject();
+      if (token.kind === 'word' && ['begin', 'if', 'loop', 'declare', 'exception'].includes(token.value)) {
+        // RAISE EXCEPTION is consumed before scanning the remainder of that statement.
+        reject();
+      }
+      if (token.kind === 'symbol' && token.value === '(') depth++;
+      if (token.kind === 'symbol' && token.value === ')' && --depth < 0) reject();
+      index++;
+    }
+    if (index === start || index >= tokens.length || depth) reject();
+  };
+  take('declare');
+  while (!is('begin')) {
+    const name = tokens[index++]; const type = tokens[index++];
+    if (name?.kind !== 'word' || !/^v_[a-z_]+$/.test(name.value) ||
+        type?.kind !== 'word' || !['uuid', 'text', 'boolean', 'bigint'].includes(type.value)) reject();
+    take(';');
+  }
+  take('begin');
+  const statements = () => {
+    while (!is('end') && !is('else')) {
+      if (is('if')) {
+        take('if'); expression('then'); take('then'); statements();
+        if (is('else')) { take('else'); statements(); }
+        take('end'); take('if'); take(';');
+      } else {
+        const first = tokens[index++];
+        if (first?.kind !== 'word' || !['select', 'perform', 'insert', 'raise', 'return'].includes(first.value)) reject();
+        if (first.value === 'raise') take('exception');
+        expression(';'); take(';');
+      }
+    }
+  };
+  statements(); take('end'); take(';');
+  if (index !== tokens.length) reject();
+  // This is a narrow reviewed grammar, not a SQL sandbox or proof of writer semantics.
+}
+
 function inspectDigestRevoke(statement: readonly Token[]) {
   // No role grants, wildcards, procedures or metadata targets are admitted here.
   const values = statement.map(token => token.value);
   const prefix = ['revoke', 'execute', 'on', 'function', 'nutrasa', '.'];
   const expected: Record<string, string[]> = {
+    [governanceFunction]: governanceParameters.map(([, type]) => type),
+    catalog_revision_content_mutable_v1: ['uuid', '[', ']'],
+    catalog_category_parent_valid_v1: ['uuid', 'uuid'],
+    catalog_publication_preflight_v1: ['uuid'],
     catalog_source_permission_payload_v1: ['uuid', 'text', 'jsonb', 'boolean', 'text', 'timestamptz', 'timestamptz', 'text', 'text'],
     catalog_revision_payload_v1: ['uuid', 'uuid', '[', ']'],
     catalog_payload_digest_v1: ['jsonb'],
@@ -197,7 +274,8 @@ function inspectDigestRevoke(statement: readonly Token[]) {
   const name = values[6] ?? '';
   const argumentsList = expected[name];
   if (!argumentsList) reject();
-  const signature = name === 'catalog_revision_payload_v1' ? ['uuid', ',', 'uuid', '[', ']'] :
+  const signature = name === 'catalog_revision_content_mutable_v1' ? ['uuid', '[', ']'] :
+    name === 'catalog_revision_payload_v1' ? ['uuid', ',', 'uuid', '[', ']'] :
     argumentsList.flatMap((value, index) => index === 0 ? [value] : [',', value]);
   const exact = [...prefix, name, '(', ...signature, ')', 'from', 'public'];
   if (statement.length !== exact.length || !exact.every((value, index) => values[index] === value &&

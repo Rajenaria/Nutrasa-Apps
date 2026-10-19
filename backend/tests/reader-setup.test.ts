@@ -65,7 +65,11 @@ test('exact SCRAM HBA must exist for both roles before any generic matching rule
 });
 
 test('history and all eight checksums must match actual immutable files, including missing or changed baselines', async () => {
-  const files = await readSqlSnapshots(fileURLToPath(new URL('../migrations/', import.meta.url)));
+  const discovered = await readSqlSnapshots(fileURLToPath(new URL('../migrations/', import.meta.url)));
+  assert.equal(discovered.length, 11);
+  const files = discovered.slice(0, 8);
+  assert.throws(() => assertInstalledState({ ledgerExists: true, historyExists: true,
+    history: discovered.map(file => file.name), ledger: discovered.map(file => ({ name: file.name, sha256: file.sha256 })) }, discovered));
   const state = { ledgerExists: true, historyExists: true, history: files.map(row => row.name),
     ledger: files.map(row => ({ name: row.name, sha256: row.sha256 })) };
   assertInstalledState(state, files);

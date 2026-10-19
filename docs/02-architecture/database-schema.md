@@ -171,5 +171,41 @@ Tidak ada `goal_mode=MANUAL`, `LOG_ONLY`, endpoint quick-add, entitas AI/Premium
 
 ## 6. Batas yang masih memerlukan review
 
+Kontrak review/contributor terbaru di bagian berikut membedakan policy APPROVED
+dari kandidat fisik APPROVED yang belum diuji PostgreSQL; tidak mengaktifkan penulisan atau publikasi.
+
 - Parameter clinical Nutrition Engine (koefisien, validasi rumus, guardrails), eligibility profil, lisensi/izin impor makanan, kebijakan privacy-retention, model autentikasi native Google/Apple, SQLCipher EAS/dev-build testing. **Jangan klaim sudah tervalidasi/rilis**.
 - Dokumen v1.2 ini adalah baseline bersih untuk merinci OpenAPI, migration plan, dan engineering review. Presisi indeks/DDL, retensi cursor, serta aturan multi-device sequence diuji sebelum kode production.
+
+## Review identity and contributor lineage
+
+**Policy baseline and physical delta APPROVED; structural 0011 candidate prepared, not PostgreSQL-tested.** Owner
+approved trusted Firebase request actors, typed internal identity for new audit,
+complete append-only revision contributor history, independent nutrition review
+and a distinct publisher. Historical actor_subject is preserved without guessed
+identity/backfill. The [policy baseline](catalog-lifecycle-publication-gates.md#approved-review-and-publication-policy-baseline)
+supersedes older proposed self-review/count/identity alternatives, without legal,
+professional, privacy or operational clearance.
+
+The authoritative [physical matrix](postgres-physical-schema-v1.5.md#review-identity-and-contributor-lineage---approved-physical-contract)
+defines one catalog_revision_lineage_events table, typed actor FK on reviews and
+import batches, and a same-revision lineage-event FK on reviews. Existing capability
+actors and review/source junctions are reused; no generic audit/identity framework.
+No fields are added to the existing thirteen-column food_revisions contract.
+
+Every new revision starts a complete attributed chain in its creation transaction.
+Nutrient/serving edits and moves append to every affected chain atomically with
+content; caller identity or omitted old endpoints cannot establish provenance.
+The reviewer must not occur anywhere in that revision's contributors; publication
+requires the current head and content digest to match the pinned nutrition review,
+and publisher differs from reviewer. Actor/lineage metadata is outside digest v1;
+all historical hashes and NULL versus zero semantics remain unchanged. Unknown
+history is ineligible for new ACCEPTED nutrition/publication, not silently adopted.
+
+All six capabilities, existing shared lock and deny-by-default identity boundary
+are retained. Source permission/qualification/retention/person verification gates
+and authoring/import/taxonomy authority remain closed as detailed in the policy.
+The 0010 owner-run retest passed 17/17, exit 0, but proves technical facts/ACL and
+fixture protocol only, not lineage or production publication writer enforcement.
+The later offline coding approval produced structural 0011 and a prepared suite;
+no SQL execution, API, import or activation is authorized by that approval.

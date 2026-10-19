@@ -386,3 +386,61 @@ supplied; do not infer full-installer success from suite success. Do not rerun s
 or tests on this retained target. Authority/bootstrap/delegation/separation, live
 Firebase, production Pool lifecycle and crash-at-commit remain OPEN. M03-01 remains
 PARTIAL. Historical offline unit results above are not new executions.
+
+## Restricted capability writer - 0009 disposable integration PASS
+
+Owner approved A/B/C; [current contract](../docs/02-architecture/authorization-registry-reader-security.md#12-approved-abc-and-restricted-writer-offline-implementation)
+and [isolated writer evidence](tests/integration/governance-writer.README.md)
+describe private verified-request binding, finite delegation, post-lock authority
+reread and atomic event/pointer transitions. 0009 initially exposes no operational
+EXECUTE, role, ownership change or real assignment. Production server is unwired.
+
+Offline full backend units: 142/142 PASS; typecheck/lint PASS (not rerun during
+documentation finalization). Owner supplied writer PostgreSQL 18.6 results on the
+approved disposable target: **17/17 PASS, 0 fail/skip, exit 0**. Tested rollback,
+restricted ACL, finite transitions, concurrent lock/revocation visibility and
+DOWN/UP/checksum assertions passed. Final function is recreated closed; synthetic
+authority audit and nine baselines remain. No production activation or real
+bootstrap occurred. The earlier reader 8/8 result remains
+historical evidence; its eight-migration installer is pinned and refuses 0009.
+No retry, reuse, reset or cleanup of retained targets is authorized. Bootstrap is
+manual two-human maintenance with verified external owner evidence, not a runtime
+endpoint. Crash-at-commit, live Firebase and publication enforcement remain OPEN.
+
+## Catalog lifecycle technical preflight - 0010 disposable integration PASS
+
+[Scope and policy gates](../docs/02-architecture/catalog-lifecycle-publication-gates.md)
+describe three closed SECURITY INVOKER helpers for mutability facts, existing
+category reparent checks and authoritative revision/review/source preflight. They
+reuse digest v1, do not return publication authorization and do not enforce writes.
+No trigger, operational grant, publisher route or new role is activated.
+Owner supplied the fresh-target retest result: **17/17 PASS, 0 fail/cancel/skip,
+exit 0**, duration 1735.0272 ms (16 checkpoints plus parent). The previous target
+failed with 42P08, text versus uuid, in a category fixture. Two fixture queries
+now explicitly type UUID parameters before casting them to text; no migration
+changed. See the [execution history](tests/integration/README.md#catalog-preflight-0010---execution-evidence).
+The category race proves only a fixture lock protocol. The owner-approved review/
+publication policy is recorded in the scope document; its physical actor/lineage
+contract was subsequently APPROVED for structural offline coding; no operational writer or qualification/legal clearance
+is activated. Historical migrations and retained evidence are unchanged;
+M03-01 PARTIAL / ACTIVE, frontend DEFERRED.
+
+## Catalog lineage structural candidate 0011 - PostgreSQL not run
+
+[0011_catalog_lineage.sql](migrations/0011_catalog_lineage.sql) implements the
+approved thirteen-column lineage table, two nullable review bindings and one
+nullable import actor binding. Seven lineage indexes, three audit FK indexes,
+eight RESTRICT FKs and local CHECKs preserve historical audit without backfill.
+An unexpected inherited nonowner table/sequence ACL aborts UP; populated audit
+or lineage blocks DOWN. No writer, grant, role, trigger, digest change or new
+scanner syntax. [Physical contract](../docs/02-architecture/postgres-physical-schema-v1.5.md#review-identity-and-contributor-lineage---approved-physical-contract).
+
+The opt-in test:integration:catalog-lineage suite and failure fixture are prepared,
+NOT executed. The [fresh-target manifest and acceptance boundaries](tests/integration/README.md#catalog-lineage-0011---prepared-not-executed)
+require separate PostgreSQL approval. FK/CHECKs do not authenticate contributors,
+prove honest roots/complete source-prefix traversal, couple OUT/IN writers,
+enforce reviewer independence or reject cross-food movement. Those remain future
+writer work. Existing Reader/Writer/0010 PASS evidence is not rerun or reclassified.
+Actual non-database results for this coding batch: focused scanner/loader/guards
+22/22 PASS, one full backend unit regression 153/153 PASS, typecheck/lint PASS.
+These do not establish PostgreSQL syntax/constraints or production enforcement.

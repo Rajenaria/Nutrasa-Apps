@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
-import { sha256, snapshotSql } from '../src/migrations/checksum.ts';
+import { readSqlSnapshots, sha256, snapshotSql } from '../src/migrations/checksum.ts';
 
 const migration = (up: string) => `-- Up Migration\n${up}\n-- Down Migration\nSELECT 1;\n`;
 const parse = (up: string) => snapshotSql('0001_policy.sql', Buffer.from(migration(up)));
@@ -111,4 +113,54 @@ test('REVOKE is limited to PUBLIC EXECUTE on exact digest helper signatures', ()
     'REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA nutrasa FROM PUBLIC;',
     'REVOKE EXECUTE ON FUNCTION public.catalog_payload_digest_v1(jsonb) FROM PUBLIC;',
     'REVOKE EXECUTE ON FUNCTION nutrasa.other(jsonb) FROM PUBLIC;']) assert.throws(() => parse(sql));
+});
+
+test('directory discovery rejects an unreviewed privileged writer batch instead of returning its valid prefix', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'nutrasa-writer-preflight-'));
+  t.after(async () => {
+    // Cleanup is limited to the OS directory created by this test, never a repository or database.
+    assert.equal(dirname(resolve(directory)), resolve(tmpdir()));
+    assert.ok(basename(directory).startsWith('nutrasa-writer-preflight-'));
+    await rm(directory, { recursive: true, force: true });
+  });
+  await writeFile(join(directory, '0001_valid.sql'), migration('SELECT 1;'));
+  assert.deepEqual((await readSqlSnapshots(directory)).map(file => file.name), ['0001_valid']);
+
+  // These are rejected input strings, not a candidate migration or a PostgreSQL writer test.
+  const rejected = [
+    func('BEGIN RETURN 1; END;').replace('LANGUAGE plpgsql',
+      'LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, pg_temp'),
+    func('BEGIN RETURN 1; END;').replace('LANGUAGE plpgsql',
+      'LANGUAGE plpgsql EXTERNAL SECURITY DEFINER'),
+    'ALTER FUNCTION nutrasa.policy_probe(integer) SECURITY DEFINER;',
+    'ALTER FUNCTION nutrasa.policy_probe(integer) OWNER TO unapproved_executor;',
+    'GRANT EXECUTE ON FUNCTION nutrasa.policy_probe(integer) TO PUBLIC;',
+    'GRANT unapproved_executor TO unapproved_runtime;',
+    func("BEGIN PERFORM pg_catalog.set_config('nutrasa.actor_subject', 'unverified', true); RETURN 1; END;"),
+  ];
+  for (const up of rejected) {
+    await writeFile(join(directory, '0009_unreviewed_writer.sql'), migration(up));
+    await assert.rejects(readSqlSnapshots(directory), /Unsupported or unsafe migration SQL\./);
+  }
+});
+
+test('only the reviewed writer header and structured body grammar admit privileged SQL', async () => {
+  const source = await readFile(new URL('../migrations/0009_catalog_capability_writer.sql', import.meta.url), 'utf8');
+  assert.doesNotThrow(() => snapshotSql('0009_catalog_capability_writer.sql', Buffer.from(source)));
+  const changes = [
+    ['catalog_transition_capability', 'unreviewed_writer'], ['p_actor_firebase_uid text', 'p_actor_firebase_uid uuid'],
+    ['VOLATILE SECURITY DEFINER', 'STABLE SECURITY DEFINER'], ['pg_catalog, pg_temp', 'public, pg_temp'],
+    ['LANGUAGE plpgsql', 'LANGUAGE sql'], ['REVOKE EXECUTE', 'GRANT EXECUTE'],
+    ['FROM PUBLIC;', 'FROM unapproved_runtime;'], ['  v_actor_id uuid;', '  v_actor_id uuid := pg_catalog.gen_random_uuid();'],
+    ['  RETURN v_event_id;', "  EXECUTE 'SELECT 1'; RETURN v_event_id;"],
+    ['  RETURN v_event_id;', "  PERFORM pg_catalog.set_config('role', 'unapproved', true); RETURN v_event_id;"],
+    ['  RETURN v_event_id;', '  COMMIT; RETURN v_event_id;'],
+    ['  RETURN v_event_id;', '  BEGIN RETURN v_event_id; END;'],
+    ['  RETURN v_event_id;', '  DO $$ BEGIN RETURN; END; $$; RETURN v_event_id;'],
+    ['  RETURN v_event_id;', '  DELETE FROM nutrasa_migrations.migration_checksums; RETURN v_event_id;'],
+  ];
+  for (const [from, to] of changes) {
+    assert.ok(from && to && source.includes(from));
+    assert.throws(() => snapshotSql('0009_catalog_capability_writer.sql', Buffer.from(source.replace(from, to))), /unsafe migration SQL/);
+  }
 });

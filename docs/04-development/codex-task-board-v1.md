@@ -1,6 +1,119 @@
 # NUTRASA — Task Board untuk Codex v1.0
 
-**Prioritas owner - 18 Oktober 2026:** M03-01 **PAUSED/PARTIAL**; fokus sementara
+**Prioritas resmi terbaru - 18 Oktober 2026: BACKEND-FIRST.** Owner membatalkan
+rencana Portfolio Prototype First dan pengembangan mock/frontend lanjutan.
+M03-01 di-resume pada status **PARTIAL**, bukan DONE. Frontend React Native/Expo
+baru dilanjutkan setelah alur utama backend nyata siap, tervalidasi dan mendapat
+approval owner. Kode prototype yang sudah dibuat tetap dipertahankan sebagai
+pekerjaan lokal; tidak dihapus, dilanjutkan atau dianggap integrasi backend.
+
+Preflight keputusan ini: branch feat/database-foundation, HEAD e588f2d,
+3 modified + 13 untracked dari batch prototype, semuanya unstaged; staged diff
+kosong. Tidak ada kesimpulan push baru dari tracking lokal tanpa verifikasi remote.
+[Pause handoff](M03-01-BACKEND-PAUSE-HANDOFF.md) tetap arsip kronologis keputusan
+sebelumnya; arahan pause/prototype di dalamnya telah superseded oleh keputusan ini.
+
+**Checkpoint terbaru - restricted writer integration PASS:** A/B/C telah disetujui owner.
+[Kontrak dan implementasi terkini](../02-architecture/authorization-registry-reader-security.md#12-approved-abc-and-restricted-writer-offline-implementation)
+menggantikan status PROPOSED/tertahan pada catatan historis di bawah. Kandidat
+0009, private request-principal adapter, scanner terbatas dan executable isolated
+suite kini disiapkan. Focused scanner 13/13, writer/identity 22/22, migration/guard
+4/4 serta satu full backend unit regression 142/142 PASS; typecheck/lint PASS.
+Approval PostgreSQL terpisah telah dilaksanakan: owner mengirim hasil restricted
+writer **17/17 PASS, 0 fail/skip, exit 0** pada PG 18.6 testing port 5433. Bukti
+[writer terisolasi](../../backend/tests/integration/governance-writer.README.md)
+mencakup ACL/ownership, finite transitions, rollback audit/pointer, path protection,
+concurrency/revocation visibility, actual writer Pool dan protected DOWN/UP.
+Setup confirmation exit 3 dan authentication preflight 28P01 ditutup lewat recovery
+terarah berapproval; preflight gagal tidak menjalankan suite. Target sekarang
+retained, history/checksum sembilan entry, fungsi akhir tertutup. Tidak ada bootstrap
+nyata atau aktivasi editorial/produksi. Reader/Pool 8/8 tetap bukti batch sebelumnya,
+tidak diulang. Unit 142/142 dan typecheck/lint tidak diulang pada finalisasi dokumen.
+Firebase live, crash-at-commit, lifecycle concurrency, publikasi/immutability dan
+retensi tetap OPEN. M03-01 PARTIAL / ACTIVE, frontend DEFERRED. Batch berikutnya
+review enforcement lifecycle dan publication/immutability sebelum approval coding;
+tidak melanjutkan M03-02 atau mengaktifkan authority otomatis. Riwayat planning di
+bawah dipertahankan; tidak ada izin reuse/reset/cleanup atau Git mutation.
+
+Urutan batch resmi, tanpa mengubah ID/dependensi milestone M00-M10:
+Status terbaru: [catalog lifecycle technical preflight](../02-architecture/catalog-lifecycle-publication-gates.md)
+0010 telah mendapat bukti owner-run fresh retest **17/17 PASS, 0 fail/skip, exit 0**,
+1735.0272 ms (16 checkpoint + parent). Target FAIL 6643ae844e614d2fa430c6e48953f5be
+tetap dipertahankan: 42P08 UUID/text fixture, 4 pass / 2 fail termasuk parent, exit 1.
+Dua query fixture diperbaiki dengan UUID cast eksplisit tanpa perubahan assertion/
+migration; target retest e4c65951b6bf42c2b310b5924372b20d retained dengan sepuluh
+history/checksum menurut assertion suite. HBA terverifikasi 28 valid, 0 error.
+[Evidence lengkap](../../backend/tests/integration/README.md#catalog-preflight-0010---execution-evidence)
+membedakan FAIL lama, retest PASS dan batas fixture lock protocol. Tidak ada
+publication/withdrawal writer, trigger, real assignment atau operational activation.
+
+Owner kini APPROVED policy typed actor, complete contributor lineage, independent
+nutrition reviewer dan publisher berbeda, ketiga izin sumber, validity boundaries,
+publication/replacement dan withdrawal yang mempertahankan histori. Kualifikasi,
+orang/staf nyata, legal clearance, retensi/cache dan live Firebase tetap OPEN.
+Owner kemudian APPROVED [physical matrix](../02-architecture/postgres-physical-schema-v1.5.md#review-identity-and-contributor-lineage---approved-physical-contract)
+untuk satu tabel lineage 13 kolom, tiga kolom audit nullable, tujuh indeks lineage
+dan tiga indeks FK audit. Kandidat 0011_catalog_lineage.sql, guard dan executable
+structural suite disiapkan offline; tanpa writer/operational grant atau backfill.
+Scanner existing cukup, tidak diperluas. [Rencana batch](../02-architecture/sql-migration-plan.md#review-identity-and-lineage---next-offline-batch)
+memisahkan constraint struktural dari writer-only enforcement. PostgreSQL 0011
+BELUM dijalankan; perlu approval fresh-target terpisah. M03-01 PARTIAL / ACTIVE,
+frontend DEFERRED.
+Hasil non-database terakhir setelah fixture fix: 146/146 unit, typecheck/lint dan
+diff check PASS. Tidak diulang pada batch dokumentasi; bukan bukti lineage enforcement.
+Batch structural 0011 sesudahnya: focused scanner/loader/structural guards 22/22
+PASS, satu full backend non-database regression 153/153 PASS (0 fail/skip), backend
+typecheck/lint PASS. Integration lineage disiapkan dengan 18 checkpoint nyata,
+BELUM dijalankan. Tidak ada placeholder/skipped writer tests atau klaim PostgreSQL
+PASS untuk 0011. Hash 0001-0010 tetap dipatok, privilege/core/scanner tidak diperluas.
+
+Urutan berikut: finalisasi offline structural SQL/static tests dan prepared suite
+-> separate PostgreSQL approval -> reviewed content/review/
+publication writer authority/body/privileges dan security/concurrency tests. Jangan
+membuka ulang A/B/C atau mengulang suite lama. Urutan 1-3 di bawah adalah riwayat
+gate authority/writer sebelumnya; hanya remaining enforcement yang belum terpenuhi.
+
+1. Tutup satu gate [authority/bootstrap/delegation](../02-architecture/authorization-registry-reader-security.md#9-authority-and-restricted-grantrevoke-foundation):
+   trust service-to-actor, finite delegation matrix, pencatat/aturan bootstrap tanpa
+   self-grant, revoke penerima nonaktif/reactivation, serta protokol lock katalog.
+2. Setelah kebijakan disetujui, implementasikan satu batch restricted grant/revoke
+   tertutup: kandidat migration berikutnya berdasarkan discovery aktual, scanner
+   minimum, atomic event/pointer, duplicate/self-transition rejection dan tests
+   offline. Tidak ada operational EXECUTE, role/GRANT atau assignment nyata.
+3. Dengan approval database terpisah, validasi writer/install/ownership/ACL,
+   append-only audit, immutability, publication gate dan concurrency pada target
+   disposable fresh. Tutup acceptance M03-01 berdasarkan bukti, bukan rencana.
+4. Lanjutkan M03-02 lalu M03-03; implementasi backend APIs, integrasi PostgreSQL
+   dan Firebase live serta security/integration validation sesuai kontrak/gate.
+5. Review readiness alur utama end-to-end dan minta approval frontend nyata.
+   Mock UI tidak dipakai sebagai pengganti acceptance backend.
+
+Batch Development + Risk-Based Testing tetap berlaku: focused regression untuk
+perubahan berisiko, satu full regression pada batas batch yang relevan, tidak
+mengulang suite yang sudah PASS tanpa alasan. Tidak ada izin PostgreSQL mutatif,
+privileged installation atau aktivasi editorial dari perubahan prioritas ini.
+
+**Batch restricted writer offline:** M03-01 **PARTIAL / ACTIVE**, frontend
+**DEFERRED**. Lima prinsip security disetujui sebagai baseline; detail binding
+aktor yang enforceable, finite delegation matrix dan bootstrap recorder belum
+ditetapkan. [Validasi kontrak dan batas batch](../02-architecture/authorization-registry-reader-security.md#10-approved-offline-writer-foundation-batch)
+menahan SQL writer/migration baru serta executable writer suite pada gate tersebut.
+Regression discovery/scanner ditambah untuk menolak batch privileged SQL yang
+belum didukung sebelum snapshot batch diterima; bukan bukti database writer PASS.
+Reader/Pool 8/8 PASS tetap, Firebase live PENDING; tidak ada aktivasi atau GRANT.
+Focused migration-policy 12/12 dan satu full backend non-database regression
+131/131 PASS (0 fail/skip); backend typecheck/lint PASS. Writer integration masih
+berupa spesifikasi, belum executable suite atau bukti privilege/concurrency PASS.
+
+**Authority contract closure:** [paket keputusan A/B/C](../02-architecture/authorization-registry-reader-security.md#11-authority-contract-closure-proposal)
+kini merinci trusted backend actor boundary, matriks exact enam CATALOG pair dan
+bootstrap dua manusia sah dengan FK existing. Status PROPOSED, belum authority
+aktif: issuer runtime hanya boleh mengelola empat hak editorial; dua hak admin
+hanya maintenance berapproval owner. Model ini tidak mengklaim DB membuktikan
+identitas manusia. Setelah keputusan material A/B/C, lanjut coding offline yang
+sudah disetujui tanpa audit ulang; PostgreSQL dan aktivasi tetap gate terpisah.
+
+**Riwayat prioritas sementara - 18 Oktober 2026 (SUPERSEDED):** M03-01 **PAUSED/PARTIAL**; fokus sementara
 React Native/Expo Portfolio Prototype dengan mock data terisolasi. Lihat
 [backend pause handoff](M03-01-BACKEND-PAUSE-HANDOFF.md) untuk kronologi,
 migration/testing evidence, target retained, OPEN gates dan langkah resume.

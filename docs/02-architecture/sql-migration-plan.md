@@ -291,11 +291,11 @@ Riwayat gate: owner kemudian menyetujui registry capability/scope, manifest read
 | Failure behavior | Close only the test-owned pool and verify lookup failure is safe 500 while public health stays public; mocked database outage coverage remains available. Server restart, killing sessions or other infrastructure failure injection needs separate permission; do not claim a closed pool tests every network/server failure. |
 | Preservation/end | Verify original schemas/domains/history/checksum plus synthetic audit retained, reader privileges unchanged, all test-owned clients ended. No DROP/reset/reuse or cleanup without separate owner approval. |
 
-The owner approved the six exact registry pairs and 13-column manifest for offline implementation. The shared registry, nonowner reader guard and opt-in suite are implemented; approved disposable installation/recovery and execution now have owner-confirmed 8/8 PASS, exit 0. See the [multi-role setup and one-shot execution contract](../../backend/tests/integration/README.md#capability-reader-security---prepared-not-executed). This uses actual reader login and checks effective ACL before fixture DML, without weakening the migrator guard or adding CLI bypasses.
+The owner approved the six exact registry pairs and 13-column manifest for offline implementation. The shared registry, nonowner reader guard and opt-in suite are implemented; approved disposable installation/recovery and execution now have owner-confirmed 8/8 PASS, exit 0. See the [multi-role setup and one-shot execution contract](../../backend/tests/integration/README.md#capability-reader-security---verified-disposable-checkpoint). This uses actual reader login and checks effective ACL before fixture DML, without weakening the migrator guard or adding CLI bypasses.
 
 The suite now prepares a test-owned max=1 reader Pool with per-checkout identity/ACL verification and actual backend-PID reuse assertions. The max=1 PostgreSQL reuse scenario passed; production Pool lifecycle, multiple-backend behavior, network failures and writer transactions remain planned. Historical registry-empty statements refer to the earlier checkpoint; technical vocabulary is now recognized, but the activation allowlist remains empty by default and server.ts has no authority. The approved one-shot target is now retained and must not be reused; any new target/installation/invocation requires a fresh approval; authority/bootstrap/delegation/separation remain OPEN, and no actor or writer is activated. Crash-at-commit remains OPEN.
 
-Offline disposable installer now reuses shared integration bootstrap and unchanged migration core, pinned to the approved candidate. Provisioning requires a target-bound success marker and authenticated postconditions; reader installation derives its 13 column grants from the approved manifest. [Exact setup, failure boundaries and next execution gate](../../backend/tests/integration/README.md#disposable-reader-installer---offline-coding-complete-execution-not-authorized). No new domain migration. The offline installer preparation was followed by approved disposable recovery and reader execution.
+Offline disposable installer now reuses shared integration bootstrap and unchanged migration core, pinned to the approved candidate. Provisioning requires a target-bound success marker and authenticated postconditions; reader installation derives its 13 column grants from the approved manifest. [Exact setup, failure boundaries and next execution gate](../../backend/tests/integration/README.md#disposable-reader-installer---historical-setup-procedure). No new domain migration. The offline installer preparation was followed by approved disposable recovery and reader execution.
 
 ### Reader checkpoint evidence and remaining tests
 
@@ -313,16 +313,81 @@ operational assignment, publication or cleanup is authorized. M03-01 PARTIAL.
 
 ### Restricted grant/revoke foundation decision gate
 
+Latest continuation: writer 0009 now has owner-confirmed 17/17 PostgreSQL PASS;
+the older decision-gate narrative below is historical. [0010 and its execution history](catalog-lifecycle-publication-gates.md)
+reuse the same engine/locking and add only three closed INVOKER read-only helpers,
+without changing 0001-0009. That initial offline continuation introduced no
+PostgreSQL execution; the separately approved owner-run fresh retest subsequently
+passed **17/17, 0 fail/skip, exit 0**. The earlier fixture 42P08 FAIL and two UUID/text
+fixes remain recorded in the linked evidence. No publication/withdrawal enforcement
+is claimed. UP defines mutability and
+category checks before their consumers; DOWN removes preflight first, then category
+and mutability helpers, without CASCADE or domain writes. New integration uses a
+separately approved fresh target, not the retained writer target.
+
 Review from clean checkpoint e9e8e82 confirms Reader & Pool 8/8 PASS remains separate
 from writer security. The [authority/bootstrap and writer specification](authorization-registry-reader-security.md#9-authority-and-restricted-grantrevoke-foundation)
 now describes manual bootstrap preconditions, the proposed transition/locking
 protocol, closed function ownership phases and the deterministic test matrix.
 
-Writer SQL and executable integration preparation are BLOCKED on the finite
+Historical gate at that review: writer SQL and executable integration preparation were BLOCKED on the finite
 delegation policy and accepted service-to-actor trust boundary, plus bootstrap
 recording and lifecycle rules. The current scanner does not accept the proposed
 privileged function grammar; no expansion, new migration or fake always-denying
 writer is added without a concrete approved body. No new PostgreSQL test result
 is claimed. Existing migrations 0001-0008 and Reader suite remain unchanged.
 Coding, privileged installation and PostgreSQL execution are separate approvals;
-M03-01 stays PARTIAL and publication/import remain disabled.
+M03-01 stays PARTIAL and publication/import remain disabled. A/B/C was subsequently
+approved and writer 0009 passed as recorded above; do not reopen its closed choices.
+
+### Review identity and lineage - next offline batch
+
+Owner-approved policy is in the [lifecycle contract](catalog-lifecycle-publication-gates.md#approved-review-and-publication-policy-baseline).
+The [single approved physical matrix](postgres-physical-schema-v1.5.md#review-identity-and-contributor-lineage---approved-physical-contract)
+received separate offline coding approval. Candidate [0011](../../backend/migrations/0011_catalog_lineage.sql)
+and isolated structural tests are now prepared, not executed on PostgreSQL. No privileged SQL.
+It proposes thirteen-column revision lineage events, two nullable columns on reviews
+and one on import batches; no food_revisions column or digest v1 change. Confirm
+the next number from discovery when coding is approved. Do not edit 0001-0010,
+mutate data, seed actors or adopt legacy revisions as complete lineage.
+
+1. Physical-contract/offline approval covered structural UP/guarded DOWN,
+   scanner additions only if needed, static/loader tests and isolated structural
+   PostgreSQL suite PREPARATION; this is implemented without scanner expansion.
+   No writer/operational grant in that migration.
+   Discovery tests retain byte assertions and extend counts without rewriting SQL.
+2. Structural tests prove typed FK/local shape/root/branch constraints and downgrade
+   preservation, not truthful roots, complete attribution or authorization.
+3. Writer signatures/body/privileges require review before coding. Reuse private
+   verified request provenance, shared lock, 0007 serializer and 0010 facts. No
+   generic actor setter/append API or new capabilities to bypass closed authority.
+4. PostgreSQL execution needs separate fresh-target approval and authenticated
+   cluster/collision/HBA/role guards. Preserve all previous successful/failed targets.
+   [Exact candidate manifest](../../backend/tests/integration/README.md#catalog-lineage-0011---prepared-not-executed)
+   remains unprovisioned and availability unverified. Opt-in command:
+   npm.cmd run test:integration:catalog-lineage, never invoked in this coding batch.
+
+| Acceptance case | Deterministic evidence required | Phase |
+|---|---|---|
+| Schema and compatibility | Exact 13-column event table, audit deltas, FK/index/CHECK set; old rows/hash/golden vectors unchanged, zero invented actors/events. | Static + structural PG |
+| Typed binding | FK rejects missing subjects; canonical actor string agrees; review head matches revision; historical NULLs load but cannot authorize new publication. | Structural + writer |
+| Chain structure | One root, no successor branch, same-revision links and exact shape; writer checks increasing chain/completeness. Sequence gaps remain legal. | Structural + writer |
+| Atomicity | Fault after content DML, first move event or review INSERT rolls back domain, both chains and review-source junctions. | Writer, not available now |
+| Unauthorized writes | App/reader/PUBLIC cannot INSERT/UPDATE/DELETE/TRUNCATE audit, use sequences/DDL/SET ROLE; future executor cannot amend events or old review-source links. | Installer + real roles |
+| Actor spoofing | Client actor/GUC/header/other-request principal cannot choose identity; missing/inactive actor denies. Service compromise is outside human-proof claims. | Adapter + writer |
+| Reviewer independence | Creator and every earlier/later editor, including deleted/moved child contributors, cannot ACCEPT that revision; distinct authorized reviewer may pass technical gates only. | Writer |
+| Incomplete/legacy lineage | Empty/forged/stale chain, untyped old ACCEPTED audit and unknown identity deny; no complete flag or adoption bypass. Safe withdrawal of legacy active publication remains controlled. | Writer |
+| Stale state | Expected head/state/review/digest mismatch rejects without audit; A -> B -> A does not revive old review even if digest matches. | Writer |
+| Child movement | Resolve old key, check both complete mutable heads, paired reciprocal events and incoming origin FK with same actor/request; retain original authors via pinned source prefix, exclude future source edits; reject partial/immutable/missing endpoints and proposed cross-food moves. | Writer |
+| Concurrency | Two clients with lock barriers: update vs review/publish, move vs publish, revoke/inactivate while waiting. Post-lock READ COMMITTED reread prevents stale grant. | Full writer protocol |
+| Publication | Eleven rows/four core known, latest source set/digest, all three uses/attribution/time and independent actors; first publication/replacement pass; ARCHIVED republish denies. | Review/publication writer |
+| Withdrawal | Exact active PUBLICATION link, separate authority, ARCHIVED with pointer/revision/time preserved; source expiry/revocation cannot block safe withdrawal. | Withdrawal writer |
+| DOWN | Empty succeeds; any lineage row or new bound audit column refuses downgrade atomically with history/checksums retained; no CASCADE. | Structural PG |
+
+No skipped placeholders are enforcement PASS. Crash-at-commit, actual qualification/
+license evidence, live Firebase, production installation, retention/anonymization
+and already-distributed caches/history remain separate gates. The documentation-only
+batch checked links/anchors, consistency, scope hashes and diff. The later structural
+coding batch runs focused policy/loader and one final non-database regression. Prior
+0010 17/17 integration is not rerun or claimed as evidence for 0011. Writer-only rows
+remain NOT YET IMPLEMENTABLE; no placeholder/skipped tests stand in for enforcement.

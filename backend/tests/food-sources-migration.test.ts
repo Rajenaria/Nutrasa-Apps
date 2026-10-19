@@ -12,7 +12,7 @@ import { createVerifiedLoader } from '../src/migrations/loader.ts';
 test('domain discovery orders the actual food sources migration after immutable identity and excludes failure fixtures', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
   assert.deepEqual(files.map(file => file.name), [
-    '0001_identity', '0002_food_sources', '0003_food_catalog', '0004_food_taxonomy', '0005_food_servings_provenance', '0006_catalog_audit', '0007_catalog_digest', '0008_catalog_capabilities',
+    '0001_identity', '0002_food_sources', '0003_food_catalog', '0004_food_taxonomy', '0005_food_servings_provenance', '0006_catalog_audit', '0007_catalog_digest', '0008_catalog_capabilities', '0009_catalog_capability_writer', '0010_catalog_preflight', '0011_catalog_lineage',
   ]);
   assert.equal(files[1]?.sha256, '9485a3b5e9d7f26afde5cf94454fac5d76fd384489574a4a960583cad19528b6');
   assert.equal(files[0]?.sha256, 'a86a276c6d99080cd123a57647b0c51c53ad1fbce3951e13ddaddfbd113be5af');

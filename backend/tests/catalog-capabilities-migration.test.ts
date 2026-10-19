@@ -8,7 +8,8 @@ import { createVerifiedLoader } from '../src/migrations/loader.ts';
 
 test('capability migration follows all seven immutable domains and excludes its failure fixture', async () => {
   const files = await readSqlSnapshots(migrationsDirectory);
-  assert.equal(files.length, 8);
+  assert.equal(files.length, 11);
+  assert.equal(files[8]?.name, '0009_catalog_capability_writer');
   assert.equal(files[6]?.sha256, 'b6df290443a21652ce28776bbf3b2f86fac085151eb8759b6c0c9d2802930425');
   assert.equal(files[7]?.name, '0008_catalog_capabilities');
   const fixture = snapshotSql('0009_failure.sql', await readFile(new URL('./integration/fixtures/catalog-capabilities/0009_failure.sql', import.meta.url)));

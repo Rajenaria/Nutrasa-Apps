@@ -439,3 +439,236 @@ disposable PostgreSQL 18.6 port 5433. Tidak mengubah matriks/SQL historis, membu
 assignment operasional atau mengaktifkan writer. Setup collision exit 1 disusul
 recovery terarah sesuai approval; marker/exit aktivasi terpisah tidak tersedia.
 Authority/bootstrap, writer concurrency, produksi dan crash-at-commit tetap OPEN.
+
+## Review identity and contributor lineage - approved physical contract
+
+**Policy baseline and physical delta APPROVED; 0011 offline candidate prepared, PostgreSQL NOT RUN.**
+See the [approved policy](catalog-lifecycle-publication-gates.md#approved-review-and-publication-policy-baseline)
+and [0010 execution evidence](../../backend/tests/integration/README.md#catalog-preflight-0010---execution-evidence).
+0010 retest is owner-reported 17/17 PASS, exit 0, not proof of this unimplemented
+delta. Owner subsequently approved structural coding: [0011_catalog_lineage.sql](../../backend/migrations/0011_catalog_lineage.sql)
+and its isolated suite are prepared, not installed. No writer, role or grant is
+created by this migration. Earlier proposed blanket self-publication and unresolved identity/count
+alternatives are superseded only by the approved policy; real qualification,
+person uniqueness, retention and source clearance remain OPEN.
+
+### Minimal schema delta and reuse
+
+Reuse app_users(id), verified request provenance, catalog_reviews and its existing
+review/source links, catalog_import_batches and its same-source revision FK, and
+the existing governance lock. Capability events already have typed actors; do not
+add a second identity registry, approval table or generic audit framework.
+
+| Existing table / new column | Approved type, nullability, default | Constraint / need |
+|---|---|---|
+| catalog_reviews.actor_subject_id | uuid NULL, no default | FK app_users(id), RESTRICT both directions; typed actor for every future writer-created decision. Nullable only for historical compatibility. |
+| catalog_reviews.lineage_event_id | uuid NULL, no default | Composite FK (food_revision_id,lineage_event_id) -> catalog_revision_lineage_events(food_revision_id,id); pins the exact reviewed revision head independently of digest. |
+| catalog_import_batches.actor_subject_id | uuid NULL, no default | FK app_users(id), RESTRICT both directions; binds a future import operator without inventing actors for existing batches. |
+
+New audit columns do not replace or backfill historical actor_subject. For any
+non-NULL actor_subject_id, a local CHECK requires actor_subject COLLATE C to equal
+the exact string app_users:<canonical UUID text>. Future writers derive both values
+from the trusted resolved subject, never client strings. Legacy NULL FK values
+leave original text unchanged and confer no publication eligibility.
+
+Local review CHECKs: lineage_event_id, when non-NULL, requires both a typed actor
+and food_revision_id; SOURCE_PERMISSION cannot have a lineage event. For typed
+NUTRITION/ACCEPTED or PUBLICATION decisions, lineage_event_id is mandatory.
+Historical NULL bindings remain structurally valid. Rejected/revoked nutrition
+decisions may record an existing head or NULL when no head exists; they never
+establish completeness. WITHDRAWAL may have NULL lineage for an old publication
+without lineage: it still needs a verified actor, exact active PUBLICATION link
+and withdraw authority. This fail-safe withdrawal exception cannot authorize a
+new ACCEPTED nutrition review or publication of legacy content.
+
+Three new ordinary FK lookup indexes: catalog_reviews(actor_subject_id),
+catalog_reviews(lineage_event_id), catalog_import_batches(actor_subject_id).
+No actor text index, JSON search index, business default or new enum type.
+Existing 21-column reviews become 23 columns; 13-column batches become 14.
+food_revisions retains its existing 13 columns; no mutable lineage_complete flag
+or duplicate head/projection is added.
+
+### catalog_revision_lineage_events (thirteen approved columns)
+
+One append-only event chain per revision records attribution and mutation order,
+not a second nutrition serializer or a row-value archive. Full before/after nutrient
+payloads, raw imports, personal qualification documents and client tokens are not
+copied into this table. No lineage FK may cascade away human contribution evidence.
+
+| Column | Approved type / nullability / default | Constraint and purpose |
+|---|---|---|
+| id | uuid NOT NULL, gen_random_uuid() | PK; immutable event identity. |
+| event_number | bigint NOT NULL, GENERATED ALWAYS AS IDENTITY | CHECK > 0; UNIQUE(food_revision_id,event_number), ordered lookup within one revision. Gaps are legal and this is NOT a commit-ordered sync cursor. |
+| food_revision_id | uuid NOT NULL, no default | FK food_revisions(id); exact revision receiving this event. |
+| actor_subject_id | uuid NOT NULL, no default | FK app_users(id); verified contributor, not database session identity. |
+| event_kind | text COLLATE C NOT NULL, no default | Finite technical CHECK vocabulary below; not new authorization capabilities. |
+| previous_event_id | uuid NULL, no default | Same-revision composite FK (food_revision_id,previous_event_id) -> (food_revision_id,id); root only is NULL. CHECK previous_event_id <> id when present. |
+| serving_id | uuid NULL, no default | Required for serving events only. Historical locator, deliberately no live-serving FK: deletion/move must preserve the event. |
+| nutrient_code | text COLLATE C NULL, no default | Required for nutrient events only, same exact eleven canonical codes as existing food_revision_nutrients CHECK. |
+| other_revision_id | uuid NULL, no default | FK food_revisions(id); required only for moves, CHECK distinct from food_revision_id. Protects both historical endpoints. |
+| origin_event_id | uuid NULL, no default | Incoming moves only: composite FK (other_revision_id,origin_event_id) -> lineage(food_revision_id,id), pinning the source OUT event. Preserves original contributor ancestry without attributing a fake new action to an earlier author. |
+| request_id | uuid NOT NULL, no default | Trusted server correlation for all events in one operation, including a move pair; no token or client-supplied actor proof. Not a standalone idempotency key. |
+| reason | text NOT NULL, no default | Nonblank CHECK; concise audit rationale, not authority or a raw source/person document. |
+| recorded_at | timestamptz NOT NULL, clock_timestamp() | CHECK finite; technical recording time, not commit order. |
+
+Approved technical event vocabulary: CREATE_REVISION, UPDATE_REVISION, INSERT_NUTRIENT,
+UPDATE_NUTRIENT, DELETE_NUTRIENT, MOVE_NUTRIENT_OUT, MOVE_NUTRIENT_IN,
+INSERT_SERVING, UPDATE_SERVING, DELETE_SERVING, MOVE_SERVING_OUT, MOVE_SERVING_IN.
+Local shape CHECKs reject every other value and enforce:
+
+- CREATE_REVISION iff previous_event_id IS NULL; serving_id/nutrient_code/
+  other_revision_id/origin_event_id all NULL. UPDATE_REVISION has a previous event
+  and the same NULL locators. Creation attributes the initial composition/provenance.
+- Nutrient operations have nutrient_code only; serving operations have serving_id
+  only. Every non-root event has previous_event_id. Ordinary insert/update/delete
+  have no other_revision_id; MOVE_* requires it. MOVE_*_IN alone requires
+  origin_event_id; all other events require it NULL. No free-form entity kind/id pair.
+- Every FK in this delta is ON DELETE RESTRICT, ON UPDATE RESTRICT, NOT DEFERRABLE.
+  Root previous_event_id uses MATCH SIMPLE intentionally; shape CHECKs close the
+  nullable case. Referenced audit prevents hard deletion of bound subjects/revisions.
+
+Exactly seven approved B-tree indexes on this table: PK(id), UNIQUE(food_revision_id,id)
+for composite FKs, UNIQUE(food_revision_id,event_number) for latest-head scans,
+UNIQUE(previous_event_id) to reject branching successors (multiple NULLs allowed),
+partial UNIQUE(food_revision_id) WHERE previous_event_id IS NULL to allow one root,
+actor_subject_id for contributor FK lookup, and partial other_revision_id WHERE
+other_revision_id IS NOT NULL for endpoint FK lookup. No extra generic JSON/GIN,
+reason or request index; request correlation is diagnostic, not an API search feature.
+The latest-head index also supports revision/contributor scans; add no redundant
+single-column food_revision_id index. Granting a capability still requires 0009,
+not insertion of any lineage row.
+
+### Completeness, exact lineage and child movement
+
+A trusted creation transaction INSERTs a genuinely new revision and its CREATE_REVISION
+root together, before any successful operation returns. Never attach a creation root
+to a pre-existing legacy revision. No initializer, historical backfill, complete=true
+setter or adoption/clone bypass is approved. Import must bind its typed batch actor
+and record the actual creator and all content writes; later editors are additional
+contributors. Copy/clone/legacy reconstruction authority is not defined here and
+cannot be used to erase known contributors or carry old reviews into a new chain.
+
+For an existing revision the writer rereads the latest event after the lock, checks
+it matches expected_head, validates a chain reaching the sole CREATE_REVISION root
+with same-revision links and strictly increasing event_number, then appends to that
+head in the same transaction as DML. DB FKs/uniqueness do not prove truthful roots,
+increasing links or that every content write was audited; controlled writer coverage
+and the closed privilege boundary are essential. Empty/malformed chain is DENY.
+Restoring an earlier content value does not restore an earlier lineage head.
+
+Any meaningful revision, nutrient or serving edit counts, even a change later
+reverted. A no-op must either reject/return without content DML, or append the
+corresponding attributed event if DML executes; no unaudited successful write.
+DELETE of a child retains its event/locator. A future writer resolves the
+actual old endpoint and entity key from the database, validates the requested new
+endpoint, checks both immutable-history facts and expected heads, then commits the
+move and two events atomically. OUT/IN events share actor/request/entity locator,
+have reciprocal other_revision_id and append independently to each endpoint chain.
+Insert OUT first, then IN whose origin_event_id references that exact OUT event;
+the writer verifies reciprocal revisions, matching entity/request/actor and earlier
+source event_number. No cyclic OUT->IN FK is needed. Pairing and same-food movement
+policy are not implied by the FKs: reject cross-food
+moves in the first writer implementation, and require complete mutable lineage on
+both endpoints. No single-event move, caller omission or partial pair may commit.
+The finite move restriction is approved writer scope, not a new operational
+business permission. DDL does not enforce cross-food denial. UPDATE of a nutrient key is treated as delete+insert or a
+reviewed move with all affected heads, never a silent attribution change.
+
+Contributor lookup follows the revision's previous-event chain AND incoming origin
+links, including the source prefix through the pinned OUT event. Conservatively
+include that entire source prefix, not just the mover; otherwise moving a child
+would launder its original authors into eligibility as the destination reviewer.
+Follow only historical prefixes, not the other revision's future edits. All followed
+edges must decrease event_number and terminate at verified creation roots; malformed
+or unknown ancestry DENY. This conservative attribution can exclude an author of
+other content in the source prefix; narrowing to field-level authorship is deferred.
+The existing partial other_revision_id index supports origin composite-FK lookup;
+no additional origin index or generic dependency table. The conservative source-prefix
+choice was explicitly approved; no traversal or protected writer is implemented yet.
+
+Source bibliography/permission edits are not revision contributor events: existing
+source snapshots/digests invalidate review facts. Controlled source writers and
+source-history enforcement remain a prerequisite, not a new authority in this delta.
+foods display metadata/taxonomy are separate workflows, not hidden revision writes.
+
+### Review independence and immutable review links
+
+New review writers resolve the actor, record typed identity and canonical actor text,
+and pin the exact current lineage head for an ACCEPTED nutrition decision. Require
+complete lineage, current expected digest, applicable source permissions and existing
+qualification/authority gates. Reviewer must differ from EVERY actor in that exact
+revision chain and its pinned incoming ancestry, not merely the latest editor,
+creator, mover or author of its digest.
+At publication revalidate that the selected latest ACCEPTED nutrition decision has
+typed actor, matching revision/head/current digest and exact latest source links;
+publisher must differ from its reviewer. Unknown actors, stale heads (even with the
+same digest), unknown qualifications or incomplete lineage DENY. Source permission
+review has no revision chain but still needs typed authorized actor and real evidence.
+
+catalog_review_sources receives no duplicate actor column: insert the exact source
+set atomically with its parent review and never amend it later. Import audit uses
+its parent actor FK; capability history already uses typed actor. Existing review
+approval_review_id is reused for publication -> nutrition and withdrawal -> relevant
+PUBLICATION. Local FK existence does not validate kind/actor/effectiveness or ensure
+that it represents the active publication: future entrypoints must check these.
+
+### Digest compatibility and historical exclusion
+
+No change to 0007, 0010, canonical_version=1 or golden vector bytes. The v1 helpers
+enumerate payload fields explicitly and exclude actors/order/status audit metadata.
+New actor/lineage fields stay outside that payload. Review eligibility compares a
+separate immutable lineage_event_id in addition to the existing PostgreSQL digest;
+no backend serializer or invented hash version is required. New contents still use
+the exact native v1 payload and NULL/zero semantics. Changing the payload later would
+require an explicitly versioned new contract, not CREATE OR REPLACE on historical SQL.
+
+Legacy actor_subject, review/source links, batches, revisions and hashes remain
+byte-for-byte unchanged, new nullable columns NULL, no lineage rows seeded. Untyped
+reviews/old batches/chainless revisions cannot qualify for new publication. Existing
+published evidence is retained, not silently reapproved or automatically withdrawn.
+Withdrawal of an existing active publication remains separately authorized and must
+not depend on source permission still being valid. Audit FK deletion restrictions
+do not decide retention/anonymization or authorize indefinite retention.
+
+### Privileges, transaction boundary and migration lifecycle
+
+No new SQL helper/function is proposed by the structural delta. Reuse 0007/0010
+readers and private identity provenance; no public append_lineage or caller actor
+setter. Restricted content/review/publish writers are later reviewed functions,
+not created by this contract or granted by this migration. New functions must be
+closed on creation, fixed-path, schema-qualified and independently installed after
+body/scanner review. Never edit historical migrations or assume scanner acceptance.
+
+Migrator owns new objects; app/reader/writer/PUBLIC receive no direct DML, sequence,
+DDL or new SELECT by default. A future nonlogin function owner may receive only
+explicit needed SELECT, INSERT audit columns and narrowly scoped content mutations;
+never event UPDATE/DELETE/TRUNCATE, grant option, membership or table/schema ownership.
+Backend writer receives only reviewed entrypoint EXECUTE after a separate installer
+approval. Actor comes from Firebase -> private trusted request -> ACTIVE app_users
+binding, never body/header/GUC/role or a caller actor UUID. Service compromise remains
+a trusted-boundary risk, not DB-enforced human authentication. Administrator/migrator
+can bypass ordinary ACL and are trusted maintenance: maintenance must preserve the
+same audit protocol or leave affected content ineligible, not assert automatic proof.
+
+All affected runtime/account/permission/content writers take governance advisory
+xact lock (1314214994,1) before row locks/DML, then reread authority/state in separate
+READ COMMITTED statements after lock acquisition. A STABLE helper's pre-wait snapshot
+is insufficient. Where both locks are needed, migration lock precedes governance
+lock; never reverse. Content DML, all lineage events, typed audit and junctions commit
+or roll back together. Expect head/state/review/digest to reject stale writes; no retry
+or event emission after a failed transaction without a separately authorized workflow.
+Sequence gaps after rollback are expected and do not imply missing committed events.
+
+Future UP order: create lineage table and self/subject/revision constraints first,
+then nullable audit columns, local CHECKs/composite FK and indexes. No UPDATE/backfill,
+role creation, privileged function, operational grant, trigger or digest rewrite.
+Candidate UP also checks effective relation/sequence ACL before adding bindings:
+unexpected nonowner privileges on lineage/table sequence or either existing audit
+table abort the entire migration instead of exposing the new structure/columns.
+This is not a privilege installer or an authorization check on human actors.
+Future DOWN must acquire locks on reviews, import batches and lineage through commit,
+require zero lineage rows and all newly added audit fields NULL, then remove dependent
+review FK/CHECK/index/columns and batch binding before dropping the lineage table,
+without CASCADE. Populated downgrade fails atomically with evidence/history/ledger
+retained. Explicit data-retention migration requires separate owner review, never
+automatic deletion merely to make DOWN succeed. See the [acceptance matrix](sql-migration-plan.md#review-identity-and-lineage---next-offline-batch).
